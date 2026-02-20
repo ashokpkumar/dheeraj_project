@@ -1,6 +1,7 @@
 from .models import RuleList, RuleEngine
 from .registry import get_function
 
+import inspect
 
 class RuleExecutor:
 
@@ -31,15 +32,31 @@ class RuleExecutor:
                 **params
             }
 
-            result = function(**merged_params)
+            # ✅ FILTER PARAMS BASED ON FUNCTION SIGNATURE
+            sig = inspect.signature(function)
 
-            if result:
+            valid_params = {
+                key: value
+                for key, value in merged_params.items()
+                if key in sig.parameters
+            }
+
+            # optional: pass context if function accepts it
+            if "context" in sig.parameters:
+                valid_params["context"] = self.context
+
+            # execute function safely
+            result = function(**valid_params)
+
+            # update context with outputs
+            if result and isinstance(result, dict):
                 self.context.update(result)
 
             execution_log.append({
                 "function": function_name,
-                "params": params,
-                "result": result
+                "inputs": valid_params,
+                "output": result,
+                "context_after": self.context.copy()
             })
 
         return execution_log
