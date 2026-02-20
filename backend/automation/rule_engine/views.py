@@ -125,12 +125,13 @@ def list_rules(request):
 
     rules = RuleEngine.objects.all()
 
-    serializer = RuleEngineSerializer(
-        rules,
-        many=True
-    )
+    # Return only id and rule_name
+    rules_data = [
+        {"id": rule.id, "rule_name": rule.rule_name}
+        for rule in rules
+    ]
 
-    return Response(serializer.data)
+    return Response(rules_data)
 
 
 # API 5: Rule Details
