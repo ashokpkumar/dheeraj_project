@@ -14,6 +14,42 @@ class ParamModel(models.Model):
     class Meta:
         db_table = "param_model"
 
+# models.py
+
+class RuleEdge(models.Model):
+
+    rule_engine = models.ForeignKey(
+        "RuleEngine",
+        on_delete=models.CASCADE,
+        related_name="edges"
+    )
+
+    source = models.ForeignKey(
+        "RuleList",
+        on_delete=models.CASCADE,
+        related_name="outgoing_edges"
+    )
+
+    target = models.ForeignKey(
+        "RuleList",
+        on_delete=models.CASCADE,
+        related_name="incoming_edges"
+    )
+
+    condition = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    """
+    condition examples:
+    None → always execute
+    approved == True
+    len(valid_claims) > 0
+    context["fraud_score"] < 50
+    """
+
+
 
 class RuleLogic(models.Model):
 
