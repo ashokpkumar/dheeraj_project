@@ -9,7 +9,7 @@ FUNCTION_REGISTRY = {}
 
 _REGISTRATION_LOCK = threading.Lock()
 
-
+#TODO this registration function should not be called while loading the app.
 class FunctionMeta:
 
     def __init__(self, func, name, inputs=None, outputs=None):
@@ -39,7 +39,7 @@ def register_function(name=None, inputs=None, outputs=None):
                 outputs=output_params
             )
 
-            # Register in database
+            # Register in database #TODO comment and uncomment this for testing without db
             _register_function_in_db(
                 function_name,
                 input_params,

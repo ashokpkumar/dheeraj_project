@@ -20,6 +20,9 @@ def load_claims(client_id, context=None):
     claims = [
         {"id": 1, "amount": 100},
         {"id": 2, "amount": 200},
+        {"id": 3, "amount": 20},
+        {"id": 4, "amount": 50},
+        {"id": 5, "amount": 900},
     ]
 
     return {"claims": claims}

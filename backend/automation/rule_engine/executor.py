@@ -1,62 +1,95 @@
-from .models import RuleList, RuleEngine
+from collections import deque
+from .models import RuleList, RuleEdge
 from .registry import get_function
-
 import inspect
 
-class RuleExecutor:
+
+class GraphRuleExecutor:
 
     def __init__(self, rule_engine_id):
-
         self.rule_engine_id = rule_engine_id
-
         self.context = {}
+        self.execution_log = []
 
     def execute(self):
 
-        rules = RuleList.objects.filter(
+        nodes = {
+            node.id: node
+            for node in RuleList.objects.filter(
+                rule_engine_id=self.rule_engine_id
+            )
+        }
+
+        edges = RuleEdge.objects.filter(
             rule_engine_id=self.rule_engine_id
-        ).order_by("rule_function_order")
+        )
 
-        execution_log = []
+        # Build adjacency list
+        adj = {}
+        incoming = set()
 
-        for rule in rules:
+        for edge in edges:
+            adj.setdefault(edge.source_id, []).append(edge)
+            incoming.add(edge.target_id)
 
-            function_name = rule.rule_logic.function_name
+        # Start nodes = no incoming edges
+        start_nodes = [
+            node for node_id, node in nodes.items()
+            if node_id not in incoming
+        ]
 
-            function = get_function(function_name)
+        queue = deque(start_nodes)
 
-            params = rule.params or {}
+        while queue:
 
-            merged_params = {
-                **self.context,
-                **params
-            }
+            node = queue.popleft()
 
-            # ✅ FILTER PARAMS BASED ON FUNCTION SIGNATURE
-            sig = inspect.signature(function)
+            result = self.execute_node(node)
 
-            valid_params = {
-                key: value
-                for key, value in merged_params.items()
-                if key in sig.parameters
-            }
+            for edge in adj.get(node.id, []):
 
-            # optional: pass context if function accepts it
-            if "context" in sig.parameters:
-                valid_params["context"] = self.context
+                if self.evaluate_condition(edge.condition):
+                    queue.append(edge.target)
 
-            # execute function safely
-            result = function(**valid_params)
+        return self.execution_log
 
-            # update context with outputs
-            if result and isinstance(result, dict):
-                self.context.update(result)
+    def execute_node(self, node):
 
-            execution_log.append({
-                "function": function_name,
-                "inputs": valid_params,
-                "output": result,
-                "context_after": self.context.copy()
-            })
+        function = get_function(node.rule_logic.function_name)
 
-        return execution_log
+        params = node.params or {}
+        merged = {**self.context, **params}
+
+        sig = inspect.signature(function)
+
+        valid = {
+            k: v for k, v in merged.items()
+            if k in sig.parameters
+        }
+
+        if "context" in sig.parameters:
+            valid["context"] = self.context
+
+        result = function(**valid)
+
+        if result:
+            self.context.update(result)
+
+        self.execution_log.append({
+            "node": node.id,
+            "function": node.rule_logic.function_name,
+            "result": result,
+            "context_after": self.context.copy()
+        })
+
+        return result
+
+    def evaluate_condition(self, condition):
+
+        if not condition:
+            return True
+
+        try:
+            return eval(condition, {}, self.context)
+        except Exception:
+            return False

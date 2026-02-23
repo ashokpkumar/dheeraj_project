@@ -3,9 +3,9 @@ import json
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import RuleEngine, RuleLogic, RuleList
+from .models import RuleEdge, RuleEngine, RuleLogic, RuleList
 from .registry import get_all_functions
-from .executor import RuleExecutor
+from .executor import GraphRuleExecutor as RuleExecutor
 from .utils import topological_sort
 from .serializers import RuleEngineSerializer, RuleListSerializer
 
@@ -57,54 +57,117 @@ def _get_params(parameter_group_id):
     ]
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
 
-# API 2: Save ReactFlow JSON as Rule
+from .models import RuleEngine, RuleList, RuleLogic, RuleEdge
+
 
 @api_view(["POST"])
 def save_rule(request):
 
-    rule_name = request.data["rule_name"]
+    rule_name = request.data.get("rule_name")
+    nodes = request.data.get("nodes")
+    edges = request.data.get("edges")
 
-    reactflow_json = request.data["reactflow_json"]
-
-    nodes = reactflow_json["nodes"]
-    edges = reactflow_json["edges"]
-
-    order = topological_sort(nodes, edges)
-
-    rule_engine = RuleEngine.objects.create(
-        rule_name=rule_name,
-        reactflow_json=reactflow_json
-    )
-
-    node_map = {
-        node["id"]: node
-        for node in nodes
-    }
-
-    for index, node_id in enumerate(order):
-
-        node = node_map[node_id]
-
-        function_name = node["data"]["function_name"]
-
-        params = node["data"].get("params", {})
-
-        rule_logic = RuleLogic.objects.get(
-            function_name=function_name
+    # -------- VALIDATION --------
+    if not rule_name:
+        return Response(
+            {"error": "rule_name is required"},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-        RuleList.objects.create(
+    if not nodes:
+        return Response(
+            {"error": "nodes are required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if edges is None:
+        return Response(
+            {"error": "edges are required (can be empty list)"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # -------- CREATE RULE ENGINE --------
+    rule_engine = RuleEngine.objects.create(
+        rule_name=rule_name,
+        reactflow_json={
+            "nodes": nodes,
+            "edges": edges
+        }
+    )
+
+    # -------- CREATE NODES --------
+    node_instance_map = {}
+
+    for index,node in enumerate(nodes):
+
+        node_id = node.get("id")
+        data = node.get("data", {})
+
+        function_name = data.get("function_name")
+        params = data.get("params", {})
+
+        if not function_name:
+            return Response(
+                {"error": f"function_name missing in node {node_id}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            rule_logic = RuleLogic.objects.get(
+                function_name=function_name
+            )
+        except RuleLogic.DoesNotExist:
+            return Response(
+                {"error": f"Function '{function_name}' not registered"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        rule_node = RuleList.objects.create(
             rule_engine=rule_engine,
             rule_logic=rule_logic,
             rule_function_order=index,
             params=params
         )
 
-    return Response({
-        "rule_engine_id": rule_engine.id
-    })
+        node_instance_map[node_id] = rule_node
 
+    # -------- CREATE EDGES --------
+    for edge in edges:
+
+        source_id = edge.get("source")
+        target_id = edge.get("target")
+        condition = edge.get("condition")
+
+        if source_id not in node_instance_map:
+            return Response(
+                {"error": f"Invalid source node: {source_id}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if target_id not in node_instance_map:
+            return Response(
+                {"error": f"Invalid target node: {target_id}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        RuleEdge.objects.create(
+            rule_engine=rule_engine,
+            source=node_instance_map[source_id],
+            target=node_instance_map[target_id],
+            condition=condition
+        )
+
+    return Response(
+        {
+            "message": "Rule saved successfully",
+            "rule_engine_id": rule_engine.id
+        },
+        status=status.HTTP_201_CREATED
+    )
 
 # API 3: Execute Rule (Debug)
 
