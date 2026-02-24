@@ -90,6 +90,11 @@ def save_rule(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Add IDs to edges if missing
+    for i, edge in enumerate(edges):
+        if "id" not in edge:
+            edge["id"] = f"edge-{i+1}"
+
     # -------- CREATE RULE ENGINE --------
     rule_engine = RuleEngine.objects.create(
         rule_name=rule_name,
@@ -213,8 +218,15 @@ def rule_details(request, rule_id):
         many=True
     )
 
+    # Ensure edges have IDs
+    reactflow_json = rule.reactflow_json
+    edges = reactflow_json.get("edges", [])
+    for i, edge in enumerate(edges):
+        if "id" not in edge:
+            edge["id"] = f"edge-{i+1}"
+
     return Response({
         "rule_engine": rule.rule_name,
-        "reactflow_json": rule.reactflow_json,
+        "reactflow_json": reactflow_json,
         "steps": steps_serializer.data
     })
