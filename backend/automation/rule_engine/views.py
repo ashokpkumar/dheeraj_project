@@ -204,29 +204,43 @@ def list_rules(request):
 
 # API 5: Rule Details
 
-@api_view(["GET"])
+@api_view(["GET","DELETE"])
 def rule_details(request, rule_id):
+    if request.method == "DELETE":
+        try:
+            rule = RuleEngine.objects.get(id=rule_id)
+            rule.delete()
+            return Response(
+                {"message": "Rule deleted successfully"},
+                status=status.HTTP_200_OK
+            )
+        except RuleEngine.DoesNotExist:
+            return Response(
+                {"error": "Rule not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+    if request.method == "GET":
+        rule = RuleEngine.objects.get(id=rule_id)
 
-    rule = RuleEngine.objects.get(id=rule_id)
+        steps = RuleList.objects.filter(
+            rule_engine=rule
+        )
 
-    steps = RuleList.objects.filter(
-        rule_engine=rule
-    )
+        steps_serializer = RuleListSerializer(
+            steps,
+            many=True
+        )
 
-    steps_serializer = RuleListSerializer(
-        steps,
-        many=True
-    )
+        # Ensure edges have IDs
+        reactflow_json = rule.reactflow_json
+        edges = reactflow_json.get("edges", [])
+        for i, edge in enumerate(edges):
+            if "id" not in edge:
+                edge["id"] = f"edge-{i+1}"
 
-    # Ensure edges have IDs
-    reactflow_json = rule.reactflow_json
-    edges = reactflow_json.get("edges", [])
-    for i, edge in enumerate(edges):
-        if "id" not in edge:
-            edge["id"] = f"edge-{i+1}"
-
-    return Response({
-        "rule_engine": rule.rule_name,
-        "reactflow_json": reactflow_json,
-        "steps": steps_serializer.data
-    })
+        return Response({
+            "rule_engine": rule.rule_name,
+            "reactflow_json": reactflow_json,
+            "steps": steps_serializer.data
+        })

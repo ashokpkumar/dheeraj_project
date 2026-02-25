@@ -13,7 +13,7 @@ import '@xyflow/react/dist/style.css'
 
 import RuleNode from './components/RuleNode'
 
-import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph } from './api/api'
+import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule } from './api/api'
 
 
 let nodeId = 1
@@ -38,49 +38,24 @@ export default function App() {
 
   const [selectedFunction, setSelectedFunction] = useState('')
 
-  const [rules, setRules] = useState([])
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
 
-  const ruleEngineId = 1
+  const [ruleName, setRuleName] = useState('')
 
+    const [rules, setRules] = useState([])
 
   useEffect(() => {
-
+    console.log('useEffect running');
     async function fetchData() {
-
+      console.log('fetchData called');
       try {
-
-        await loadFunctions().then((funcs) => setFunctions(funcs))
-
-        await loadRules().then((ruls) => setRules(ruls))
-
-        const graph = await loadFirstRuleGraph()
-
-        console.log("Graph data:", graph)
-
-        if (graph && graph.reactflow_json) {
-          let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
-          // Add position to nodes if missing
-          graphNodes = graphNodes.map((node, index) => ({
-            ...node,
-            position: node.position || { x: index * 200, y: 100 },
-            type: node.type || 'ruleNode'
-          }))
-          console.log("Setting nodes:", graphNodes)
-          console.log("Setting edges:", graphEdges)
-          setNodes(graphNodes)
-          setEdges(graphEdges)
-        }
-
+        await loadFunctions().then((funcs) => setFunctions(Array.isArray(funcs) ? funcs : []))
+        await loadRules().then((ruls) => setRules(Array.isArray(ruls) ? ruls : []))
       } catch (error) {
-
         console.error("Error loading data:", error)
-
       }
-
     }
-
     fetchData()
-
   }, [])
 
 
@@ -129,9 +104,11 @@ export default function App() {
 
     if (!selectedFunction) return
 
+    const currentId = nodeId
+
     const newNode = {
 
-      id: `${nodeId}`,
+      id: `${currentId}`,
 
       type: 'ruleNode',
 
@@ -146,6 +123,8 @@ export default function App() {
       data: {
 
         label: selectedFunction,
+
+        onDelete: () => setNodes((nds) => nds.filter((n) => n.id !== `${currentId}`)),
 
       },
 
@@ -162,11 +141,69 @@ export default function App() {
   }
 
 
-  const saveWorkflow = async () => {
+const handleSaveWorkflow = async () => {
+  if (!ruleName.trim()) return
 
-    await saveGraph(ruleEngineId, nodes, edges)
+  try {
+    await saveGraph(ruleName, nodes, edges)
 
     alert("Workflow saved")
+
+    setShowSaveDialog(false)
+    setRuleName("")
+
+    const updatedRules = await loadRules()
+    setRules(Array.isArray(updatedRules) ? updatedRules : [])
+
+  } catch (error) {
+    console.error("Save failed:", error)
+    alert("Failed to save workflow")
+  }
+}
+
+  const loadRule = async (ruleId) => {
+
+    const graph = await loadGraph(ruleId)
+
+    if (graph && graph.reactflow_json) {
+
+      let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
+
+      graphNodes = graphNodes.map((node, index) => ({
+
+        ...node,
+
+        position: node.position || { x: index * 200, y: 100 },
+
+        type: node.type || 'ruleNode'
+
+      }))
+
+      setNodes(graphNodes)
+
+      setEdges(graphEdges)
+
+    }
+
+  }
+
+
+  const createNewRule = () => {
+
+    setNodes([])
+
+    setEdges([])
+
+  }
+
+
+  const handleDeleteRule = async (ruleId) => {
+
+    await deleteRule(ruleId)
+
+    const updatedRules = await loadRules()
+
+    setRules(Array.isArray(updatedRules) ? updatedRules : [])
 
   }
 
@@ -193,13 +230,20 @@ export default function App() {
         overflowY: 'auto',
       }}>
 
-        <h3>Existing Rules</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+          <h3>Existing Rules</h3>
+
+          <button onClick={createNewRule}>+</button>
+
+        </div>
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
 
           {rules.map((rule) => (
-            <li key={rule.id} style={{ marginBottom: 10, padding: 5, border: '1px solid #ddd', borderRadius: 3 }}>
-              {rule.rule_name}
+            <li key={rule.id} style={{ marginBottom: 10, padding: 5, border: '1px solid #ddd', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span onClick={() => loadRule(rule.id)} style={{ cursor: 'pointer', flex: 1 }}>{rule.rule_name}</span>
+              <button onClick={() => handleDeleteRule(rule.id)} style={{ marginLeft: 10 }}>-</button>
             </li>
           ))}
 
@@ -230,9 +274,9 @@ export default function App() {
           Add Function
         </button>
 
-        <button onClick={saveWorkflow} style={{ marginLeft: 10 }}>
-          Save Workflow
-        </button>
+        <button onClick={() => setShowSaveDialog(true)} style={{ marginLeft: 10 }}>
+  Save Workflow
+</button>
 
       </div>
 
@@ -281,7 +325,7 @@ export default function App() {
               <option value="">Choose a function</option>
 
               {functions.map((func) => (
-                <option key={func.id} value={func.name}>{func.name}</option>
+                <option key={func.function_name} value={func.function_name}>{func.function_name}</option>
               ))}
 
             </select>
@@ -289,6 +333,64 @@ export default function App() {
             <button onClick={handleAddNode} style={{ marginRight: 10 }}>Add</button>
 
             <button onClick={() => { setShowDialog(false); setSelectedFunction(''); }}>Cancel</button>
+
+          </div>
+
+        </div>
+
+      )}
+
+
+      {showSaveDialog && (
+        <div style={{
+
+          position: 'fixed',
+
+          top: 0,
+
+          left: 0,
+
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+
+        }}>
+
+          <div style={{
+
+            background: 'white',
+
+            padding: 20,
+
+            borderRadius: 5,
+
+            minWidth: 300,
+
+          }}>
+
+            <h3>Enter Rule Name</h3>
+
+            <input
+
+              type="text"
+
+              value={ruleName}
+
+              onChange={(e) => setRuleName(e.target.value)}
+
+              placeholder="Rule Name"
+
+              style={{ width: '100%', padding: 5, marginBottom: 10 }}
+
+            />
+
+            <button onClick={handleSaveWorkflow} style={{ marginRight: 10 }}>Save</button>
+
+            <button onClick={() => { setShowSaveDialog(false); setRuleName(''); }}>Cancel</button>
 
           </div>
 

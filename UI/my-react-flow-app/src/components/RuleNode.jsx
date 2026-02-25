@@ -19,6 +19,8 @@ export default function RuleNode({ data }) {
         {data.label}
       </div>
 
+      <button onClick={data.onDelete} style={{ marginTop: 5, fontSize: '12px' }}>-</button>
+
       <Handle type="source" position={Position.Bottom} />
 
     </div>
