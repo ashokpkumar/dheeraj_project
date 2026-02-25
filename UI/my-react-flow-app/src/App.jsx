@@ -144,8 +144,22 @@ export default function App() {
 const handleSaveWorkflow = async () => {
   if (!ruleName.trim()) return
 
+  // Transform nodes and edges to the desired format
+  const transformedNodes = nodes.map(node => ({
+    id: node.id,
+    data: {
+      function_name: node.data.label,
+      params: {}  // Placeholder for params; can be extended to include actual params
+    }
+  }))
+
+  const transformedEdges = edges.map(edge => ({
+    source: edge.source,
+    target: edge.target
+  }))
+
   try {
-    await saveGraph(ruleName, nodes, edges)
+    await saveGraph( ruleName, transformedNodes, transformedEdges)
 
     alert("Workflow saved")
 
