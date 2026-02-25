@@ -13,7 +13,7 @@ import '@xyflow/react/dist/style.css'
 
 import RuleNode from './components/RuleNode'
 
-import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule } from './api/api'
+import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule } from './api/api'
 
 
 let nodeId = 1
@@ -41,6 +41,8 @@ export default function App() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
 
   const [ruleName, setRuleName] = useState('')
+
+  const [currentRuleId, setCurrentRuleId] = useState(null)
 
     const [rules, setRules] = useState([])
 
@@ -197,7 +199,13 @@ const handleSaveWorkflow = async () => {
 
       setEdges(graphEdges)
 
+      // Update nodeId to the next available id
+      const maxId = graphNodes.length > 0 ? Math.max(...graphNodes.map(n => parseInt(n.id))) : 0
+      nodeId = maxId + 1
+
     }
+
+    setCurrentRuleId(ruleId)
 
   }
 
@@ -207,6 +215,10 @@ const handleSaveWorkflow = async () => {
     setNodes([])
 
     setEdges([])
+
+    nodeId = 1
+
+    setCurrentRuleId(null)
 
   }
 
@@ -218,6 +230,33 @@ const handleSaveWorkflow = async () => {
     const updatedRules = await loadRules()
 
     setRules(Array.isArray(updatedRules) ? updatedRules : [])
+
+  }
+
+
+  const executeFlow = async () => {
+
+    if (!currentRuleId) {
+
+      alert("No rule loaded to execute")
+
+      return
+
+    }
+
+    try {
+
+      const result = await executeRule(currentRuleId)
+
+      alert("Execution result: " + JSON.stringify(result))
+
+    } catch (error) {
+
+      console.error("Execution failed:", error)
+
+      alert("Failed to execute flow")
+
+    }
 
   }
 
@@ -291,6 +330,10 @@ const handleSaveWorkflow = async () => {
         <button onClick={() => setShowSaveDialog(true)} style={{ marginLeft: 10 }}>
   Save Workflow
 </button>
+
+        <button onClick={executeFlow} style={{ marginLeft: 10 }}>
+          Execute Flow
+        </button>
 
       </div>
 

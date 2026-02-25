@@ -59,3 +59,9 @@ export async function deleteRule(ruleId) {
   console.log('Deleting rule', ruleId);
   await fetch(`${API_BASE}/rules/${ruleId}/`, { method: 'DELETE' });
 }
+
+export async function executeRule(ruleId) {
+  console.log('Executing rule', ruleId);
+  const res = await fetch(`${API_BASE}/rules/${ruleId}/execute/`, { method: 'POST' });
+  return await res.json();
+}
