@@ -19,6 +19,23 @@ export default function RuleNode({ data }) {
         {data.label}
       </div>
 
+      {/* show parameters if any */}
+      {data.params && Object.keys(data.params).length > 0 && (
+        <pre
+          style={{
+            textAlign: 'left',
+            marginTop: 5,
+            fontSize: '10px',
+            background: '#fff',
+            padding: '2px',
+            border: '1px solid #ddd',
+            borderRadius: '3px',
+          }}
+        >
+          {JSON.stringify(data.params, null, 2)}
+        </pre>
+      )}
+
       <button onClick={data.onDelete} style={{ marginTop: 5, fontSize: '12px' }}>-</button>
 
       <Handle type="source" position={Position.Bottom} />

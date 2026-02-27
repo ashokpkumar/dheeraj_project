@@ -38,6 +38,7 @@ export default function App() {
   const [currentRuleId, setCurrentRuleId] = useState(null)
   const [showParamDialog, setShowParamDialog] = useState(false)
   const [pendingConnection, setPendingConnection] = useState(null)
+  const [pendingNodeId, setPendingNodeId] = useState(null) // track node being configured
   const [connectionParams, setConnectionParams] = useState({})
   const [targetFunctionInputs, setTargetFunctionInputs] = useState([])
   const [rules, setRules] = useState([])
@@ -88,6 +89,7 @@ export default function App() {
 
       setConnectionParams(initialParams)
       setPendingConnection(params)
+      setPendingNodeId(null) // ensure node configuration not active
       setShowParamDialog(true)
 
     },
@@ -96,15 +98,39 @@ export default function App() {
 
     const handleConfirmConnection = () => {
 
+    // if we were configuring a newly added node
+    if (pendingNodeId) {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === pendingNodeId
+            ? { ...n, data: { ...n.data, params: connectionParams } }
+            : n
+        )
+      )
+      setPendingNodeId(null)
+      setShowParamDialog(false)
+      setConnectionParams({})
+      return
+    }
+
     if (!pendingConnection) return
+
+    // update target node params as well
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === pendingConnection.target
+          ? { ...n, data: { ...n.data, params: connectionParams } }
+          : n
+      )
+    )
 
     const newEdge = {
       ...pendingConnection,
       id: `${pendingConnection.source}-${pendingConnection.target}-${Date.now()}`,
       label: JSON.stringify(connectionParams),
       data: {
-        params: connectionParams
-      }
+        params: connectionParams,
+      },
     }
 
     setEdges((eds) => addEdge(newEdge, eds))
@@ -116,68 +142,63 @@ export default function App() {
 
 
   const addNode = () => {
-
     setShowDialog(true)
-
   }
 
 
   const handleAddNode = () => {
-
     if (!selectedFunction) return
 
     const currentId = nodeId
 
     const newNode = {
-
       id: `${currentId}`,
-
       type: 'ruleNode',
-
       position: {
-
         x: Math.random() * 400,
-
         y: Math.random() * 400,
-
       },
-
       data: {
-
         label: selectedFunction,
-
         onDelete: () => setNodes((nds) => nds.filter((n) => n.id !== `${currentId}`)),
-
       },
-
     }
 
     nodeId++
-
     setNodes((nds) => [...nds, newNode])
-
     setShowDialog(false)
-
     setSelectedFunction('')
 
+    // immediately prompt for parameters for this new node
+    const functionMeta = functions.find((f) => f.function_name === selectedFunction)
+    const inputs = functionMeta?.inputs || []
+    setTargetFunctionInputs(inputs)
+    const initialParams = {}
+    inputs.forEach((input) => {
+      initialParams[input.name] = ''
+    })
+    setConnectionParams(initialParams)
+    setPendingNodeId(`${currentId}`)
+    setPendingConnection(null)
+    setShowParamDialog(true)
   }
 
 
 const handleSaveWorkflow = async () => {
   if (!ruleName.trim()) return
 
-  // Transform nodes and edges to the desired format
-  const transformedNodes = nodes.map(node => ({
+  // Transform nodes and edges to the desired format expected by the API
+  const transformedNodes = nodes.map((node) => ({
     id: node.id,
     data: {
       function_name: node.data.label,
-      params: {}  // Placeholder for params; can be extended to include actual params
-    }
+      params: node.data.params || {},
+    },
   }))
 
-  const transformedEdges = edges.map(edge => ({
+  const transformedEdges = edges.map((edge) => ({
     source: edge.source,
-    target: edge.target
+    target: edge.target,
   }))
 
   try {
@@ -198,35 +219,36 @@ const handleSaveWorkflow = async () => {
 }
 
   const loadRule = async (ruleId) => {
-  const graph = await loadGraph(ruleId)
+    const graph = await loadGraph(ruleId)
 
-  if (graph && graph.reactflow_json) {
-    let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
+    if (graph && graph.reactflow_json) {
+      let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
 
-    graphNodes = graphNodes.map((node, index) => ({
-      id: node.id,
-      type: 'ruleNode',
-      position: node.position || { x: index * 200, y: 100 },
-      data: {
-        label: node.data?.label || node.data?.function_name, // 🔥 important
-        onDelete: () =>
-          setNodes((nds) => nds.filter((n) => n.id !== node.id)),
-      },
-    }))
+      graphNodes = graphNodes.map((node, index) => ({
+        id: node.id,
+        type: 'ruleNode',
+        position: node.position || { x: index * 200, y: 100 },
+        data: {
+          label: node.data?.label || node.data?.function_name, // 🔥 important
+          params: node.data?.params || {},
+          onDelete: () =>
+            setNodes((nds) => nds.filter((n) => n.id !== node.id)),
+        },
+      }))
 
-    setNodes(graphNodes)
-    setEdges(graphEdges)
+      setNodes(graphNodes)
+      setEdges(graphEdges)
 
-    const maxId =
-      graphNodes.length > 0
-        ? Math.max(...graphNodes.map((n) => parseInt(n.id)))
-        : 0
+      const maxId =
+        graphNodes.length > 0
+          ? Math.max(...graphNodes.map((n) => parseInt(n.id)))
+          : 0
 
-    nodeId = maxId + 1
+      nodeId = maxId + 1
+    }
+
+    setCurrentRuleId(ruleId)
   }
-
-  setCurrentRuleId(ruleId)
-}
 
 
   const createNewRule = () => {
@@ -441,7 +463,16 @@ const handleSaveWorkflow = async () => {
             <button onClick={handleConfirmConnection} style={{ marginRight: 10 }}>
               Confirm
             </button>
-            <button onClick={() => setShowParamDialog(false)}>Cancel</button>
+            <button
+              onClick={() => {
+                setShowParamDialog(false)
+                setPendingConnection(null)
+                setPendingNodeId(null)
+                setConnectionParams({})
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
