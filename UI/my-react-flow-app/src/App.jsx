@@ -29,22 +29,18 @@ const nodeTypes = {
 export default function App() {
 
   const [nodes, setNodes] = useState([])
-
   const [edges, setEdges] = useState([])
-
   const [functions, setFunctions] = useState([])
-
   const [showDialog, setShowDialog] = useState(false)
-
   const [selectedFunction, setSelectedFunction] = useState('')
-
   const [showSaveDialog, setShowSaveDialog] = useState(false)
-
   const [ruleName, setRuleName] = useState('')
-
   const [currentRuleId, setCurrentRuleId] = useState(null)
-
-    const [rules, setRules] = useState([])
+  const [showParamDialog, setShowParamDialog] = useState(false)
+  const [pendingConnection, setPendingConnection] = useState(null)
+  const [connectionParams, setConnectionParams] = useState({})
+  const [targetFunctionInputs, setTargetFunctionInputs] = useState([])
+  const [rules, setRules] = useState([])
 
   useEffect(() => {
     console.log('useEffect running');
@@ -76,23 +72,47 @@ export default function App() {
   const onConnect = useCallback(
     (params) => {
 
-      const condition = prompt("Enter condition (true / false):")
+      const targetNode = nodes.find(n => n.id === params.target)
+      if (!targetNode) return
 
-      const newEdge = {
+      const functionName = targetNode.data.label
+      const functionMeta = functions.find(f => f.function_name === functionName)
+      if (!functionMeta) return
 
-        ...params,
+      setTargetFunctionInputs(functionMeta.inputs || [])
 
-        id: `${params.source}-${params.target}-${condition}`,
+      const initialParams = {}
+      functionMeta.inputs.forEach(input => {
+        initialParams[input.name] = ""
+      })
 
-        label: condition,
-
-      }
-
-      setEdges((eds) => addEdge(newEdge, eds))
+      setConnectionParams(initialParams)
+      setPendingConnection(params)
+      setShowParamDialog(true)
 
     },
-    []
+    [nodes, functions]
   )
+
+    const handleConfirmConnection = () => {
+
+    if (!pendingConnection) return
+
+    const newEdge = {
+      ...pendingConnection,
+      id: `${pendingConnection.source}-${pendingConnection.target}-${Date.now()}`,
+      label: JSON.stringify(connectionParams),
+      data: {
+        params: connectionParams
+      }
+    }
+
+    setEdges((eds) => addEdge(newEdge, eds))
+
+    setShowParamDialog(false)
+    setPendingConnection(null)
+    setConnectionParams({})
+  }
 
 
   const addNode = () => {
@@ -178,36 +198,35 @@ const handleSaveWorkflow = async () => {
 }
 
   const loadRule = async (ruleId) => {
+  const graph = await loadGraph(ruleId)
 
-    const graph = await loadGraph(ruleId)
+  if (graph && graph.reactflow_json) {
+    let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
 
-    if (graph && graph.reactflow_json) {
+    graphNodes = graphNodes.map((node, index) => ({
+      id: node.id,
+      type: 'ruleNode',
+      position: node.position || { x: index * 200, y: 100 },
+      data: {
+        label: node.data?.label || node.data?.function_name, // 🔥 important
+        onDelete: () =>
+          setNodes((nds) => nds.filter((n) => n.id !== node.id)),
+      },
+    }))
 
-      let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
+    setNodes(graphNodes)
+    setEdges(graphEdges)
 
-      graphNodes = graphNodes.map((node, index) => ({
+    const maxId =
+      graphNodes.length > 0
+        ? Math.max(...graphNodes.map((n) => parseInt(n.id)))
+        : 0
 
-        ...node,
-
-        position: node.position || { x: index * 200, y: 100 },
-
-        type: node.type || 'ruleNode'
-
-      }))
-
-      setNodes(graphNodes)
-
-      setEdges(graphEdges)
-
-      // Update nodeId to the next available id
-      const maxId = graphNodes.length > 0 ? Math.max(...graphNodes.map(n => parseInt(n.id))) : 0
-      nodeId = maxId + 1
-
-    }
-
-    setCurrentRuleId(ruleId)
-
+    nodeId = maxId + 1
   }
+
+  setCurrentRuleId(ruleId)
+}
 
 
   const createNewRule = () => {
@@ -397,6 +416,35 @@ const handleSaveWorkflow = async () => {
 
       )}
 
+      {showParamDialog && (
+        <div style={modalOverlay}>
+          <div style={modalBox}>
+            <h3>Enter Parameters</h3>
+
+            {targetFunctionInputs.map((input) => (
+              <div key={input.name} style={{ marginBottom: 10 }}>
+                <label>{input.name} ({input.type})</label>
+                <input
+                  type="text"
+                  value={connectionParams[input.name] || ""}
+                  onChange={(e) =>
+                    setConnectionParams(prev => ({
+                      ...prev,
+                      [input.name]: e.target.value
+                    }))
+                  }
+                  style={{ width: '100%', padding: 5 }}
+                />
+              </div>
+            ))}
+
+            <button onClick={handleConfirmConnection} style={{ marginRight: 10 }}>
+              Confirm
+            </button>
+            <button onClick={() => setShowParamDialog(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {showSaveDialog && (
         <div style={{
@@ -485,4 +533,24 @@ const handleSaveWorkflow = async () => {
 
   )
 
+}
+
+const modalOverlay = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  background: 'rgba(0,0,0,0.5)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 1000,
+}
+
+const modalBox = {
+  background: 'white',
+  padding: 20,
+  borderRadius: 5,
+  minWidth: 350,
 }
