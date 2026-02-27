@@ -72,28 +72,14 @@ export default function App() {
 
   const onConnect = useCallback(
     (params) => {
-
-      const targetNode = nodes.find(n => n.id === params.target)
-      if (!targetNode) return
-
-      const functionName = targetNode.data.label
-      const functionMeta = functions.find(f => f.function_name === functionName)
-      if (!functionMeta) return
-
-      setTargetFunctionInputs(functionMeta.inputs || [])
-
-      const initialParams = {}
-      functionMeta.inputs.forEach(input => {
-        initialParams[input.name] = ""
-      })
-
-      setConnectionParams(initialParams)
-      setPendingConnection(params)
-      setPendingNodeId(null) // ensure node configuration not active
-      setShowParamDialog(true)
-
+      // simply add the edge when two existing nodes are connected
+      const newEdge = {
+        ...params,
+        id: `${params.source}-${params.target}-${Date.now()}`,
+      }
+      setEdges((eds) => addEdge(newEdge, eds))
     },
-    [nodes, functions]
+    []
   )
 
     const handleConfirmConnection = () => {
@@ -115,7 +101,7 @@ export default function App() {
 
     if (!pendingConnection) return
 
-    // update target node params as well
+    // update target node params (edge itself doesn’t carry params)
     setNodes((nds) =>
       nds.map((n) =>
         n.id === pendingConnection.target
@@ -127,10 +113,7 @@ export default function App() {
     const newEdge = {
       ...pendingConnection,
       id: `${pendingConnection.source}-${pendingConnection.target}-${Date.now()}`,
-      label: JSON.stringify(connectionParams),
-      data: {
-        params: connectionParams,
-      },
+      // no label or data for params
     }
 
     setEdges((eds) => addEdge(newEdge, eds))
