@@ -40,3 +40,15 @@
 .read-the-docs {
   color: #888;
 }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #eaf2f7;
+  color: #1a273d;
+}
+
+button {
+  font-family: inherit;
+}
+
