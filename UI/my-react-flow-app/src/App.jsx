@@ -399,13 +399,13 @@ const handleSaveWorkflow = async () => {
 
         right: '30vw',
 
-        background: '#ffffff',
+        background: 'transparent',
 
         padding: '8px 10px',
 
         borderRadius: 6,
-        border: '1px solid #d8dde5',
-        boxShadow: '0 2px 8px rgba(13, 32, 66, 0.08)',
+        border: 'none',
+        boxShadow: 'none',
       }}>
 
         <button onClick={addNode} style={{ background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
@@ -423,11 +423,11 @@ const handleSaveWorkflow = async () => {
       </div>
 
       <div style={{
-        position: 'absolute',
+        position: 'fixed',
         right: 0,
         top: 0,
+        bottom: 0,
         width: '30vw',
-        height: '100%',
         background: '#f6f8fb',
         borderLeft: '1px solid #d8dde5',
         padding: 12,
