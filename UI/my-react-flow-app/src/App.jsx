@@ -38,13 +38,14 @@ export default function App() {
   const [currentRuleId, setCurrentRuleId] = useState(null)
   const [showParamDialog, setShowParamDialog] = useState(false)
   const [pendingConnection, setPendingConnection] = useState(null)
-  const [pendingNodeId, setPendingNodeId] = useState(null) // track node being configured
+  const [pendingNodeId, setPendingNodeId] = useState(null)
   const [connectionParams, setConnectionParams] = useState({})
   const [targetFunctionInputs, setTargetFunctionInputs] = useState([])
   const [rules, setRules] = useState([])
   const [dashboardData, setDashboardData] = useState([])
   const [dateDetails, setDateDetails] = useState([])
   const [selectedDate, setSelectedDate] = useState(null)
+  const [exportingRowId, setExportingRowId] = useState(null)
 
   const fetchDashboardData = async () => {
     try {
@@ -56,7 +57,6 @@ export default function App() {
       setSelectedDate(null)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
-      // Fallback static data while backend unavailable
       setDashboardData([
         { period_start: '2026-03-10', claims_count: 300 },
         { period_start: '2026-03-11', claims_count: 35 },
@@ -75,7 +75,6 @@ export default function App() {
       setSelectedDate(date)
     } catch (error) {
       console.error('Error loading date details:', error)
-      // Fallback static data while backend unavailable
       setDateDetails([
         {
           id: 1,
@@ -97,6 +96,46 @@ export default function App() {
         },
       ])
       setSelectedDate(date)
+    }
+  }
+
+  const handleExportRowCsv = async (item) => {
+    const rowDate = new Date(item.processed_at).toISOString().split('T')[0]
+    const rule_name = item.rule_engine?.rule_name || ''
+    const rowId = item.id
+
+    setExportingRowId(rowId)
+
+    const params = new URLSearchParams({ start_date: rowDate, end_date: rowDate, rule_name })
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/export/?${params}`)
+      if (!res.ok) throw new Error(`Export API error: ${res.status}`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let csvContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        csvContent += decoder.decode(value, { stream: true })
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `export_${rowDate}${rule_name ? `_${rule_name}` : ''}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Failed to export CSV')
+    } finally {
+      setExportingRowId(null)
     }
   }
 
@@ -130,7 +169,6 @@ export default function App() {
 
   const onConnect = useCallback(
     (params) => {
-      // simply add the edge when two existing nodes are connected
       const newEdge = {
         ...params,
         id: `${params.source}-${params.target}-${Date.now()}`,
@@ -140,9 +178,8 @@ export default function App() {
     []
   )
 
-    const handleConfirmConnection = () => {
+  const handleConfirmConnection = () => {
 
-    // if we were configuring a newly added node
     if (pendingNodeId) {
       setNodes((nds) =>
         nds.map((n) =>
@@ -159,7 +196,6 @@ export default function App() {
 
     if (!pendingConnection) return
 
-    // update target node params (edge itself doesn’t carry params)
     setNodes((nds) =>
       nds.map((n) =>
         n.id === pendingConnection.target
@@ -171,7 +207,6 @@ export default function App() {
     const newEdge = {
       ...pendingConnection,
       id: `${pendingConnection.source}-${pendingConnection.target}-${Date.now()}`,
-      // no label or data for params
     }
 
     setEdges((eds) => addEdge(newEdge, eds))
@@ -210,7 +245,6 @@ export default function App() {
     setShowDialog(false)
     setSelectedFunction('')
 
-    // immediately prompt for parameters for this new node
     const functionMeta = functions.find((f) => f.function_name === selectedFunction)
     const inputs = functionMeta?.inputs || []
     setTargetFunctionInputs(inputs)
@@ -228,7 +262,6 @@ export default function App() {
 const handleSaveWorkflow = async () => {
   if (!ruleName.trim()) return
 
-  // Transform nodes and edges to the desired format expected by the API
   const transformedNodes = nodes.map((node) => ({
     id: node.id,
     data: {
@@ -270,7 +303,7 @@ const handleSaveWorkflow = async () => {
         type: 'ruleNode',
         position: node.position || { x: index * 200, y: 100 },
         data: {
-          label: node.data?.label || node.data?.function_name, // 🔥 important
+          label: node.data?.label || node.data?.function_name,
           params: node.data?.params || {},
           onDelete: () =>
             setNodes((nds) => nds.filter((n) => n.id !== node.id)),
@@ -463,8 +496,11 @@ const handleSaveWorkflow = async () => {
             </table>
           </div>
 
+          {/* Date-wise details panel */}
           <div style={{ flex: 1, minWidth: 0, background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', height: 'calc(100% - 44px)', overflowY: 'auto' }}>
-            <div style={{ marginBottom: 8, fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
+            </div>
             {!selectedDate && <div style={{ color: '#5d6779', marginBottom: 8 }}>Click a row in aggregated table to view details.</div>}
             {selectedDate && <div style={{ marginBottom: 8, color: '#1f4e92' }}>Showing: {selectedDate}</div>}
             {selectedDate && (
@@ -474,17 +510,37 @@ const handleSaveWorkflow = async () => {
                     <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Date</th>
                     <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Rule Name</th>
                     <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Claims</th>
+                    <th style={{ borderBottom: '1px solid #d8dde5', padding: '6px 4px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {dateDetails.length === 0 && (
-                    <tr><td colSpan={3} style={{ padding: '6px 4px', color: '#5d6779' }}>No details for the selected date.</td></tr>
+                    <tr><td colSpan={4} style={{ padding: '6px 4px', color: '#5d6779' }}>No details for the selected date.</td></tr>
                   )}
                   {dateDetails.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid #eef2f6' }}>
                       <td style={{ padding: '6px 4px' }}>{new Date(item.processed_at).toISOString().split('T')[0]}</td>
                       <td style={{ padding: '6px 4px' }}>{item.rule_engine?.rule_name || '-'}</td>
                       <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
+                      <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleExportRowCsv(item)}
+                          disabled={exportingRowId === item.id}
+                          title="Export this row as CSV"
+                          style={{
+                            fontSize: '0.7rem',
+                            background: exportingRowId === item.id ? '#94a3b8' : '#16a34a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 3,
+                            padding: '3px 7px',
+                            cursor: exportingRowId === item.id ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {exportingRowId === item.id ? '⏳' : '⬇ CSV'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
