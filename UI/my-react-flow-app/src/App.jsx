@@ -46,6 +46,8 @@ export default function App() {
   const [dateDetails, setDateDetails] = useState([])
   const [selectedDate, setSelectedDate] = useState(null)
   const [exportingRowId, setExportingRowId] = useState(null)
+  const [dashboardExpanded, setDashboardExpanded] = useState(true)
+  const [rulesExpanded, setRulesExpanded] = useState(true)
 
   const fetchDashboardData = async () => {
     try {
@@ -381,24 +383,41 @@ const handleSaveWorkflow = async () => {
 
 
       <div style={{
-
-        position: 'absolute',
-
+        position: 'fixed',
         left: 0,
-
         top: 0,
-
-        width: 250,
-
+        width: rulesExpanded ? 250 : 40,
         height: '100%',
         background: '#f8fbff',
         borderRight: '1px solid #d8dded',
-        padding: '16px 12px',
+        padding: rulesExpanded ? '16px 12px' : 0,
         zIndex: 5,
         overflowY: 'auto',
+        transition: 'width 0.3s ease',
       }}>
+        <button
+          onClick={() => setRulesExpanded(!rulesExpanded)}
+          title={rulesExpanded ? 'Collapse' : 'Expand'}
+          style={{
+            position: 'absolute',
+            left: '8px',
+            top: '12px',
+            background: '#00438f',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            zIndex: 10,
+          }}
+        >
+          {rulesExpanded ? '←' : '→'}
+        </button>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {rulesExpanded && (
+          <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 30 }}>
 
           <h3>Existing Rules</h3>
 
@@ -409,28 +428,30 @@ const handleSaveWorkflow = async () => {
         <ul style={{ listStyle: 'none', padding: 0 }}>
 
           {rules.map((rule) => (
-            <li key={rule.id} style={{ marginBottom: 10, padding: 5, border: '1px solid #ddd', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <li key={rule.id} style={{ marginBottom: 10, padding: 5, border: '1px solid #ddd', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: currentRuleId === rule.id ? '#e4f0ff' : 'transparent' }}>
               <span onClick={() => loadRule(rule.id)} style={{ cursor: 'pointer', flex: 1 }}>{rule.rule_name}</span>
               <button onClick={() => handleDeleteRule(rule.id)} style={{ marginLeft: 10 }}>-</button>
             </li>
           ))}
 
         </ul>
+          </>
+        )}
 
       </div>
 
 
       <div style={{
 
-        position: 'absolute',
+        position: 'fixed',
 
         zIndex: 10,
 
         top: 10,
 
-        left: 270,
+        left: rulesExpanded ? 270 : 50,
 
-        right: '30vw',
+        right: dashboardExpanded ? 'calc(30vw + 10px)' : '50px',
 
         background: 'transparent',
 
@@ -439,6 +460,7 @@ const handleSaveWorkflow = async () => {
         borderRadius: 6,
         border: 'none',
         boxShadow: 'none',
+        transition: 'left 0.3s ease, right 0.3s ease',
       }}>
 
         <button onClick={addNode} style={{ background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
@@ -460,14 +482,38 @@ const handleSaveWorkflow = async () => {
         right: 0,
         top: 0,
         bottom: 0,
-        width: '30vw',
+        width: dashboardExpanded ? '30vw' : '40px',
         background: '#f6f8fb',
         borderLeft: '1px solid #d8dde5',
-        padding: 12,
+        padding: dashboardExpanded ? 12 : 0,
         zIndex: 5,
         overflowY: 'auto',
+        transition: 'width 0.3s ease',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <button
+          onClick={() => setDashboardExpanded(!dashboardExpanded)}
+          title={dashboardExpanded ? 'Collapse' : 'Expand'}
+          style={{
+            position: 'absolute',
+            left: dashboardExpanded ? 'auto' : '8px',
+            right: dashboardExpanded ? '12px' : 'auto',
+            top: '12px',
+            background: '#00438f',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            zIndex: 10,
+          }}
+        >
+          {dashboardExpanded ? '→' : '←'}
+        </button>
+
+        {dashboardExpanded && (
+          <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 30 }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#002f6c' }}>Processing Dashboard</h3>
           <button onClick={fetchDashboardData} style={{ fontSize: '0.8rem', background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '5px 8px', cursor: 'pointer' }}>Refresh</button>
         </div>
@@ -548,6 +594,8 @@ const handleSaveWorkflow = async () => {
             )}
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {showDialog && (
@@ -722,7 +770,7 @@ const handleSaveWorkflow = async () => {
 
         fitView
 
-        style={{ position: 'absolute', left: 250, top: 0, width: 'calc(100vw - 250px - 30vw)', height: '100vh' }}>
+        style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 0, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '30vw' : '40px'})`, height: '100vh' }}>
 
         <Controls />
 
