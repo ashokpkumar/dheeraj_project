@@ -16,7 +16,6 @@ import RuleNode from './components/RuleNode'
 import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule } from './api/api'
 
 
-let nodeId = 1
 
 
 const nodeTypes = {
@@ -50,6 +49,32 @@ export default function App() {
   const [rulesExpanded, setRulesExpanded] = useState(true)
 const [isEditMode, setIsEditMode] = useState(false)
 
+  // Refs keep latest nodes/functions accessible inside a stable callback
+  const nodesRef = React.useRef(nodes)
+  const functionsRef = React.useRef(functions)
+  useEffect(() => { nodesRef.current = nodes }, [nodes])
+  useEffect(() => { functionsRef.current = functions }, [functions])
+
+  const handleEditParams = useCallback((nodeId) => {
+    const node = nodesRef.current.find((n) => n.id === nodeId)
+    if (!node) return
+
+    const functionMeta = functionsRef.current.find((f) => f.function_name === node.data.label)
+    const inputs = functionMeta?.inputs || []
+
+    // Pre-fill with existing param values
+    const prefilled = {}
+    inputs.forEach((input) => {
+      prefilled[input.name] = node.data.params?.[input.name] ?? ''
+    })
+
+    setTargetFunctionInputs(inputs)
+    setConnectionParams(prefilled)
+    setPendingNodeId(nodeId)
+    setPendingConnection(null)
+    setShowParamDialog(true)
+  }, []) // stable — reads latest values via refs, never recreated
+
   const fetchDashboardData = async () => {
     try {
       const res = await fetch('http://127.0.0.1:8000/rule_engine/dashboard/?aggregate=true&group_by=day')
@@ -71,18 +96,6 @@ const [isEditMode, setIsEditMode] = useState(false)
   }
 
   setIsEditMode(true)
-
-  // ✅ Enable delete on all nodes
-  setNodes((nds) =>
-    nds.map((node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        onDelete: () =>
-          setNodes((prev) => prev.filter((n) => n.id !== node.id)),
-      },
-    }))
-  )
 }
 
   const handleExportRowCsv = async (item) => {
@@ -137,6 +150,19 @@ const [isEditMode, setIsEditMode] = useState(false)
       // Fallback static data while backend unavailable
     }  
   }
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          isEditMode,
+          onEditParams: isEditMode ? handleEditParams : null,
+        },
+      }))
+    )
+  }, [isEditMode]) // handleEditParams is stable (useCallback with no deps), safe to omit
+
   useEffect(() => {
     console.log('useEffect running');
     async function fetchData() {
@@ -227,7 +253,7 @@ const [isEditMode, setIsEditMode] = useState(false)
   const handleAddNode = () => {
     if (!selectedFunction) return
 
-    const currentId = nodeId
+    const currentId = `node-${Date.now()}`
 
     const newNode = {
       id: `${currentId}`,
@@ -238,13 +264,14 @@ const [isEditMode, setIsEditMode] = useState(false)
       },
     data: {
       label: selectedFunction,
-      onDelete: isEditMode
-        ? () => setNodes((nds) => nds.filter((n) => n.id !== `${currentId}`))
-        : null,
+      isEditMode: isEditMode,
+      onDelete: (nodeId) => {
+        setNodes((nds) => nds.filter((n) => n.id !== nodeId))
+        setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId))
+      },
     },
     }
 
-    nodeId++
     setNodes((nds) => [...nds, newNode])
     setShowDialog(false)
     setSelectedFunction('')
@@ -305,18 +332,7 @@ console.log(ruleName)
     setRuleName("")
   }
      if (isEditMode) {
-    setIsEditMode(false)  // ✅ exit edit mode
-
-    // ❌ remove delete buttons from nodes
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          onDelete: null,
-        },
-      }))
-    )
+    setIsEditMode(false)  // ✅ exit edit mode — useEffect will sync isEditMode=false into all nodes
   }
 
     const updatedRules = await loadRules()
@@ -349,7 +365,11 @@ console.log(ruleName)
         data: {
           label: node.data?.function_name,
           params: node.data?.params || {},
-          onDelete: null,
+          isEditMode: false,
+          onDelete: (nodeId) => {
+            setNodes((prev) => prev.filter((n) => n.id !== nodeId))
+            setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId))
+          },
         },
       }))
 
@@ -369,7 +389,6 @@ console.log(ruleName)
 
     setEdges([])
 
-    nodeId = 1
 
     setCurrentRuleId(null)
 
@@ -579,7 +598,7 @@ console.log(ruleName)
           onClick={() => handleEditRule()}
           style={{
             marginLeft: 10,
-            background: '#f59e0b',
+            background: isEditMode ? '#f59e0b' : '#00438f',
             color: 'white',
             border: 'none',
             borderRadius: 4,

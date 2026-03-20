@@ -232,14 +232,13 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import RuleEngine, RuleList, RuleLogic, RuleEdge
-
-
 @api_view(["POST"])
 def save_rule(request):
 
     rule_name = request.data.get("rule_name")
     nodes = request.data.get("nodes")
     edges = request.data.get("edges")
+    rule_id = request.data.get("rule_id")  # Present only in edit mode
 
     # -------- VALIDATION --------
     if not rule_name:
@@ -265,19 +264,36 @@ def save_rule(request):
         if "id" not in edge:
             edge["id"] = f"edge-{i+1}"
 
-    # -------- CREATE RULE ENGINE --------
-    rule_engine = RuleEngine.objects.create(
-        rule_name=rule_name,
-        reactflow_json={
-            "nodes": nodes,
-            "edges": edges
-        }
-    )
+    # -------- EDIT MODE: UPDATE EXISTING RULE IN-PLACE --------
+    if rule_id:
+        try:
+            rule_engine = RuleEngine.objects.get(id=rule_id)
+        except RuleEngine.DoesNotExist:
+            return Response(
+                {"error": f"Rule with id '{rule_id}' not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-    # -------- CREATE NODES --------
+        # Update top-level fields on the existing record (id stays the same)
+        rule_engine.rule_name = rule_name
+        rule_engine.reactflow_json = {"nodes": nodes, "edges": edges}
+        rule_engine.save()
+
+        # Clear only the child nodes and edges — reporting rows keep their FK intact
+        RuleEdge.objects.filter(rule_engine=rule_engine).delete()
+        RuleList.objects.filter(rule_engine=rule_engine).delete()
+
+    # -------- CREATE MODE: NEW RULE ENGINE --------
+    else:
+        rule_engine = RuleEngine.objects.create(
+            rule_name=rule_name,
+            reactflow_json={"nodes": nodes, "edges": edges}
+        )
+
+    # -------- REBUILD NODES --------
     node_instance_map = {}
 
-    for index,node in enumerate(nodes):
+    for index, node in enumerate(nodes):
 
         node_id = node.get("id")
         data = node.get("data", {})
@@ -310,7 +326,7 @@ def save_rule(request):
 
         node_instance_map[node_id] = rule_node
 
-    # -------- CREATE EDGES --------
+    # -------- REBUILD EDGES --------
     for edge in edges:
 
         source_id = edge.get("source")
@@ -338,7 +354,7 @@ def save_rule(request):
 
     return Response(
         {
-            "message": "Rule saved successfully",
+            "message": "Rule updated successfully" if rule_id else "Rule saved successfully",
             "rule_engine_id": rule_engine.id
         },
         status=status.HTTP_201_CREATED
