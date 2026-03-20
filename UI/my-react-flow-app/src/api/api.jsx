@@ -8,17 +8,25 @@ export async function loadGraph(ruleEngineId) {
   return ret;
 }
 
-export async function saveGraph(ruleName, nodes, edges) {
+export async function saveGraph(ruleName, nodes, edges, ruleId = null) {
+  
+  const payload = {
+    rule_name: ruleName,
+    nodes: nodes,
+    edges: edges,
+  }
+
+  // ✅ Add rule_id only in edit mode
+  if (ruleId) {
+    payload.rule_id = ruleId
+  }
+
   const response = await fetch("http://127.0.0.1:8000/rule_engine/rules/save/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      rule_name: ruleName,
-      nodes: nodes,
-      edges: edges,
-    }),
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
