@@ -45,6 +45,10 @@ export default function App() {
   const [dashboardData, setDashboardData] = useState([])
   const [dateDetails, setDateDetails] = useState([])
   const [selectedDate, setSelectedDate] = useState(null)
+  const [exportingRowId, setExportingRowId] = useState(null)
+  const [dashboardExpanded, setDashboardExpanded] = useState(true)
+  const [rulesExpanded, setRulesExpanded] = useState(true)
+const [isEditMode, setIsEditMode] = useState(false)
 
   const fetchDashboardData = async () => {
     try {
@@ -57,12 +61,67 @@ export default function App() {
     } catch (error) {
       console.error('Error loading dashboard data:', error)
       // Fallback static data while backend unavailable
-      setDashboardData([
-        { period_start: '2026-03-10', claims_count: 300 },
-        { period_start: '2026-03-11', claims_count: 35 },
-      ])
-      setDateDetails([])
-      setSelectedDate(null)
+    }
+  }
+
+ const handleEditRule = () => {
+  if (!currentRuleId) {
+    alert("Load a rule first to edit")
+    return
+  }
+
+  setIsEditMode(true)
+
+  // ✅ Enable delete on all nodes
+  setNodes((nds) =>
+    nds.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        onDelete: () =>
+          setNodes((prev) => prev.filter((n) => n.id !== node.id)),
+      },
+    }))
+  )
+}
+
+  const handleExportRowCsv = async (item) => {
+    const rowDate = new Date(item.processed_at).toISOString().split('T')[0]
+    const rule_name = item.rule_engine?.rule_name || ''
+    const rowId = item.id
+
+    setExportingRowId(rowId)
+
+    const params = new URLSearchParams({ rule_engine_id: rowId,  rule_name })
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/rule_engine/claims/export/?${params}`)
+      if (!res.ok) throw new Error(`Export API error: ${res.status}`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let csvContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        csvContent += decoder.decode(value, { stream: true })
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `export_${rowDate}${rule_name ? `_${rule_name}` : ''}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Failed to export CSV')
+    } finally {
+      setExportingRowId(null)
     }
   }
 
@@ -76,30 +135,8 @@ export default function App() {
     } catch (error) {
       console.error('Error loading date details:', error)
       // Fallback static data while backend unavailable
-      setDateDetails([
-        {
-          id: 1,
-          rule_engine: { id: 2002, rule_name: 'scrap_cps_750' },
-          processed_at: `${date}T11:38:46.966628Z`,
-          claims_count: 100,
-        },
-        {
-          id: 2,
-          rule_engine: { id: 2002, rule_name: 'scrap_cps_750' },
-          processed_at: `${date}T11:44:24.132887Z`,
-          claims_count: 100,
-        },
-        {
-          id: 1002,
-          rule_engine: { id: 2002, rule_name: 'scrap_cps_750' },
-          processed_at: `${date}T11:48:55.780532Z`,
-          claims_count: 100,
-        },
-      ])
-      setSelectedDate(date)
-    }
+    }  
   }
-
   useEffect(() => {
     console.log('useEffect running');
     async function fetchData() {
@@ -199,10 +236,12 @@ export default function App() {
         x: Math.random() * 400,
         y: Math.random() * 400,
       },
-      data: {
-        label: selectedFunction,
-        onDelete: () => setNodes((nds) => nds.filter((n) => n.id !== `${currentId}`)),
-      },
+    data: {
+      label: selectedFunction,
+      onDelete: isEditMode
+        ? () => setNodes((nds) => nds.filter((n) => n.id !== `${currentId}`))
+        : null,
+    },
     }
 
     nodeId++
@@ -226,9 +265,8 @@ export default function App() {
 
 
 const handleSaveWorkflow = async () => {
-  if (!ruleName.trim()) return
+  if (!ruleName.trim() && !isEditMode) return
 
-  // Transform nodes and edges to the desired format expected by the API
   const transformedNodes = nodes.map((node) => ({
     id: node.id,
     data: {
@@ -241,14 +279,45 @@ const handleSaveWorkflow = async () => {
     source: edge.source,
     target: edge.target,
   }))
-
+console.log(ruleName)
   try {
-    await saveGraph( ruleName, transformedNodes, transformedEdges)
+    if (isEditMode && currentRuleId) {
+      // 🔥 EDIT FLOW
+      await saveGraph(
+        ruleName, 
+        transformedNodes, 
+        transformedEdges,
+        currentRuleId   // ✅ send rule_id
+      )
+    } else {
+      // 🆕 CREATE FLOW
+      await saveGraph(
+        ruleName,
+        transformedNodes,
+        transformedEdges
+      )
+    }
 
-    alert("Workflow saved")
+    alert(isEditMode ? "Workflow updated" : "Workflow saved")
 
     setShowSaveDialog(false)
+     if (!isEditMode) {
     setRuleName("")
+  }
+     if (isEditMode) {
+    setIsEditMode(false)  // ✅ exit edit mode
+
+    // ❌ remove delete buttons from nodes
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          onDelete: null,
+        },
+      }))
+    )
+  }
 
     const updatedRules = await loadRules()
     setRules(Array.isArray(updatedRules) ? updatedRules : [])
@@ -259,10 +328,18 @@ const handleSaveWorkflow = async () => {
   }
 }
 
-  const loadRule = async (ruleId) => {
-    const graph = await loadGraph(ruleId)
 
-    if (graph && graph.reactflow_json) {
+const loadRule = async (ruleId) => {
+  const graph = await loadGraph(ruleId)
+
+  console.log("GRAPH RESPONSE:", graph)
+
+  if (graph) {
+
+    // ✅ FIX IS HERE
+    setRuleName(graph.rule_engine || "")
+console.log(ruleName)
+    if (graph.reactflow_json) {
       let { nodes: graphNodes, edges: graphEdges } = graph.reactflow_json
 
       graphNodes = graphNodes.map((node, index) => ({
@@ -270,26 +347,20 @@ const handleSaveWorkflow = async () => {
         type: 'ruleNode',
         position: node.position || { x: index * 200, y: 100 },
         data: {
-          label: node.data?.label || node.data?.function_name, // 🔥 important
+          label: node.data?.function_name,
           params: node.data?.params || {},
-          onDelete: () =>
-            setNodes((nds) => nds.filter((n) => n.id !== node.id)),
+          onDelete: null,
         },
       }))
 
       setNodes(graphNodes)
       setEdges(graphEdges)
-
-      const maxId =
-        graphNodes.length > 0
-          ? Math.max(...graphNodes.map((n) => parseInt(n.id)))
-          : 0
-
-      nodeId = maxId + 1
     }
-
-    setCurrentRuleId(ruleId)
   }
+
+  setCurrentRuleId(ruleId)
+  setIsEditMode(false)
+}
 
 
   const createNewRule = () => {
@@ -330,7 +401,7 @@ const handleSaveWorkflow = async () => {
 
       const result = await executeRule(currentRuleId)
 
-      alert("Execution result: " + JSON.stringify(result))
+      alert("Execution result: Completed" )
 
     } catch (error) {
 
@@ -343,30 +414,71 @@ const handleSaveWorkflow = async () => {
   }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
 
 
       <div style={{
 
-        position: 'absolute',
+        position: 'fixed',
 
         left: 0,
 
         top: 0,
 
-        width: 250,
+        width: rulesExpanded ? 250 : 40,
 
         height: '100%',
         background: '#f8fbff',
         borderRight: '1px solid #d8dded',
-        padding: '16px 12px',
+        padding: rulesExpanded ? '16px 12px' : 0,
         zIndex: 5,
+        transition: 'width 0.3s ease',
         overflowY: 'auto',
       }}>
+        <button
+          onClick={() => setRulesExpanded(!rulesExpanded)}
+          title={rulesExpanded ? 'Collapse' : 'Expand'}
+          style={{
+            position: 'absolute',
+            left: '8px',
+            top: '12px',
+            background: '#00438f',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            zIndex: 10,
+          }}
+        >
+          {rulesExpanded ? '←' : '→'}
+        </button>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-
+      {rulesExpanded && (
+          <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 30 }}>
           <h3>Existing Rules</h3>
 
           <button onClick={createNewRule}>+</button>
@@ -375,29 +487,55 @@ const handleSaveWorkflow = async () => {
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
 
-          {rules.map((rule) => (
-            <li key={rule.id} style={{ marginBottom: 10, padding: 5, border: '1px solid #ddd', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span onClick={() => loadRule(rule.id)} style={{ cursor: 'pointer', flex: 1 }}>{rule.rule_name}</span>
-              <button onClick={() => handleDeleteRule(rule.id)} style={{ marginLeft: 10 }}>-</button>
-            </li>
-          ))}
+         {rules.map((rule) => (
+              <li
+                key={rule.id}
+                style={{
+                  marginBottom: 10,
+                  padding: 5,
+                  border: '1px solid #ddd',
+                  borderRadius: 3,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span
+                  onClick={() => loadRule(rule.id)}
+                  style={{ cursor: 'pointer', flex: 1 }}
+                >
+                  {rule.rule_name}
+                </span>
+
+                {/* ✅ Only show delete in edit mode */}
+                {isEditMode && (
+                  <button
+                    onClick={() => handleDeleteRule(rule.id)}
+                    style={{ marginLeft: 10 }}
+                  >
+                    -
+                  </button>
+                )}
+              </li>
+            ))}
 
         </ul>
-
+  </>
+        )}
       </div>
 
 
       <div style={{
 
-        position: 'absolute',
+        position: 'fixed',
 
         zIndex: 10,
 
         top: 10,
 
-        left: 270,
+        left: rulesExpanded ? 270 : 50,
 
-        right: '30vw',
+        right: dashboardExpanded ? 'calc(30vw + 10px)' : '50px',
 
         background: 'transparent',
 
@@ -406,20 +544,51 @@ const handleSaveWorkflow = async () => {
         borderRadius: 6,
         border: 'none',
         boxShadow: 'none',
+        transition: 'left 0.3s ease, right 0.3s ease',
       }}>
 
         <button onClick={addNode} style={{ background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
           Add Function
         </button>
 
-        <button onClick={() => setShowSaveDialog(true)} style={{ marginLeft: 10, background: '#0062c4', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
-          Save Workflow
-        </button>
+        <button
+  onClick={() => {
+    if (isEditMode) {
+      handleSaveWorkflow()   // ✅ direct save
+    } else {
+      setShowSaveDialog(true) // 🆕 only for create
+    }
+  }}
+  style={{
+    marginLeft: 10,
+    background: '#0062c4',
+    color: 'white',
+    border: 'none',
+    borderRadius: 4,
+    padding: '6px 12px',
+    cursor: 'pointer'
+  }}
+>
+  Save Workflow
+</button>
 
         <button onClick={executeFlow} style={{ marginLeft: 10, background: '#0853b2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
           Execute Flow
         </button>
-
+        <button
+          onClick={() => handleEditRule()}
+          style={{
+            marginLeft: 10,
+            background: '#f59e0b',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 12px',
+            cursor: 'pointer'
+          }}
+        >
+          Edit Flow
+        </button>
       </div>
 
       <div style={{
@@ -427,18 +596,46 @@ const handleSaveWorkflow = async () => {
         right: 0,
         top: 0,
         bottom: 0,
-        width: '30vw',
+        width:dashboardExpanded ? '30vw' : '40px',
         background: '#f6f8fb',
         borderLeft: '1px solid #d8dde5',
-        padding: 12,
+        padding: dashboardExpanded ? 12 : 0,
         zIndex: 5,
         overflowY: 'auto',
+         transition: 'width 0.3s ease',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#002f6c' }}>Processing Dashboard</h3>
-          <button onClick={fetchDashboardData} style={{ fontSize: '0.8rem', background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '5px 8px', cursor: 'pointer' }}>Refresh</button>
-        </div>
+        <button
+          onClick={() => setDashboardExpanded(!dashboardExpanded)}
+          title={dashboardExpanded ? 'Collapse' : 'Expand'}
+          style={{
+            position: 'absolute',
+            left: dashboardExpanded ? 'auto' : '8px',
+            right: dashboardExpanded ? '12px' : 'auto',
+            top: '12px',
+            background: '#00438f',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            zIndex: 10,
+          }}
+        >
+          {dashboardExpanded ? '→' : '←'}
+        </button>
 
+        {dashboardExpanded && (
+          <>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 30 }}>
+
+
+          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#002f6c' }}>Processing Dashboard</h3>
+          <button onClick={fetchDashboardData} style={{ fontSize: '0.8rem', background: '#00438f', color: 'white', border: 'none', 
+            borderRadius: 4, padding: '5px 8px', cursor: 'pointer' }}>Refresh</button>
+        </div>
+  </>
+        )}
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0, background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', height: 'calc(100% - 44px)', overflowY: 'auto' }}>
             <div style={{ marginBottom: 8, fontWeight: '600', color: '#073c71' }}>Aggregated per day</div>
@@ -464,7 +661,9 @@ const handleSaveWorkflow = async () => {
           </div>
 
           <div style={{ flex: 1, minWidth: 0, background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', height: 'calc(100% - 44px)', overflowY: 'auto' }}>
-            <div style={{ marginBottom: 8, fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
+            </div>
             {!selectedDate && <div style={{ color: '#5d6779', marginBottom: 8 }}>Click a row in aggregated table to view details.</div>}
             {selectedDate && <div style={{ marginBottom: 8, color: '#1f4e92' }}>Showing: {selectedDate}</div>}
             {selectedDate && (
@@ -474,17 +673,37 @@ const handleSaveWorkflow = async () => {
                     <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Date</th>
                     <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Rule Name</th>
                     <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Claims</th>
+                    <th style={{ borderBottom: '1px solid #d8dde5', padding: '6px 4px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {dateDetails.length === 0 && (
-                    <tr><td colSpan={3} style={{ padding: '6px 4px', color: '#5d6779' }}>No details for the selected date.</td></tr>
+                    <tr><td colSpan={4} style={{ padding: '6px 4px', color: '#5d6779' }}>No details for the selected date.</td></tr>
                   )}
                   {dateDetails.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid #eef2f6' }}>
                       <td style={{ padding: '6px 4px' }}>{new Date(item.processed_at).toISOString().split('T')[0]}</td>
                       <td style={{ padding: '6px 4px' }}>{item.rule_engine?.rule_name || '-'}</td>
                       <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
+                      <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleExportRowCsv(item)}
+                          disabled={exportingRowId === item.id}
+                          title="Export this row as CSV"
+                          style={{
+                            fontSize: '0.7rem',
+                            background: exportingRowId === item.id ? '#94a3b8' : '#16a34a',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 3,
+                            padding: '3px 7px',
+                            cursor: exportingRowId === item.id ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {exportingRowId === item.id ? '⏳' : '⬇ CSV'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -666,9 +885,7 @@ const handleSaveWorkflow = async () => {
 
         fitView
 
-        style={{ position: 'absolute', left: 250, top: 0, width: 'calc(100vw - 250px - 30vw)', height: '100vh' }}>
-
-        <Controls />
+style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 0, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '30vw' : '40px'})`, height: '100vh' }}>        <Controls />
 
         <Background />
 
