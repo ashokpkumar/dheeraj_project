@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import PermissionDenied
 
 
 class ParamModel(models.Model):
@@ -57,13 +58,24 @@ class RuleLogic(models.Model):
 
     function_name = models.CharField(max_length=255)
 
-    input_params = models.IntegerField()
+    input_params = models.IntegerField(null=True,blank=True)
 
-    output_params = models.IntegerField()
+    output_params = models.IntegerField(null=True,blank=True)
 
     class Meta:
         db_table = "rule_logic"
 
+class ClaimsData(models.Model):
+    id =  models.AutoField(primary_key=True)
+    claims_id = models.CharField(max_length=255)
+    processed_date = models.DateTimeField(auto_now_add=True)
+    rule_name = models.CharField(max_length=255)
+    manual = models.BooleanField()
+    status = models.CharField(max_length=255)
+    rule_engine_id =  models.CharField(max_length=255)
+
+    class Meta:
+        db_table = "claims_data"
 
 class RuleEngine(models.Model):
 
@@ -117,6 +129,47 @@ class RuleEngineProcessed(models.Model):
     )
 
     processed_at = models.DateTimeField()
-
+    claims_count = models.IntegerField()
     class Meta:
         db_table = "rule_engine_processed"
+
+
+class ReadOnlyModel(models.Model):
+    """Prevents any accidental writes to the MSSQL database."""
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        raise PermissionDenied("MSSQL Model: Read-only")
+
+    def delete(self, *args, **kwargs):
+        raise PermissionDenied("MSSQL Model: Read-only")
+
+
+class DailyInventory(ReadOnlyModel):
+    use_mssql = True  # Tells the router to use the MSSQL DB
+
+    ID = models.IntegerField(primary_key=True)
+    RULE_ID_NBR = models.CharField(max_length=50, db_column="RULE-ID-NBR", null=True)
+    MACRO_RULE = models.CharField(max_length=255, null=True)
+    RULE_TYPE = models.CharField(max_length=50, db_column="RULE-TYPE", null=True)
+    RULE_REGN = models.CharField(max_length=50, db_column="RULE-REGN", null=True)
+    RULE_NAME = models.CharField(max_length=255, db_column="RULE-NAME", null=True)
+    MCRFM_ROLL_CD = models.CharField(max_length=50, db_column="MCRFM-ROLL-CD", null=True)
+
+    # Example of how to map date fields
+    ACTV_DT = models.DateField(db_column="ACTV-DT", null=True)
+    SERV_RCVD_DT = models.DateField(db_column="SERV-RCVD-DT", null=True)
+    SERV_CMPL_DT = models.DateField(db_column="SERV-CMPL-DT", null=True)
+
+    # Example numeric
+    CHRG_AMT = models.DecimalField(max_digits=12, decimal_places=2, db_column="CHRG-AMT", null=True)
+    PMT_AMT = models.DecimalField(max_digits=12, decimal_places=2, db_column="PMT-AMT", null=True)
+
+    # Add more fields gradually — you don’t need all 130 right away.
+    # Django will ignore missing columns when reading (but not writing).
+    # You can safely add only what you intend to use.
+
+    class Meta:
+        managed = False
+        db_table = "TBL_DAILY_INVENTORY_NEW"
