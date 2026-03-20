@@ -29,4 +29,8 @@ urlpatterns = [
         "rules/<int:rule_id>/execute/",
         views.execute_rule
     ),
+     path("dashboard/", views.dashboard, name="dashboard"),
+     
+    path("claims/export/", views.export_claims_csv, name="export_claims_csv"),
+
 ]
