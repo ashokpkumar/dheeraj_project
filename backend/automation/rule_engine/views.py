@@ -377,7 +377,7 @@ def execute_rule(request, rule_id):
 @api_view(["GET"])
 def list_rules(request):
 
-    rules = RuleEngine.objects.all()
+    rules = RuleEngine.objects.filter(deleted=False).order_by("-created_at").all()
 
     # Return only id and rule_name
     rules_data = [
@@ -395,7 +395,8 @@ def rule_details(request, rule_id):
     if request.method == "DELETE":
         try:
             rule = RuleEngine.objects.get(id=rule_id)
-            rule.delete()
+            rule.deleted = True
+            rule.save()
             return Response(
                 {"message": "Rule deleted successfully"},
                 status=status.HTTP_200_OK

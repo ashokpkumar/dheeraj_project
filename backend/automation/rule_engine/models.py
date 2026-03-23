@@ -84,7 +84,7 @@ class RuleEngine(models.Model):
     rule_name = models.CharField(max_length=255)
 
     created_at = models.DateTimeField(auto_now_add=True)
-
+    deleted = models.BooleanField(default=False)
     # Optional but strongly recommended if column exists
     reactflow_json = models.JSONField(null=True, blank=True)
 
