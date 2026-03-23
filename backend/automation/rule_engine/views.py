@@ -488,3 +488,127 @@ def export_claims_csv(request):
     resp = StreamingHttpResponse(row_iter(), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
+
+
+
+from .models import ScheduledJob
+
+
+# ─────────────────────────────────────────────
+# GET  /scheduler/jobs/        → list all jobs
+# POST /scheduler/jobs/        → create a job
+# ─────────────────────────────────────────────
+
+@api_view(["GET", "POST"])
+def scheduled_jobs(request):
+
+    if request.method == "GET":
+        return _list_jobs(request)
+
+    if request.method == "POST":
+        return _create_job(request)
+
+
+def _list_jobs(request):
+    jobs = ScheduledJob.objects.all()
+
+    data = [
+        {
+            "id":         job.id,
+            "rule_name":  job.rule_name,
+            "interval":   job.interval,
+            "unit":       job.unit,
+            "schedule":   f"every {job.interval} {job.unit}",   # human-readable
+            "is_active":  job.is_active,
+            "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for job in jobs
+    ]
+
+    return Response({
+            "count":   len(data),
+            "results": data,
+        }, status=status.HTTP_200_OK)
+
+def _create_job(request):
+    rule_name = request.data.get("rule_name", "").strip()
+    interval  = request.data.get("interval")
+    unit      = request.data.get("unit", "seconds")
+    is_active = request.data.get("is_active", True)
+
+    # ── Validation ──────────────────────────────────────────────────────────
+    if not rule_name:
+        return Response({"error": "rule_name is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if interval is None:
+        return Response({"error": "interval is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        interval = int(interval)
+        if interval <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return Response({"error": "interval must be a positive integer"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if unit not in ("seconds", "minutes", "hours"):
+        return Response({"error": "unit must be one of: seconds, minutes, hours"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ── Upsert (update if rule_name exists, create if not) ──────────────────
+    job, created = ScheduledJob.objects.update_or_create(
+        rule_name=rule_name,
+        defaults={
+            "interval":  interval,
+            "unit":      unit,
+            "is_active": is_active,
+        },
+    )
+
+    return Response({
+            "message":   "Job created" if created else "Job updated",
+            "id":        job.id,
+            "rule_name": job.rule_name,
+            "interval":  job.interval,
+            "unit":      job.unit,
+            "schedule":  f"every {job.interval} {job.unit}",
+            "is_active": job.is_active,
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+# ─────────────────────────────────────────────
+# PATCH /scheduler/jobs/<id>/toggle/  → pause / resume
+# DELETE /scheduler/jobs/<id>/        → remove a job
+# ─────────────────────────────────────────────
+
+@api_view(["PATCH"])
+def toggle_job(request, job_id):
+    try:
+        job = ScheduledJob.objects.get(id=job_id)
+    except ScheduledJob.DoesNotExist:
+        return Response(
+            {"error": f"Job {job_id} not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    job.is_active = not job.is_active
+    job.save(update_fields=["is_active", "updated_at"])
+
+    return Response({
+            "message":   "Job resumed" if job.is_active else "Job paused",
+            "id":        job.id,
+            "rule_name": job.rule_name,
+            "is_active": job.is_active,
+        }, status=status.HTTP_200_OK)
+
+
+@api_view(["DELETE"])
+def delete_job(request, job_id):
+    try:
+        job = ScheduledJob.objects.get(id=job_id)
+    except ScheduledJob.DoesNotExist:
+        return Response({"error": f"Job {job_id} not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    rule_name = job.rule_name
+    job.delete()
+
+    return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)

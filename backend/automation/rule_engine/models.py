@@ -173,3 +173,51 @@ class DailyInventory(ReadOnlyModel):
     class Meta:
         managed = False
         db_table = "TBL_DAILY_INVENTORY_NEW"
+
+
+
+
+from django.db import models
+
+
+class ScheduleUnit(models.TextChoices):
+    SECONDS = "seconds", "Seconds"
+    MINUTES = "minutes", "Minutes"
+    HOURS   = "hours",   "Hours"
+
+
+class ScheduledJob(models.Model):
+    """
+    One row = one scheduled task that maps to a named RuleEngine rule.
+    The scheduler process reads this table every minute and syncs jobs live.
+    """
+
+    rule_name   = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text="Must match RuleEngine.rule_name exactly"
+    )
+    interval    = models.PositiveIntegerField(
+        help_text="How often to run (numeric value)"
+    )
+    unit        = models.CharField(
+        max_length=10,
+        choices=ScheduleUnit.choices,
+        default=ScheduleUnit.SECONDS,
+        help_text="Unit for the interval"
+    )
+    is_active   = models.BooleanField(
+        default=True,
+        help_text="Uncheck to pause without deleting"
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["rule_name"]
+        verbose_name        = "Scheduled Job"
+        verbose_name_plural = "Scheduled Jobs"
+
+    def __str__(self):
+        status = "active" if self.is_active else "paused"
+        return f"{self.rule_name} — every {self.interval} {self.unit} ({status})"

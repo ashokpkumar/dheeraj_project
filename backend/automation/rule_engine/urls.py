@@ -33,4 +33,14 @@ urlpatterns = [
      
     path("claims/export/", views.export_claims_csv, name="export_claims_csv"),
 
+      # List all jobs / Create or update a job
+    path("scheduler/jobs/",              views.scheduled_jobs, name="scheduled-jobs"),
+
+    # Pause / resume a specific job
+    path("scheduler/jobs/<int:job_id>/toggle/", views.toggle_job,  name="toggle-job"),
+
+    # Delete a specific job
+    path("scheduler/jobs/<int:job_id>/",        views.delete_job,  name="delete-job"),
+
+
 ]

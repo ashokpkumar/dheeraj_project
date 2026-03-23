@@ -14,6 +14,7 @@ import '@xyflow/react/dist/style.css'
 import RuleNode from './components/RuleNode'
 
 import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule } from './api/api'
+import SchedulerPage from './components/SchedulerPage'
 
 
 
@@ -48,6 +49,7 @@ export default function App() {
   const [dashboardExpanded, setDashboardExpanded] = useState(true)
   const [rulesExpanded, setRulesExpanded] = useState(true)
 const [isEditMode, setIsEditMode] = useState(false)
+  const [currentPage, setCurrentPage] = useState('workflow') // 'workflow' | 'scheduler'
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -453,6 +455,47 @@ console.log(ruleName)
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
 
+      {/* ── Top Nav Bar ── */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 42,
+        background: '#002f6c', display: 'flex', alignItems: 'center',
+        paddingLeft: 16, zIndex: 100, gap: 4,
+      }}>
+        <span style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem', marginRight: 20, letterSpacing: '0.02em' }}>
+          ⚙ Rule Engine
+        </span>
+        {[
+          { id: 'workflow',  label: '⬡ Workflow' },
+          { id: 'scheduler', label: '⏱ Scheduler' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setCurrentPage(tab.id)}
+            style={{
+              background: currentPage === tab.id ? 'white' : 'transparent',
+              color: currentPage === tab.id ? '#002f6c' : 'rgba(255,255,255,0.75)',
+              border: 'none', borderRadius: '4px 4px 0 0',
+              padding: '6px 18px', cursor: 'pointer',
+              fontWeight: currentPage === tab.id ? 700 : 400,
+              fontSize: '0.875rem',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Scheduler Page ── */}
+      {currentPage === 'scheduler' && (
+        <div style={{ paddingTop: 42, height: '100vh', overflowY: 'auto', background: '#eaf2f7' }}>
+          <SchedulerPage />
+        </div>
+      )}
+
+      {/* ── Workflow Page ── */}
+      {currentPage === 'workflow' && (
+      <>
 
       <div style={{
 
@@ -460,7 +503,7 @@ console.log(ruleName)
 
         left: 0,
 
-        top: 0,
+        top: 42,
 
         width: rulesExpanded ? 250 : 40,
 
@@ -551,7 +594,7 @@ console.log(ruleName)
 
         zIndex: 10,
 
-        top: 10,
+        top: 52,
 
         left: rulesExpanded ? 270 : 50,
 
@@ -614,7 +657,7 @@ console.log(ruleName)
       <div style={{
         position: 'fixed',
         right: 0,
-        top: 0,
+        top: 42,
         bottom: 0,
         width:dashboardExpanded ? '30vw' : '40px',
         background: '#f6f8fb',
@@ -905,12 +948,17 @@ console.log(ruleName)
 
         fitView
 
-style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 0, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '30vw' : '40px'})`, height: '100vh' }}>        <Controls />
+style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 42, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '30vw' : '40px'})`, height: 'calc(100vh - 42px)' }}>        <Controls />
 
         <Background />
 
       </ReactFlow>
 
+ </>
+  )}
+  
+      /* end workflow fragment */
+      {/* end workflow */}
 
     </div>
 
