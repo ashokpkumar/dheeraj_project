@@ -384,14 +384,11 @@ console.log(ruleName)
 
 
   const createNewRule = () => {
-
     setNodes([])
-
     setEdges([])
-
-
     setCurrentRuleId(null)
-
+    setRuleName('')
+    setIsEditMode(false)
   }
 
 
@@ -506,22 +503,26 @@ console.log(ruleName)
 
         <ul style={{ listStyle: 'none', padding: 0 }}>
 
-         {rules.map((rule) => (
+         {rules.map((rule) => {
+              const isSelected = rule.id === currentRuleId
+              return (
               <li
                 key={rule.id}
                 style={{
                   marginBottom: 10,
                   padding: 5,
-                  border: '1px solid #ddd',
+                  border: `1px solid ${isSelected ? '#0062c4' : '#ddd'}`,
                   borderRadius: 3,
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  background: isSelected ? '#dbeafe' : 'transparent',
+                  fontWeight: isSelected ? '600' : 'normal',
                 }}
               >
                 <span
                   onClick={() => loadRule(rule.id)}
-                  style={{ cursor: 'pointer', flex: 1 }}
+                  style={{ cursor: 'pointer', flex: 1, color: isSelected ? '#0062c4' : 'inherit' }}
                 >
                   {rule.rule_name}
                 </span>
@@ -536,7 +537,7 @@ console.log(ruleName)
                   </button>
                 )}
               </li>
-            ))}
+            )})}
 
         </ul>
   </>
