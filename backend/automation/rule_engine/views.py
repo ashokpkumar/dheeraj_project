@@ -93,7 +93,7 @@ def dashboard(request):
     aggregate = parse_bool(params.get("aggregate"), default=False)
 
     # base queryset with eager load
-    qs = RuleEngineProcessed.objects.select_related("rule_engine")
+    qs = RuleEngineProcessed.objects.all()
 
     # filters
     engine_ids = parse_comma_ints(params.get("rule_engine_id"), "rule_engine_id")
@@ -129,8 +129,8 @@ def dashboard(request):
             {
                 "id": obj.id,
                 "rule_engine": {
-                    "id": obj.rule_engine.id,
-                    "rule_name": obj.rule_engine.rule_name,
+                    "id": obj.rule_engine_id,
+                    "rule_name": obj.rule_name,
                 },
                 "processed_at": obj.processed_at,
                 "claims_count": obj.claims_count,
