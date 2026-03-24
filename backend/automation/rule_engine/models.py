@@ -80,7 +80,8 @@ class ClaimsData(models.Model):
 class RuleEngine(models.Model):
 
     id = models.AutoField(primary_key=True)
-
+    rule_engine_id = models.IntegerField(null=True,blank=True)
+    rule_name = models.CharField(max_length=255, null=True,blank=True)
     rule_name = models.CharField(max_length=255)
 
     created_at = models.DateTimeField(auto_now_add=True)
