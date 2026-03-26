@@ -15,7 +15,7 @@ import RuleNode from './components/RuleNode'
 
 import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule } from './api/api'
 import SchedulerPage from './components/SchedulerPage'
-
+import ProcessingPage from './components/ProcessingPage'
 
 
 
@@ -49,7 +49,7 @@ export default function App() {
   const [dashboardExpanded, setDashboardExpanded] = useState(true)
   const [rulesExpanded, setRulesExpanded] = useState(true)
 const [isEditMode, setIsEditMode] = useState(false)
-  const [currentPage, setCurrentPage] = useState('workflow') // 'workflow' | 'scheduler'
+  const [currentPage, setCurrentPage] = useState('processing') // 'workflow' | 'scheduler'
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -465,8 +465,10 @@ console.log(ruleName)
           ⚙ Rule Engine
         </span>
         {[
+           { id: 'processing', label: '⏱ Dashboard' },
           { id: 'workflow',  label: '⬡ Workflow' },
           { id: 'scheduler', label: '⏱ Scheduler' },
+          
         ].map((tab) => (
           <button
             key={tab.id}
@@ -485,6 +487,17 @@ console.log(ruleName)
           </button>
         ))}
       </div>
+
+        {currentPage === 'processing' && (
+            <ProcessingPage
+              dashboardData={dashboardData}
+              dateDetails={dateDetails}
+              selectedDate={selectedDate}
+              fetchDashboardData={fetchDashboardData}
+              fetchDateDetails={fetchDateDetails}
+              handleExportRowCsv={handleExportRowCsv}
+            />
+          )}
 
       {/* ── Scheduler Page ── */}
       {currentPage === 'scheduler' && (
@@ -598,7 +611,7 @@ console.log(ruleName)
 
         left: rulesExpanded ? 270 : 50,
 
-        right: dashboardExpanded ? 'calc(30vw + 10px)' : '50px',
+        right: dashboardExpanded ? 'calc(48vw + 10px)' : '50px',
 
         background: 'transparent',
 
@@ -654,18 +667,21 @@ console.log(ruleName)
         </button>
       </div>
 
-      <div style={{
+      {/* <div style={{
         position: 'fixed',
         right: 0,
         top: 42,
         bottom: 0,
-        width:dashboardExpanded ? '30vw' : '40px',
+        width: dashboardExpanded ? '42vw' : '40px',
         background: '#f6f8fb',
         borderLeft: '1px solid #d8dde5',
-        padding: dashboardExpanded ? 12 : 0,
+        padding: dashboardExpanded ? '12px 14px' : 0,
         zIndex: 5,
         overflowY: 'auto',
-         transition: 'width 0.3s ease',
+        overflowX: 'hidden',
+        transition: 'width 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
         <button
           onClick={() => setDashboardExpanded(!dashboardExpanded)}
@@ -699,14 +715,14 @@ console.log(ruleName)
         </div>
   </>
         )}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0, background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', height: 'calc(100% - 44px)', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
+          <div style={{ background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', overflowX: 'auto', flexShrink: 0 }}>
             <div style={{ marginBottom: 8, fontWeight: '600', color: '#073c71' }}>Aggregated per day</div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Date</th>
-                  <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Claims</th>
+                  <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Date</th>
+                  <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Claims</th>
                 </tr>
               </thead>
               <tbody>
@@ -715,7 +731,7 @@ console.log(ruleName)
                 )}
                 {dashboardData.map((item) => (
                   <tr key={item.period_start} onClick={() => fetchDateDetails(item.period_start)} style={{ cursor: 'pointer', background: selectedDate === item.period_start ? '#e4f0ff' : 'transparent' }}>
-                    <td style={{ padding: '6px 4px' }}>{item.period_start}</td>
+                    <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{item.period_start}</td>
                     <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
                   </tr>
                 ))}
@@ -723,7 +739,7 @@ console.log(ruleName)
             </table>
           </div>
 
-          <div style={{ flex: 1, minWidth: 0, background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', height: 'calc(100% - 44px)', overflowY: 'auto' }}>
+          <div style={{ background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 200 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
             </div>
@@ -733,10 +749,10 @@ console.log(ruleName)
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Date</th>
-                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Rule Name</th>
-                    <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 4px', color: '#0f3d84' }}>Claims</th>
-                    <th style={{ borderBottom: '1px solid #d8dde5', padding: '6px 4px' }}></th>
+                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84', whiteSpace: 'nowrap' }}>Date</th>
+                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Rule Name</th>
+                    <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84', whiteSpace: 'nowrap' }}>Claims</th>
+                    <th style={{ borderBottom: '1px solid #d8dde5', padding: '6px 8px', whiteSpace: 'nowrap' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -745,8 +761,8 @@ console.log(ruleName)
                   )}
                   {dateDetails.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid #eef2f6' }}>
-                      <td style={{ padding: '6px 4px' }}>{new Date(item.processed_at).toISOString().split('T')[0]}</td>
-                      <td style={{ padding: '6px 4px' }}>{item.rule_engine?.rule_name || '-'}</td>
+                      <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{new Date(item.processed_at).toISOString().split('T')[0]}</td>
+                      <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{item.rule_engine?.rule_name || '-'}</td>
                       <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
                       <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                         <button
@@ -774,7 +790,7 @@ console.log(ruleName)
             )}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {showDialog && (
         <div style={{
@@ -948,17 +964,14 @@ console.log(ruleName)
 
         fitView
 
-style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 42, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '30vw' : '40px'})`, height: 'calc(100vh - 42px)' }}>        <Controls />
+style={{ position: 'fixed', left: rulesExpanded ? 250 : 40, top: 42, width: `calc(100vw - ${rulesExpanded ? 250 : 40}px - ${dashboardExpanded ? '42vw' : '40px'})`, height: 'calc(100vh - 42px)' }}>        <Controls />
 
         <Background />
 
       </ReactFlow>
 
- </>
-  )}
-  
-      /* end workflow fragment */
-      {/* end workflow */}
+      </> /* end workflow fragment */
+      )} {/* end workflow */}
 
     </div>
 
