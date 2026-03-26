@@ -48,8 +48,11 @@ export default function App() {
   const [exportingRowId, setExportingRowId] = useState(null)
   const [dashboardExpanded, setDashboardExpanded] = useState(true)
   const [rulesExpanded, setRulesExpanded] = useState(true)
-const [isEditMode, setIsEditMode] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [currentPage, setCurrentPage] = useState('processing') // 'workflow' | 'scheduler'
+  const [originalNodes, setOriginalNodes] = useState([])
+  const [originalEdges, setOriginalEdges] = useState([])
+
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -97,7 +100,19 @@ const [isEditMode, setIsEditMode] = useState(false)
     return
   }
 
+  // ✅ Backup current state before editing
+  setOriginalNodes(nodes)
+  setOriginalEdges(edges)
+
   setIsEditMode(true)
+}
+
+const handleCancelEdit = () => {
+  // 🔁 Restore previous state
+  setNodes(originalNodes)
+  setEdges(originalEdges)
+
+  setIsEditMode(false)
 }
 
   const handleExportRowCsv = async (item) => {
@@ -648,149 +663,44 @@ console.log(ruleName)
   Save Workflow
 </button>
 
-        <button onClick={executeFlow} style={{ marginLeft: 10, background: '#0853b2', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
-          Execute Flow
-        </button>
         <button
-          onClick={() => handleEditRule()}
+            onClick={executeFlow}
+            disabled={isEditMode}
+            style={{
+              marginLeft: 10,
+              background: isEditMode ? '#94a3b8' : '#0853b2',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              padding: '6px 12px',
+              cursor: isEditMode ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Execute Flow
+          </button>
+       <button
+          onClick={() => {
+            if (isEditMode) {
+              handleCancelEdit()
+            } else {
+              handleEditRule()
+            }
+          }}
           style={{
             marginLeft: 10,
-            background: isEditMode ? '#f59e0b' : '#00438f',
+            background: isEditMode ? '#dc2626' : '#00438f',
             color: 'white',
             border: 'none',
             borderRadius: 4,
             padding: '6px 12px',
-            cursor: 'pointer'
-          }}
-        >
-          Edit Flow
-        </button>
-      </div>
-
-      {/* <div style={{
-        position: 'fixed',
-        right: 0,
-        top: 42,
-        bottom: 0,
-        width: dashboardExpanded ? '42vw' : '40px',
-        background: '#f6f8fb',
-        borderLeft: '1px solid #d8dde5',
-        padding: dashboardExpanded ? '12px 14px' : 0,
-        zIndex: 5,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        transition: 'width 0.3s ease',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        <button
-          onClick={() => setDashboardExpanded(!dashboardExpanded)}
-          title={dashboardExpanded ? 'Collapse' : 'Expand'}
-          style={{
-            position: 'absolute',
-            left: dashboardExpanded ? 'auto' : '8px',
-            right: dashboardExpanded ? '12px' : 'auto',
-            top: '12px',
-            background: '#00438f',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            padding: '6px 8px',
             cursor: 'pointer',
-            fontSize: '1rem',
-            zIndex: 10,
+            fontWeight: 600
           }}
         >
-          {dashboardExpanded ? '→' : '←'}
+          {isEditMode ? 'Cancel Edit' : 'Edit Flow'}
         </button>
 
-        {dashboardExpanded && (
-          <>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 30 }}>
-
-
-          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#002f6c' }}>Processing Dashboard</h3>
-          <button onClick={fetchDashboardData} style={{ fontSize: '0.8rem', background: '#00438f', color: 'white', border: 'none', 
-            borderRadius: 4, padding: '5px 8px', cursor: 'pointer' }}>Refresh</button>
-        </div>
-  </>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
-          <div style={{ background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', overflowX: 'auto', flexShrink: 0 }}>
-            <div style={{ marginBottom: 8, fontWeight: '600', color: '#073c71' }}>Aggregated per day</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Date</th>
-                  <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Claims</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData.length === 0 && (
-                  <tr><td colSpan={2} style={{ padding: '6px 4px', color: '#5d6779' }}>No data yet</td></tr>
-                )}
-                {dashboardData.map((item) => (
-                  <tr key={item.period_start} onClick={() => fetchDateDetails(item.period_start)} style={{ cursor: 'pointer', background: selectedDate === item.period_start ? '#e4f0ff' : 'transparent' }}>
-                    <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{item.period_start}</td>
-                    <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ background: 'white', border: '1px solid #d8dde5', borderRadius: 8, padding: 10, boxShadow: '0 2px 6px rgba(0,0,0,0.05)', overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 200 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontWeight: '600', color: '#073c71' }}>Date-wise details</div>
-            </div>
-            {!selectedDate && <div style={{ color: '#5d6779', marginBottom: 8 }}>Click a row in aggregated table to view details.</div>}
-            {selectedDate && <div style={{ marginBottom: 8, color: '#1f4e92' }}>Showing: {selectedDate}</div>}
-            {selectedDate && (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84', whiteSpace: 'nowrap' }}>Date</th>
-                    <th style={{ textAlign: 'left', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84' }}>Rule Name</th>
-                    <th style={{ textAlign: 'right', borderBottom: '1px solid #d8dde5', padding: '6px 8px', color: '#0f3d84', whiteSpace: 'nowrap' }}>Claims</th>
-                    <th style={{ borderBottom: '1px solid #d8dde5', padding: '6px 8px', whiteSpace: 'nowrap' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dateDetails.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: '6px 4px', color: '#5d6779' }}>No details for the selected date.</td></tr>
-                  )}
-                  {dateDetails.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #eef2f6' }}>
-                      <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{new Date(item.processed_at).toISOString().split('T')[0]}</td>
-                      <td style={{ padding: '6px 4px', whiteSpace: 'nowrap' }}>{item.rule_engine?.rule_name || '-'}</td>
-                      <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.claims_count}</td>
-                      <td style={{ padding: '6px 4px', textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleExportRowCsv(item)}
-                          disabled={exportingRowId === item.id}
-                          title="Export this row as CSV"
-                          style={{
-                            fontSize: '0.7rem',
-                            background: exportingRowId === item.id ? '#94a3b8' : '#16a34a',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: 3,
-                            padding: '3px 7px',
-                            cursor: exportingRowId === item.id ? 'not-allowed' : 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {exportingRowId === item.id ? '⏳' : '⬇ CSV'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div> */}
+      </div>
 
       {showDialog && (
         <div style={{
