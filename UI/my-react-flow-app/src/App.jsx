@@ -52,7 +52,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('processing') // 'workflow' | 'scheduler'
   const [originalNodes, setOriginalNodes] = useState([])
   const [originalEdges, setOriginalEdges] = useState([])
-
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -342,11 +342,15 @@ console.log(ruleName)
       )
     }
 
-    alert(isEditMode ? "Workflow updated" : "Workflow saved")
-
+      alert(isEditMode ? "Workflow updated" : "Workflow saved")
+  setNodes([])
+    setEdges([])
+    setIsEditMode(false)
     setShowSaveDialog(false)
+     setCurrentRuleId(null)
      if (!isEditMode) {
     setRuleName("")
+    
   }
      if (isEditMode) {
     setIsEditMode(false)  // ✅ exit edit mode — useEffect will sync isEditMode=false into all nodes
@@ -357,7 +361,7 @@ console.log(ruleName)
 
   } catch (error) {
     console.error("Save failed:", error)
-    alert("Failed to save workflow")
+    alert(error.message)
   }
 }
 
@@ -416,6 +420,11 @@ console.log(ruleName)
     const updatedRules = await loadRules()
 
     setRules(Array.isArray(updatedRules) ? updatedRules : [])
+    setNodes([])
+    setEdges([])
+    setCurrentRuleId(null)
+    setRuleName('')
+    setIsEditMode(false)
 
   }
 
@@ -598,15 +607,47 @@ console.log(ruleName)
                   {rule.rule_name}
                 </span>
 
-                {/* ✅ Only show delete in edit mode */}
-                {isEditMode && (
-                  <button
-                    onClick={() => handleDeleteRule(rule.id)}
-                    style={{ marginLeft: 10 }}
-                  >
-                    -
-                  </button>
-                )}
+                 {confirmDeleteId === rule.id ? (
+  <>
+    <button
+      onClick={() => handleDeleteRule(rule.id)}
+      style={{
+        marginLeft: 10,
+        background: '#dc2626',
+        color: 'white',
+        border: 'none',
+        borderRadius: 4,
+        padding: '2px 6px',
+        cursor: 'pointer'
+      }}
+    >
+      Confirm
+    </button>
+
+    <button
+      onClick={() => setConfirmDeleteId(null)}
+      style={{
+        marginLeft: 5,
+        background: '#6b7280',
+        color: 'white',
+        border: 'none',
+        borderRadius: 4,
+        padding: '2px 6px',
+        cursor: 'pointer'
+      }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setConfirmDeleteId(rule.id)}
+            style={{ marginLeft: 10 }}
+          >
+            -
+          </button>
+        )}
+           
               </li>
             )})}
 
@@ -638,30 +679,56 @@ console.log(ruleName)
         transition: 'left 0.3s ease, right 0.3s ease',
       }}>
 
-        <button onClick={addNode} style={{ background: '#00438f', color: 'white', border: 'none', borderRadius: 4, padding: '6px 12px', cursor: 'pointer' }}>
-          Add Function
-        </button>
+       {(() => {
+          const canAdd = !currentRuleId || isEditMode
+          return (
+            <button
+              onClick={addNode}
+              disabled={!canAdd}
+              title={!canAdd ? 'Select a rule and click Edit, or create a new workflow first' : ''}
+              style={{
+                background: canAdd ? '#00438f' : '#94a3b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px 12px',
+                cursor: canAdd ? 'pointer' : 'not-allowed',
+                opacity: canAdd ? 1 : 0.7,
+              }}
+            >
+              Add Function
+            </button>
+          )
+        })()}
 
-        <button
-  onClick={() => {
-    if (isEditMode) {
-      handleSaveWorkflow()   // ✅ direct save
-    } else {
-      setShowSaveDialog(true) // 🆕 only for create
-    }
-  }}
-  style={{
-    marginLeft: 10,
-    background: '#0062c4',
-    color: 'white',
-    border: 'none',
-    borderRadius: 4,
-    padding: '6px 12px',
-    cursor: 'pointer'
-  }}
->
-  Save Workflow
-</button>
+         {(() => {
+          const canSave = (isEditMode && !!currentRuleId) || (!currentRuleId && nodes.length > 0)
+          return (
+            <button
+              onClick={() => {
+                if (isEditMode) {
+                  handleSaveWorkflow()
+                } else {
+                  setShowSaveDialog(true)
+                }
+              }}
+              disabled={!canSave}
+              title={!canSave ? 'Select a rule and click Edit, or add a node to a new workflow' : ''}
+              style={{
+                marginLeft: 10,
+                background: canSave ? '#0062c4' : '#94a3b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px 12px',
+                cursor: canSave ? 'pointer' : 'not-allowed',
+                opacity: canSave ? 1 : 0.7,
+              }}
+            >
+              Save Workflow
+            </button>
+          )
+        })()}
 
         <button
             onClick={executeFlow}
