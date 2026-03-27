@@ -258,7 +258,13 @@ def save_rule(request):
             {"error": "edges are required (can be empty list)"},
             status=status.HTTP_400_BAD_REQUEST
         )
-
+    existing_rule = RuleEngine.objects.filter(rule_name=rule_name).first()
+    if not  rule_id and existing_rule :
+        return Response(
+               f"Rule with name '{rule_name}' Already found",
+                status=status.HTTP_400_BAD_REQUEST
+                
+            )
     # Add IDs to edges if missing
     for i, edge in enumerate(edges):
         if "id" not in edge:
@@ -365,7 +371,7 @@ def save_rule(request):
 @api_view(["POST"])
 def execute_rule(request, rule_id):
 
-    executor = RuleExecutor(rule_id)
+    executor = RuleExecutor(rule_id,True)
 
     result = executor.execute()
 
