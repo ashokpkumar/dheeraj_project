@@ -5,7 +5,7 @@ import schedule
 import time
 import logging
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'automation.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
 
 from rule_engine.models import RuleEngine
@@ -30,7 +30,7 @@ def _make_task(rule_name: str):
             if not rule_obj:
                 logger.warning(f"[scheduler] RuleEngine '{rule_name}' not found — skipping")
                 return
-            executor = RuleExecutor(rule_obj.id)
+            executor = RuleExecutor(rule_obj.id,False)
             executor.execute()
         except Exception as e:
             logger.error(f"[scheduler] Error running '{rule_name}': {e}")
