@@ -39,7 +39,18 @@ export default function SchedulerPage() {
   const [formInterval, setFormInterval] = useState('')
   const [formUnit, setFormUnit]         = useState('seconds')
   const [formActive, setFormActive]     = useState(true)
+const [rulesList, setRulesList] = useState([])
 
+const fetchRules = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/rules/`)
+    const data = await res.json()
+
+    setRulesList(Array.isArray(data) ? data : (data.results || []))
+  } catch {
+    setError('Failed to load rules list')
+  }
+}
   const fetchJobs = async () => {
     setLoading(true)
     try {
@@ -54,7 +65,10 @@ export default function SchedulerPage() {
     }
   }
 
-  useEffect(() => { fetchJobs() }, [])
+useEffect(() => {
+  fetchJobs()
+  fetchRules() // ✅ NEW
+}, [])
 
   const flash = (msg) => {
     setSuccessMsg(msg)
@@ -89,10 +103,15 @@ export default function SchedulerPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save job')
+      const savedJob = data
       flash(data.message || 'Job saved')
       setShowForm(false)
       resetForm()
       fetchJobs()
+      // Ask to run immediately after saving
+      if (window.confirm(`Job "${savedJob.rule_name}" saved. Do you want to run it now?`)) {
+        await handleRunNow(savedJob)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -111,13 +130,52 @@ export default function SchedulerPage() {
   }
 
   const handleDelete = async (job) => {
-    if (!window.confirm(`Delete scheduled job "${job.rule_name}"?`)) return
+    if (!window.confirm(`Are you sure you want to delete the scheduled job "${job.rule_name}"? This cannot be undone.`)) return
     try {
       await fetch(`${API_BASE}/scheduler/jobs/${job.id}/`, { method: 'DELETE' })
       flash(`Job "${job.rule_name}" deleted`)
       fetchJobs()
     } catch {
       setError('Delete failed')
+    }
+  }
+
+  const handleRunNow = async (job) => {
+    try {
+      flash(`Running "${job.rule_name}" now…`)
+      await fetch(`${API_BASE}/rules/${job.id}/execute/`, { method: 'POST' })
+      flash(`Job "${job.rule_name}" executed successfully`)
+    } catch {
+      setError(`Failed to run "${job.rule_name}"`)
+    }
+  }
+
+  const handleExecuteAll = async () => {
+    if (!window.confirm(`Execute all ${jobs.filter(j => j.is_active).length} active jobs now?`)) return
+    const active = jobs.filter(j => j.is_active)
+    try {
+      flash(`Running ${active.length} active jobs…`)
+      await Promise.all(
+        active.map(job => fetch(`${API_BASE}/rules/${job.rule_name}/execute/`, { method: 'POST' }))
+      )
+      flash(`All ${active.length} active jobs executed successfully`)
+    } catch {
+      setError('One or more jobs failed to execute')
+    }
+  }
+
+  const handlePauseAll = async () => {
+    const activeJobs = jobs.filter(j => j.is_active)
+    if (activeJobs.length === 0) return flash('No active jobs to pause')
+    if (!window.confirm(`Pause all ${activeJobs.length} active jobs?`)) return
+    try {
+      await Promise.all(
+        activeJobs.map(job => fetch(`${API_BASE}/scheduler/jobs/${job.id}/toggle/`, { method: 'PATCH' }))
+      )
+      flash(`${activeJobs.length} jobs paused`)
+      fetchJobs()
+    } catch {
+      setError('Failed to pause all jobs')
     }
   }
 
@@ -137,8 +195,22 @@ export default function SchedulerPage() {
             Manage and monitor automated rule executions
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={fetchJobs} style={btn('#475569')}>↻ Refresh</button>
+          <button
+            onClick={handlePauseAll}
+            style={btn('#f59e0b')}
+            title="Pause all currently active jobs"
+          >
+            ⏸ Pause All
+          </button>
+          <button
+            onClick={handleExecuteAll}
+            style={btn('#0853b2')}
+            title="Execute all active jobs immediately"
+          >
+            ▶ Execute All
+          </button>
           <button
             onClick={() => { setShowForm(true); setError('') }}
             style={btn('#00438f')}
@@ -180,12 +252,19 @@ export default function SchedulerPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={labelStyle}>Rule Name</label>
-              <input
+              <select
                 value={formRuleName}
                 onChange={(e) => setFormRuleName(e.target.value)}
-                placeholder="e.g. scrape_cps_850"
                 style={inputStyle}
-              />
+              >
+                <option value="">Select a rule</option>
+
+                {rulesList.map((rule) => (
+                  <option key={rule.id} value={rule.rule_name}>
+                    {rule.rule_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -284,10 +363,17 @@ export default function SchedulerPage() {
                     {job.updated_at}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => handleRunNow(job)}
+                        style={btn('#16a34a', { padding: '4px 10px', fontSize: '0.78rem' })}
+                        title="Run this job immediately"
+                      >
+                        ▶ Run Now
+                      </button>
                       <button
                         onClick={() => handleToggle(job)}
-                        style={btn(job.is_active ? '#f59e0b' : '#16a34a', { padding: '4px 10px', fontSize: '0.78rem' })}
+                        style={btn(job.is_active ? '#f59e0b' : '#0853b2', { padding: '4px 10px', fontSize: '0.78rem' })}
                         title={job.is_active ? 'Pause this job' : 'Resume this job'}
                       >
                         {job.is_active ? '⏸ Pause' : '▶ Resume'}
