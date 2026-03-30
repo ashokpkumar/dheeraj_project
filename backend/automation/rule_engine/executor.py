@@ -6,9 +6,9 @@ import inspect
 
 class GraphRuleExecutor:
 
-    def __init__(self, rule_engine_id):
+    def __init__(self, rule_engine_id,manual):
         self.rule_engine_id = rule_engine_id
-        self.context = {}
+        self.context = {"manual":manual}
         self.execution_log = []
 
     def execute(self):

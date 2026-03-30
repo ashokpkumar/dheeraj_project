@@ -80,13 +80,10 @@ class ClaimsData(models.Model):
 class RuleEngine(models.Model):
 
     id = models.AutoField(primary_key=True)
-    rule_engine_id = models.IntegerField(null=True,blank=True)
+  
     rule_name = models.CharField(max_length=255, null=True,blank=True)
-    rule_name = models.CharField(max_length=255)
-
     created_at = models.DateTimeField(auto_now_add=True)
     deleted = models.BooleanField(default=False)
-    # Optional but strongly recommended if column exists
     reactflow_json = models.JSONField(null=True, blank=True)
 
     class Meta:
@@ -123,12 +120,8 @@ class RuleEngineProcessed(models.Model):
 
     id = models.AutoField(primary_key=True)
 
-    rule_engine = models.ForeignKey(
-        RuleEngine,
-        on_delete=models.CASCADE,
-        db_column="rule_engine_id"
-    )
-
+    rule_engine_id = models.IntegerField(null=True,blank=True)
+    rule_name = models.CharField(max_length=255, null=True,blank=True)
     processed_at = models.DateTimeField()
     claims_count = models.IntegerField()
     class Meta:
