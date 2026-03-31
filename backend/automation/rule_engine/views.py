@@ -370,7 +370,12 @@ def save_rule(request):
 
 @api_view(["POST"])
 def execute_rule(request, rule_id):
-
+    rule_engine = RuleEngine.objects.filter(id=rule_id).first()
+    if not rule_engine:
+        return Response(
+            {"error": f"Rule with id '{rule_id}' not found"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
     executor = RuleExecutor(rule_id,True)
 
     result = executor.execute()

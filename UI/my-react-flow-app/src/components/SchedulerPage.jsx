@@ -140,15 +140,27 @@ useEffect(() => {
     }
   }
 
-  const handleRunNow = async (job) => {
-    try {
-      flash(`Running "${job.rule_name}" now…`)
-      await fetch(`${API_BASE}/rules/${job.id}/execute/`, { method: 'POST' })
-      flash(`Job "${job.rule_name}" executed successfully`)
-    } catch {
-      setError(`Failed to run "${job.rule_name}"`)
+const handleRunNow = async (job) => {
+  try {
+    flash(`Running "${job.rule_name}" now…`)
+
+    const response = await fetch(`${API_BASE}/rules/${job.id}/execute/`, {
+      method: 'POST',
+    })
+
+    if (!response.ok) {
+      // Handle 4xx / 5xx responses
+      const errorText = await response.text() // or response.json() if API returns JSON
+      throw new Error(errorText || 'Server error')
+      
     }
+
+    flash(`Job "${job.rule_name}" executed successfully`)
+  } catch (err) {
+
+    flash(`⚠️ ${err.message}`)
   }
+}
 
   const handleExecuteAll = async () => {
     if (!window.confirm(`Execute all ${jobs.filter(j => j.is_active).length} active jobs now?`)) return
