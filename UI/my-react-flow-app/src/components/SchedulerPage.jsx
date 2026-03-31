@@ -40,6 +40,7 @@ export default function SchedulerPage() {
   const [formUnit, setFormUnit]         = useState('seconds')
   const [formActive, setFormActive]     = useState(true)
 const [rulesList, setRulesList] = useState([])
+const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
 
 const fetchRules = async () => {
   try {
@@ -175,20 +176,30 @@ const handleRunNow = async (job) => {
     }
   }
 
-  const handlePauseAll = async () => {
-    const activeJobs = jobs.filter(j => j.is_active)
-    if (activeJobs.length === 0) return flash('No active jobs to pause')
-    if (!window.confirm(`Pause all ${activeJobs.length} active jobs?`)) return
-    try {
-      await Promise.all(
-        activeJobs.map(job => fetch(`${API_BASE}/scheduler/jobs/${job.id}/toggle/`, { method: 'PATCH' }))
-      )
-      flash(`${activeJobs.length} jobs paused`)
-      fetchJobs()
-    } catch {
-      setError('Failed to pause all jobs')
-    }
+ const handleToggleAll = async () => {
+  const targetJobs = allPaused
+    ? jobs.filter(j => !j.is_active)   // resume all
+    : jobs.filter(j => j.is_active)    // pause all
+
+  if (targetJobs.length === 0) {
+    return flash(allPaused ? 'No paused jobs to resume' : 'No active jobs to pause')
   }
+
+  if (!window.confirm(`${allPaused ? 'Resume' : 'Pause'} all ${targetJobs.length} jobs?`)) return
+
+  try {
+    await Promise.all(
+      targetJobs.map(job =>
+        fetch(`${API_BASE}/scheduler/jobs/${job.id}/toggle/`, { method: 'PATCH' })
+      )
+    )
+
+    flash(`${targetJobs.length} jobs ${allPaused ? 'resumed' : 'paused'}`)
+    fetchJobs()
+  } catch {
+    setError(`Failed to ${allPaused ? 'resume' : 'pause'} all jobs`)
+  }
+}
 
   return (
     <div style={{
@@ -208,13 +219,13 @@ const handleRunNow = async (job) => {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={fetchJobs} style={btn('#475569')}>↻ Refresh</button>
-          <button
-            onClick={handlePauseAll}
-            style={btn('#f59e0b')}
-            title="Pause all currently active jobs"
-          >
-            ⏸ Pause All
-          </button>
+         <button
+          onClick={handleToggleAll}
+          style={btn(allPaused ? '#16a34a' : '#f59e0b')}
+          title={allPaused ? 'Resume all paused jobs' : 'Pause all active jobs'}
+        >
+          {allPaused ? '▶ Resume All' : '⏸ Pause All'}
+        </button>
           <button
             onClick={handleExecuteAll}
             style={btn('#0853b2')}
