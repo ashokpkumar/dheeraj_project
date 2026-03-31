@@ -528,6 +528,7 @@ def _list_jobs(request):
         {
             "id":         job.id,
             "rule_name":  job.rule_name,
+            "rule_id":    job.rule_id,
             "interval":   job.interval,
             "unit":       job.unit,
             "schedule":   f"every {job.interval} {job.unit}",   # human-readable
@@ -544,15 +545,14 @@ def _list_jobs(request):
         }, status=status.HTTP_200_OK)
 
 def _create_job(request):
-    rule_name = request.data.get("rule_name", "").strip()
+    #rule_name = request.data.get("rule_name", "").strip()
+    rule_id  = int(request.data.get("rule_id"))
     interval  = request.data.get("interval")
     unit      = request.data.get("unit", "seconds")
     is_active = request.data.get("is_active", True)
 
     # ── Validation ──────────────────────────────────────────────────────────
-    if not rule_name:
-        return Response({"error": "rule_name is required"}, status=status.HTTP_400_BAD_REQUEST)
-
+   
     if interval is None:
         return Response({"error": "interval is required"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -567,9 +567,11 @@ def _create_job(request):
         return Response({"error": "unit must be one of: seconds, minutes, hours"}, status=status.HTTP_400_BAD_REQUEST)
 
     # ── Upsert (update if rule_name exists, create if not) ──────────────────
+    rule_name = RuleEngine.objects.filter(id=rule_id).values_list("rule_name", flat=True).first()
     job, created = ScheduledJob.objects.update_or_create(
         rule_name=rule_name,
         defaults={
+            "rule_id":   rule_id,
             "interval":  interval,
             "unit":      unit,
             "is_active": is_active,

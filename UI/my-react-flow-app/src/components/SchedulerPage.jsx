@@ -95,7 +95,7 @@ useEffect(() => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          rule_name: formRuleName.trim(),
+          rule_id: formRuleName.trim(),
           interval:  Number(formInterval),
           unit:      formUnit,
           is_active: formActive,
@@ -105,13 +105,11 @@ useEffect(() => {
       if (!res.ok) throw new Error(data.error || 'Failed to save job')
       const savedJob = data
       flash(data.message || 'Job saved')
+      console.log(savedJob)
       setShowForm(false)
       resetForm()
       fetchJobs()
-      // Ask to run immediately after saving
-      if (window.confirm(`Job "${savedJob.rule_name}" saved. Do you want to run it now?`)) {
-        await handleRunNow(savedJob)
-      }
+
     } catch (e) {
       setError(e.message)
     } finally {
@@ -141,10 +139,11 @@ useEffect(() => {
   }
 
 const handleRunNow = async (job) => {
+  console.log(job)
   try {
     flash(`Running "${job.rule_name}" now…`)
 
-    const response = await fetch(`${API_BASE}/rules/${job.id}/execute/`, {
+    const response = await fetch(`${API_BASE}/rules/${job.rule_id}/execute/`, {
       method: 'POST',
     })
 
@@ -272,8 +271,8 @@ const handleRunNow = async (job) => {
                 <option value="">Select a rule</option>
 
                 {rulesList.map((rule) => (
-                  <option key={rule.id} value={rule.rule_name}>
-                    {rule.rule_name}
+                  <option key={rule.rule_name} value={rule.id}>
+                   {rule.rule_name}
                   </option>
                 ))}
               </select>
