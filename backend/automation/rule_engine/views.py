@@ -537,6 +537,7 @@ def _list_jobs(request):
             "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             "combinations": job.combinations,
             "schedule_config": job.schedule_config,
+            "Job Name": job.job_name,
         }
         for job in jobs
     ]
@@ -554,15 +555,17 @@ def _create_job(request):
     is_active = request.data.get("is_active", True)
     combinations = request.data.get("combinations", None)
     schedule_config = request.data.get("schedule_config", None)
+    job_name = request.data.get("job_name", "").strip()
     # ── Validation ──────────────────────────────────────────────────────────
    
-    if interval is None:
+    if schedule_config.get("type") == "interval" and interval is None:
         return Response({"error": "interval is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        interval = int(interval)
-        if interval <= 0:
-            raise ValueError
+        if interval:
+            interval = int(interval)
+            if interval <= 0:
+                raise ValueError
     except (ValueError, TypeError):
         return Response({"error": "interval must be a positive integer"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -573,6 +576,7 @@ def _create_job(request):
     rule_name = RuleEngine.objects.filter(id=rule_id).values_list("rule_name", flat=True).first()
     job, created = ScheduledJob.objects.update_or_create(
         rule_name=rule_name,
+        job_name = job_name,
         defaults={
             "rule_id":   rule_id,
             "interval":  interval,

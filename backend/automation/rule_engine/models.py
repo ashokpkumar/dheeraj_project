@@ -185,16 +185,16 @@ class ScheduledJob(models.Model):
     One row = one scheduled task that maps to a named RuleEngine rule.
     The scheduler process reads this table every minute and syncs jobs live.
     """
+    job_name = models.CharField(max_length=255, unique=True)
     combinations = models.JSONField(null=True, blank=True)
     schedule_config = models.JSONField(null=True, blank=True) 
     rule_id      = models.IntegerField(null=True, blank=True,
         help_text="Must match RuleEngine.id exactly"    )
     rule_name   = models.CharField(
         max_length=255,
-        unique=True,
         help_text="Must match RuleEngine.rule_name exactly"
     )
-    interval    = models.PositiveIntegerField(
+    interval    = models.PositiveIntegerField(blank=True, null=True,
         help_text="How often to run (numeric value)"
     )
     unit        = models.CharField(

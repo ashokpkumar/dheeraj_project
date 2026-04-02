@@ -48,7 +48,7 @@ export default function SchedulerPage() {
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleDays, setScheduleDays] = useState([])
   const [scheduleDate, setScheduleDate] = useState('')
-
+  const [jobName, setJobName] = useState('')
   const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
 
 const fetchRules = async () => {
@@ -99,39 +99,37 @@ useEffect(() => {
   const handleAddJob = async () => {
     setError('')
     if (!formRuleName.trim()) return setError('Rule name is required')
-    if (!formInterval || isNaN(formInterval) || Number(formInterval) <= 0)
-      return setError('Interval must be a positive number')
+
     const payload = {
-        rule_id: formRuleName.trim(),
-        interval: Number(formInterval),
-        unit: formUnit,
-        is_active: formActive,
-      }
-      payload.schedule_config = {
+      rule_id: formRuleName.trim(),
+      is_active: formActive,
+      job_name: jobName.trim() || `Job for ${formRuleName.trim()}`,
+      schedule_config: {
         type: scheduleType,
-        time: scheduleTime,
-        days: scheduleDays,
-        date: scheduleDate
-      }
+        ...(scheduleType === 'daily' && { time: scheduleTime }),
+        ...(scheduleType === 'weekly' && { time: scheduleTime, days: scheduleDays }),
+        ...(scheduleType === 'once'   && { time: scheduleTime, date: scheduleDate }),
+      },
+    }
+
+    if (scheduleType === 'interval') {
+      if (!formInterval || isNaN(formInterval) || Number(formInterval) <= 0)
+        return setError('Interval must be a positive number')
+      payload.interval = Number(formInterval)
+      payload.unit = formUnit
+
       if (useCombinations) {
         const intervals = comboIntervals
           .split(',')
           .map(x => parseInt(x.trim()))
           .filter(x => !isNaN(x) && x > 0)
 
-        if (intervals.length === 0) {
-          return setError('Provide valid combination intervals')
-        }
+        if (intervals.length === 0) return setError('Provide valid combination intervals')
+        if (comboUnits.length === 0) return setError('Select at least one unit')
 
-        if (comboUnits.length === 0) {
-          return setError('Select at least one unit')
-        }
-
-        payload.combinations = {
-          intervals,
-          units: comboUnits
-        }
+        payload.combinations = { intervals, units: comboUnits }
       }
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`${API_BASE}/scheduler/jobs/`, {
@@ -310,7 +308,16 @@ const handleRunNow = async (job) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
+              <label style={labelStyle}>Job Name</label>
+              <input type="text" value={jobName} onChange={e => setJobName(e.target.value)} />
+              
+              
+            </div>
+
+            <div>
               <label style={labelStyle}>Rule Name</label>
+              
+              
               <select
                 value={formRuleName}
                 onChange={(e) => setFormRuleName(e.target.value)}
@@ -347,6 +354,8 @@ const handleRunNow = async (job) => {
   <>
     <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
 
+    
+
     <div>
       {['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => (
         <label key={day}>
@@ -371,10 +380,11 @@ const handleRunNow = async (job) => {
 {scheduleType === 'once' && (
   <>
     <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
-    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
+   
   </>
 )}
 
+            {scheduleType === 'interval' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={labelStyle}>Interval</label>
@@ -448,6 +458,7 @@ const handleRunNow = async (job) => {
               </div>
             )}
             </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
               <input
