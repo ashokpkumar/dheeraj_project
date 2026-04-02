@@ -500,7 +500,7 @@ const handleRunNow = async (job) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ background: '#f0f6ff', borderBottom: '1px solid #d8dde5' }}>
-                {['Rule Name', 'Schedule', 'Status', 'Last Updated', 'Actions'].map((h) => (
+                {['Job Name', 'Rule Name', 'Schedule', 'Status', 'Last Updated', 'Actions'].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', color: '#0f3d84', fontWeight: 600, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {h}
                   </th>
@@ -513,6 +513,9 @@ const handleRunNow = async (job) => {
                   key={job.id}
                   style={{ borderBottom: i < jobs.length - 1 ? '1px solid #eef2f6' : 'none', background: i % 2 === 0 ? 'white' : '#fafbff' }}
                 >
+                  <td style={{ padding: '12px 16px', color: '#5d6779', fontSize: '0.82rem' }}>
+                    {job.job_name}
+                  </td>
                   <td style={{ padding: '12px 16px', fontWeight: 500, color: '#1a273d' }}>
                     {job.rule_name}
                   </td>

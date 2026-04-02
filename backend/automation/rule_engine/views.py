@@ -537,7 +537,7 @@ def _list_jobs(request):
             "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
             "combinations": job.combinations,
             "schedule_config": job.schedule_config,
-            "Job Name": job.job_name,
+            "job_name": job.job_name,
         }
         for job in jobs
     ]
