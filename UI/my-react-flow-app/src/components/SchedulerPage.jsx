@@ -99,7 +99,11 @@ useEffect(() => {
   const handleAddJob = async () => {
     setError('')
     if (!formRuleName.trim()) return setError('Rule name is required')
-
+    const toUTCISOString = (localDateTime) => {
+              if (!localDateTime) return null
+              const date = new Date(localDateTime)
+              return date.toISOString() // converts to UTC
+            }
     const payload = {
       rule_id: formRuleName.trim(),
       is_active: formActive,
@@ -108,7 +112,7 @@ useEffect(() => {
         type: scheduleType,
         ...(scheduleType === 'daily' && { time: scheduleTime }),
         ...(scheduleType === 'weekly' && { time: scheduleTime, days: scheduleDays }),
-        ...(scheduleType === 'once'   && { time: scheduleTime, date: scheduleDate }),
+        ...(scheduleType === 'once'   && { time: scheduleTime, date: toUTCISOString(scheduleDate) }),
       },
     }
 
@@ -379,7 +383,7 @@ const handleRunNow = async (job) => {
 
 {scheduleType === 'once' && (
   <>
-    <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+    <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
    
   </>
 )}

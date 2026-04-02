@@ -529,7 +529,8 @@ def _fetch_schedule(job):
     elif job.schedule_config.get("type") == "daily":
         schedule = f"Daily at {job.schedule_config.get('time', '00:00')}"
     elif job.schedule_config.get("type") == "once":
-        schedule = f"Run Once at {job.schedule_config.get('date')}"
+        schedule = f"Run Once at {job.schedule_config.get('date').split("T")[0] +\
+                                   " " + job.schedule_config.get('date').split("T")[1]}"
     return schedule
 
 def _list_jobs(request):
