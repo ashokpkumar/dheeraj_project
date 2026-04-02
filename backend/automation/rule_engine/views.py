@@ -535,6 +535,8 @@ def _list_jobs(request):
             "is_active":  job.is_active,
             "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "combinations": job.combinations,
+            "schedule_config": job.schedule_config,
         }
         for job in jobs
     ]
@@ -550,7 +552,8 @@ def _create_job(request):
     interval  = request.data.get("interval")
     unit      = request.data.get("unit", "seconds")
     is_active = request.data.get("is_active", True)
-
+    combinations = request.data.get("combinations", None)
+    schedule_config = request.data.get("schedule_config", None)
     # ── Validation ──────────────────────────────────────────────────────────
    
     if interval is None:
@@ -575,6 +578,8 @@ def _create_job(request):
             "interval":  interval,
             "unit":      unit,
             "is_active": is_active,
+            "combinations": combinations,  # ← ADD THIS
+            "schedule_config": schedule_config, 
         },
     )
 

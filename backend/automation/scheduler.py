@@ -38,20 +38,100 @@ def _make_task(rule_name: str):
     task.__name__ = f"task_{rule_name}"
     return task
 
+from datetime import datetime
+import schedule
 
-def _build_schedule_job(db_job: "ScheduledJob") -> schedule.Job:
-    """Register a single ScheduledJob with the schedule library and return it."""
-    every = schedule.every(db_job.interval)
+def _build_schedule_jobs(db_job):
+    jobs = []
 
-    unit_map = {
-        "seconds": every.seconds,
-        "minutes": every.minutes,
-        "hours":   every.hours,
-    }
+    config = db_job.schedule_config or {}
+    schedule_type = config.get("type")
 
-    scheduled = unit_map.get(db_job.unit, every.seconds)
-    return scheduled.do(_make_task(db_job.rule_name))
+    # ─────────────────────────────
+    # 1. INTERVAL (existing + combos)
+    # ─────────────────────────────
+    if not schedule_type or schedule_type == "interval":
 
+        combos = db_job.combinations or {}
+
+        intervals = combos.get("intervals") or [db_job.interval]
+        units     = combos.get("units")     or [db_job.unit]
+
+        for interval in intervals:
+            for unit in units:
+                every = schedule.every(interval)
+
+                unit_map = {
+                    "seconds": every.seconds,
+                    "minutes": every.minutes,
+                    "hours":   every.hours,
+                }
+
+                job = unit_map.get(unit, every.seconds).do(
+                    _make_task(db_job.rule_name)
+                )
+
+                jobs.append((job, interval, unit))
+
+    # ─────────────────────────────
+    # 2. DAILY AT TIME
+    # ─────────────────────────────
+    elif schedule_type == "daily":
+
+        time_str = config.get("time", "00:00")
+
+        job = schedule.every().day.at(time_str).do(
+            _make_task(db_job.rule_name)
+        )
+
+        jobs.append((job, "daily", time_str))
+
+    # ─────────────────────────────
+    # 3. WEEKLY (selected days)
+    # ─────────────────────────────
+    elif schedule_type == "weekly":
+
+        time_str = config.get("time", "00:00")
+        days = config.get("days", [])
+
+        day_map = {
+            "monday": schedule.every().monday,
+            "tuesday": schedule.every().tuesday,
+            "wednesday": schedule.every().wednesday,
+            "thursday": schedule.every().thursday,
+            "friday": schedule.every().friday,
+            "saturday": schedule.every().saturday,
+            "sunday": schedule.every().sunday,
+        }
+
+        for d in days:
+            sched = day_map.get(d.lower())
+            if sched:
+                job = sched.at(time_str).do(
+                    _make_task(db_job.rule_name)
+                )
+                jobs.append((job, d, time_str))
+
+    # ─────────────────────────────
+    # 4. RUN ONCE
+    # ─────────────────────────────
+    elif schedule_type == "once":
+
+        date_str = config.get("date")
+        time_str = config.get("time", "00:00")
+
+        def one_time_task():
+            now = datetime.now()
+            target = datetime.fromisoformat(f"{date_str}T{time_str}")
+
+            if now >= target:
+                _make_task(db_job.rule_name)()
+                return schedule.CancelJob
+
+        job = schedule.every(1).minutes.do(one_time_task)
+        jobs.append((job, "once", f"{date_str} {time_str}"))
+
+    return jobs
 
 def sync_jobs_from_db():
     """
@@ -67,8 +147,10 @@ def sync_jobs_from_db():
     for job_id in list(_registered_jobs.keys()):
         db_job = db_jobs.get(job_id)
         if db_job is None or not db_job.is_active:
-            sched_job, _, __ = _registered_jobs.pop(job_id)
-            schedule.cancel_job(sched_job)
+            sched_jobs = _registered_jobs.pop(job_id)
+
+            for sched_job, _, __ in sched_jobs:
+                schedule.cancel_job(sched_job)
             label = db_job.rule_name if db_job else job_id
             print(f"[scheduler] Cancelled job: {label}")
 
@@ -80,16 +162,27 @@ def sync_jobs_from_db():
         existing = _registered_jobs.get(job_id)
 
         if existing is not None:
-            sched_job, reg_interval, reg_unit = existing
-            # Check if interval or unit changed → cancel and re-register
-            if reg_interval == db_job.interval and reg_unit == db_job.unit:
-                continue  # nothing changed
+    # safest: always re-register if config exists
+            if db_job.schedule_config or db_job.combinations:
+                for sched_job, _, __ in existing:
+                    schedule.cancel_job(sched_job)
+                del _registered_jobs[job_id]
+            else:
+                sched_job, reg_interval, reg_unit = existing[0]
+                if reg_interval == db_job.interval and reg_unit == db_job.unit:
+                    continue
             schedule.cancel_job(sched_job)
             del _registered_jobs[job_id]
             print(f"[scheduler] Re-registering changed job: {db_job.rule_name}")
 
-        sched_job = _build_schedule_job(db_job)
-        _registered_jobs[job_id] = (sched_job, db_job.interval, db_job.unit)
+        sched_jobs = _build_schedule_jobs(db_job)
+        _registered_jobs[job_id] = sched_jobs
+
+        sched_jobs = _build_schedule_jobs(db_job)
+        _registered_jobs[job_id] = sched_jobs
+
+        for sched_job, meta1, meta2 in sched_jobs:
+            print(f"[scheduler] Registered: {db_job.rule_name} — {meta1} {meta2}")
         print(f"[scheduler] Registered: {db_job.rule_name} — every {db_job.interval} {db_job.unit}")
 
 

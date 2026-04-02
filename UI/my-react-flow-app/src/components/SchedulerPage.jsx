@@ -39,8 +39,17 @@ export default function SchedulerPage() {
   const [formInterval, setFormInterval] = useState('')
   const [formUnit, setFormUnit]         = useState('seconds')
   const [formActive, setFormActive]     = useState(true)
-const [rulesList, setRulesList] = useState([])
-const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
+  const [useCombinations, setUseCombinations] = useState(false)
+  const [comboIntervals, setComboIntervals] = useState('')
+  const [comboUnits, setComboUnits] = useState([])
+  const [rulesList, setRulesList] = useState([])
+
+  const [scheduleType, setScheduleType] = useState('interval')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleDays, setScheduleDays] = useState([])
+  const [scheduleDate, setScheduleDate] = useState('')
+
+  const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
 
 const fetchRules = async () => {
   try {
@@ -82,6 +91,9 @@ useEffect(() => {
     setFormUnit('seconds')
     setFormActive(true)
     setError('')
+    setUseCombinations(false)
+    setComboIntervals('')
+    setComboUnits([])
   }
 
   const handleAddJob = async () => {
@@ -89,18 +101,43 @@ useEffect(() => {
     if (!formRuleName.trim()) return setError('Rule name is required')
     if (!formInterval || isNaN(formInterval) || Number(formInterval) <= 0)
       return setError('Interval must be a positive number')
+    const payload = {
+        rule_id: formRuleName.trim(),
+        interval: Number(formInterval),
+        unit: formUnit,
+        is_active: formActive,
+      }
+      payload.schedule_config = {
+        type: scheduleType,
+        time: scheduleTime,
+        days: scheduleDays,
+        date: scheduleDate
+      }
+      if (useCombinations) {
+        const intervals = comboIntervals
+          .split(',')
+          .map(x => parseInt(x.trim()))
+          .filter(x => !isNaN(x) && x > 0)
 
+        if (intervals.length === 0) {
+          return setError('Provide valid combination intervals')
+        }
+
+        if (comboUnits.length === 0) {
+          return setError('Select at least one unit')
+        }
+
+        payload.combinations = {
+          intervals,
+          units: comboUnits
+        }
+      }
     setSubmitting(true)
     try {
       const res = await fetch(`${API_BASE}/scheduler/jobs/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rule_id: formRuleName.trim(),
-          interval:  Number(formInterval),
-          unit:      formUnit,
-          is_active: formActive,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save job')
@@ -288,6 +325,55 @@ const handleRunNow = async (job) => {
                 ))}
               </select>
             </div>
+            <div>
+ <select value={scheduleType} onChange={e => setScheduleType(e.target.value)} style={inputStyle}>
+          <option value="interval">Interval</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="once">Run Once</option>
+        </select>
+
+            </div>
+           {scheduleType === 'daily' && (
+              <input
+                type="time"
+                value={scheduleTime}
+                onChange={e => setScheduleTime(e.target.value)}
+                style={inputStyle}
+              />
+            )}
+
+            {scheduleType === 'weekly' && (
+  <>
+    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
+
+    <div>
+      {['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => (
+        <label key={day}>
+          <input
+            type="checkbox"
+            checked={scheduleDays.includes(day)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setScheduleDays([...scheduleDays, day])
+              } else {
+                setScheduleDays(scheduleDays.filter(d => d !== day))
+              }
+            }}
+          />
+          {day}
+        </label>
+      ))}
+    </div>
+  </>
+)}
+
+{scheduleType === 'once' && (
+  <>
+    <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
+  </>
+)}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -309,6 +395,58 @@ const handleRunNow = async (job) => {
                   ))}
                 </select>
               </div>
+              <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>
+                <input
+                  type="checkbox"
+                  checked={useCombinations}
+                  onChange={(e) => setUseCombinations(e.target.checked)}
+                  style={{ marginRight: 6 }}
+                />
+                Use advanced combinations
+              </label>
+            </div>
+
+            {useCombinations && (
+              <div style={{ marginTop: 10 }}>
+                
+                {/* Intervals */}
+                <div>
+                  <label style={labelStyle}>Intervals (comma separated)</label>
+                  <input
+                    type="text"
+                    value={comboIntervals}
+                    onChange={(e) => setComboIntervals(e.target.value)}
+                    placeholder="e.g. 5,10,30"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* Units */}
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Units</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {UNIT_OPTIONS.map(u => (
+                      <label key={u}>
+                        <input
+                          type="checkbox"
+                          checked={comboUnits.includes(u)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setComboUnits([...comboUnits, u])
+                            } else {
+                              setComboUnits(comboUnits.filter(x => x !== u))
+                            }
+                          }}
+                        />
+                        {u}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
