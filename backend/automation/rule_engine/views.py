@@ -520,6 +520,17 @@ def scheduled_jobs(request):
     if request.method == "POST":
         return _create_job(request)
 
+def _fetch_schedule(job):
+    schedule = None
+    if job.schedule_config.get("type") == "interval":
+        schedule = f"Every {job.interval} {job.unit}"
+    elif job.schedule_config.get("type") == "weekly":
+        schedule = f"Every Week on {job.schedule_config.get('days', 'Monday')} at {job.schedule_config.get('time', '00:00')}"
+    elif job.schedule_config.get("type") == "daily":
+        schedule = f"Daily at {job.schedule_config.get('time', '00:00')}"
+    elif job.schedule_config.get("type") == "once":
+        schedule = f"Run Once at {job.schedule_config.get('date')}"
+    return schedule
 
 def _list_jobs(request):
     jobs = ScheduledJob.objects.all()
@@ -531,7 +542,7 @@ def _list_jobs(request):
             "rule_id":    job.rule_id,
             "interval":   job.interval,
             "unit":       job.unit,
-            "schedule":   f"every {job.interval} {job.unit}",   # human-readable
+            "schedule":   _fetch_schedule(job),# human-readable
             "is_active":  job.is_active,
             "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
