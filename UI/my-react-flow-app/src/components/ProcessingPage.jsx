@@ -86,7 +86,7 @@ export default function ProcessingPage({
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Date</th>
+                      <th style={styles.th}>Date - Time</th>
                       <th style={styles.th}>Rule Name</th>
                       <th style={{ ...styles.th, textAlign: 'right' }}>Claims</th>
                       <th style={styles.th}></th>
@@ -104,9 +104,12 @@ export default function ProcessingPage({
 
                     {dateDetails.map((item) => (
                       <tr key={item.id} style={styles.tr}>
-                        <td style={styles.td}>
-                          {new Date(item.processed_at).toISOString().split('T')[0]}
-                        </td>
+                      <td style={styles.td}>
+                        {new Date(item.processed_at)
+                          .toISOString()
+                          .replace('T', ' ')
+                          .slice(0, 16)}
+                      </td>
 
                         <td style={styles.td}>
                           {item.rule_engine?.rule_name || '-'}

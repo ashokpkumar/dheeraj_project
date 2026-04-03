@@ -8,7 +8,7 @@ from .registry import get_all_functions
 from .executor import GraphRuleExecutor as RuleExecutor
 from .utils import topological_sort
 from .serializers import RuleEngineSerializer, RuleListSerializer
-
+# from ..scheduler import load_active_jobs
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -627,7 +627,7 @@ def toggle_job(request, job_id):
 
     job.is_active = not job.is_active
     job.save(update_fields=["is_active", "updated_at"])
-
+    # load_active_jobs()  # Sync changes to the scheduler immediately
     return Response({
             "message":   "Job resumed" if job.is_active else "Job paused",
             "id":        job.id,
