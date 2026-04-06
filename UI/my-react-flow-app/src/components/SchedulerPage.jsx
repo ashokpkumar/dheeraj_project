@@ -85,6 +85,30 @@ useEffect(() => {
     setTimeout(() => setSuccessMsg(''), 3000)
   }
 
+  const formatSchedule = (job) => {
+  const config = job.schedule_config
+
+  if (!config) return ''
+
+  switch (config.type) {
+    case 'interval':
+      return `Every ${job.interval} ${job.unit}`
+
+    case 'daily':
+      return `Daily at ${config.time}`
+
+    case 'weekly':
+      return `Every week on ${config.days?.join(', ')} at ${config.time}`
+
+    case 'once':
+      if (!config.datetime) return ''
+      return `Run once at ${toLocalDisplay(config.datetime)}`
+
+    default:
+      return ''
+  }
+}
+
 const resetForm = () => {
   setFormRuleName('')
   setFormInterval('')
@@ -102,7 +126,20 @@ const resetForm = () => {
 
   setFormKey(prev => prev + 1) // 🔥 force re-render
 }
+const toLocalDisplay = (utcString) => {
+  if (!utcString) return ''
 
+  const date = new Date(utcString)
+
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
   const handleAddJob = async () => {
     setError('')
     if (!formRuleName.trim()) return setError('Rule name is required')
@@ -119,7 +156,7 @@ const resetForm = () => {
         type: scheduleType,
         ...(scheduleType === 'daily' && { time: scheduleTime }),
         ...(scheduleType === 'weekly' && { time: scheduleTime, days: scheduleDays }),
-        ...(scheduleType === 'once'   && { time: scheduleTime, date: toUTCISOString(scheduleDate) }),
+        ...(scheduleType === 'once'   && { datetime: toUTCISOString(scheduleDate) }),
       },
     }
 
@@ -550,7 +587,7 @@ const handleRunNow = async (job) => {
                       padding: '3px 10px', borderRadius: 12,
                       fontSize: '0.82rem', fontWeight: 500,
                     }}>
-                      ⏱ {job.schedule}
+                      ⏱ {formatSchedule(job)}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
@@ -559,7 +596,7 @@ const handleRunNow = async (job) => {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', color: '#5d6779', fontSize: '0.82rem' }}>
-                    {job.updated_at}
+                    {toLocalDisplay(job.updated_at)}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

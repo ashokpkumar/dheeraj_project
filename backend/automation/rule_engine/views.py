@@ -543,7 +543,7 @@ def _list_jobs(request):
             "rule_id":    job.rule_id,
             "interval":   job.interval,
             "unit":       job.unit,
-            "schedule":   _fetch_schedule(job),# human-readable
+            # "schedule":   _fetch_schedule(job),# human-readable
             "is_active":  job.is_active,
             "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             "updated_at": job.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
