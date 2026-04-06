@@ -50,7 +50,7 @@ export default function SchedulerPage() {
   const [scheduleDate, setScheduleDate] = useState('')
   const [jobName, setJobName] = useState('')
   const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
-
+const [formKey, setFormKey] = useState(0)
 const fetchRules = async () => {
   try {
     const res = await fetch(`${API_BASE}/rules/`)
@@ -85,16 +85,23 @@ useEffect(() => {
     setTimeout(() => setSuccessMsg(''), 3000)
   }
 
-  const resetForm = () => {
-    setFormRuleName('')
-    setFormInterval('')
-    setFormUnit('seconds')
-    setFormActive(true)
-    setError('')
-    setUseCombinations(false)
-    setComboIntervals('')
-    setComboUnits([])
-  }
+const resetForm = () => {
+  setFormRuleName('')
+  setFormInterval('')
+  setFormUnit('seconds')
+  setFormActive(true)
+  setError('')
+  setUseCombinations(false)
+  setComboIntervals('')
+  setComboUnits([])
+  setScheduleType('interval')
+  setScheduleTime('')
+  setScheduleDays([])
+  setScheduleDate('')
+  setJobName('')
+
+  setFormKey(prev => prev + 1) // 🔥 force re-render
+}
 
   const handleAddJob = async () => {
     setError('')
@@ -154,6 +161,14 @@ useEffect(() => {
       setError(e.message)
     } finally {
       setSubmitting(false)
+      setFormRuleName('')
+      setFormInterval('')
+      setFormUnit('seconds')
+      setFormActive(true)
+      setError('')
+      setUseCombinations(false)
+      setComboIntervals('')
+      setComboUnits([])
     }
   }
 
@@ -289,7 +304,7 @@ const handleRunNow = async (job) => {
         </div>
       )}
       {error && !showForm && (
-        <div style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
+        <div key={formKey} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
           ✕ {error}
         </div>
       )}
@@ -357,7 +372,12 @@ const handleRunNow = async (job) => {
 
             {scheduleType === 'weekly' && (
   <>
-    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
+   <input
+  type="time"
+  value={scheduleTime}
+  onChange={e => setScheduleTime(e.target.value)}
+  style={inputStyle}
+/>
 
     
 
