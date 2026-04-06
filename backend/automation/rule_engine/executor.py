@@ -12,10 +12,10 @@ class GraphRuleExecutor:
         self.execution_log = []
 
     def execute(self):
-        is_active = RuleEngine.objects.filter(id=self.rule_engine_id, is_active=True).exists()
-        if not is_active:
-            print(f"RuleEngine {self.rule_engine_id} is not active. Exiting execution.")
-            raise Exception(f"RuleEngine {self.rule_engine_id} is not active Hence Exiting")
+        # is_active = RuleEngine.objects.filter(id=self.rule_engine_id, is_active=True).exists()
+        # if not is_active:
+        #     print(f"RuleEngine {self.rule_engine_id} is not active. Exiting execution.")
+        #     raise Exception(f"RuleEngine {self.rule_engine_id} is not active Hence Exiting")
         
         nodes = {
             node.id: node

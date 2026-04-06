@@ -241,12 +241,13 @@ const handleRunNow = async (job) => {
 }
 
   return (
-    <div style={{
-      maxWidth: 860,
-      margin: '0 auto',
-      padding: '32px 24px',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    }}>
+   <div style={{
+  width: '100%',
+  minHeight: '100vh',
+  padding: '32px',
+  boxSizing: 'border-box',
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+}}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
