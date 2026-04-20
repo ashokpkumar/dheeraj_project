@@ -1,258 +1,228 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react';
+
 
 export default function ProcessingPage({
-  dashboardData,
-  dateDetails,
-  selectedDate,
+  dashboardData = [],
+  dashboardMeta = {},   // ✅ SAFE DEFAULT
+  dateDetails = [],
+  dateMeta = {},        // ✅ SAFE DEFAULT
   fetchDashboardData,
   fetchDateDetails,
   handleExportRowCsv,
 }) {
+  // ---------------- Local Pagination State ----------------
+  const [summaryPage, setSummaryPage] = useState(1);
+  const [detailPage, setDetailPage] = useState(1);
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const limit = 25;
+
+  // ---------------- Derived Meta (SAFE) ----------------
+  const summaryCurrent = dashboardMeta.current_page || summaryPage;
+  const summaryTotal = dashboardMeta.total_pages || 1;
+
+  const detailCurrent = dateMeta.current_page || detailPage;
+  const detailTotal = dateMeta.total_pages || 1;
+
+  // ---------------- Effects ----------------
+  useEffect(() => {
+    fetchDashboardData({
+      aggregate: true,
+      group_by: 'day',
+      page: summaryPage,
+      limit,
+    });
+  }, [summaryPage]);
+
+  // ---------------- Handlers ----------------
+  const onSummaryPageChange = (page) => {
+    setSummaryPage(page);
+  };
+
+  const onDateClick = (date) => {
+    setSelectedDate(date);
+    setDetailPage(1);
+    fetchDateDetails(date, { page: 1, limit });
+  };
+
+  const onDetailPageChange = (page) => {
+    setDetailPage(page);
+    fetchDateDetails(selectedDate, { page, limit });
+  };
+
   return (
     <div style={styles.page}>
-
-      {/* Header */}
-      <div style={styles.header}>
-        <h2 style={styles.title}>Processing Dashboard</h2>
-
-        <button style={styles.refreshBtn} onClick={fetchDashboardData}>
-          🔄 Refresh
-        </button>
-      </div>
-
-      {/* Main Layout */}
       <div style={styles.grid}>
-
-        {/* LEFT: Aggregated */}
+        {/* ================= LEFT: DAY-WISE SUMMARY ================= */}
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>📅 Day-wise Summary</h3>
 
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Date</th>
+                <th style={styles.th}>Claims</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dashboardData.length === 0 && (
                 <tr>
-                  <th style={styles.th}>Date</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Claims</th>
+                  <td colSpan={2} style={styles.empty}>No data</td>
                 </tr>
-              </thead>
+              )}
 
-              <tbody>
-                {dashboardData.length === 0 && (
-                  <tr>
-                    <td colSpan={2} style={styles.empty}>No data available</td>
-                  </tr>
-                )}
+              {dashboardData.map((row) => (
+                <tr
+                  key={row.period_start}
+                  style={styles.tr}
+                  onClick={() => onDateClick(row.period_start)}
+                >
+                  <td style={styles.td}>{row.period_start}</td>
+                  <td style={styles.td}>{row.claims_count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-                {dashboardData.map((item) => (
-                  <tr
-                    key={item.period_start}
-                    onClick={() => fetchDateDetails(item.period_start)}
-                    style={{
-                      ...styles.tr,
-                      background:
-                        selectedDate === item.period_start
-                          ? '#e0edff'
-                          : 'transparent',
-                    }}
-                  >
-                    <td style={styles.td}>{item.period_start}</td>
-                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600 }}>
-                      {item.claims_count}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Pagination
+            page={summaryCurrent}
+            totalPages={summaryTotal}
+            onChange={onSummaryPageChange}
+          />
         </div>
 
-        {/* RIGHT: Details */}
+        {/* ================= RIGHT: RULE-WISE DETAILS ================= */}
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>📊 Rule-wise Details</h3>
 
           {!selectedDate && (
             <div style={styles.placeholder}>
-              Select a date from the left to view details
+              Select a date from the left
             </div>
           )}
 
           {selectedDate && (
             <>
               <div style={styles.selectedDate}>
-                Showing: <strong>{selectedDate}</strong>
+                Showing: <b>{selectedDate}</b>
               </div>
 
-              <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                  <thead>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Date - Time</th>
+                    <th style={styles.th}>Rule</th>
+                    <th style={styles.th}>Claims</th>
+                    <th style={styles.th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dateDetails.length === 0 && (
                     <tr>
-                      <th style={styles.th}>Date - Time</th>
-                      <th style={styles.th}>Rule Name</th>
-                      <th style={{ ...styles.th, textAlign: 'right' }}>Claims</th>
-                      <th style={styles.th}></th>
+                      <td colSpan={4} style={styles.empty}>
+                        No data
+                      </td>
                     </tr>
-                  </thead>
+                  )}
 
-                  <tbody>
-                    {dateDetails.length === 0 && (
-                      <tr>
-                        <td colSpan={4} style={styles.empty}>
-                          No data for selected date
-                        </td>
-                      </tr>
-                    )}
-
-                    {dateDetails.map((item) => (
-                      <tr key={item.id} style={styles.tr}>
+                  {dateDetails.map((item) => (
+                    <tr key={item.id}>
                       <td style={styles.td}>
                         {new Date(item.processed_at)
                           .toISOString()
                           .replace('T', ' ')
                           .slice(0, 16)}
                       </td>
+                      <td style={styles.td}>
+                        {item.rule_engine?.rule_name || '-'}
+                      </td>
+                      <td style={styles.td}>{item.claims_count}</td>
+                      <td style={styles.td}>
+                        <button
+                          style={styles.csvBtn}
+                          onClick={() => handleExportRowCsv(item)}
+                        >
+                          CSV
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                        <td style={styles.td}>
-                          {item.rule_engine?.rule_name || '-'}
-                        </td>
-
-                        <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600 }}>
-                          {item.claims_count}
-                        </td>
-
-                        <td style={styles.td}>
-                          <button
-                            style={styles.csvBtn}
-                            onClick={() => handleExportRowCsv(item)}
-                          >
-                            ⬇ CSV
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Pagination
+                page={detailCurrent}
+                totalPages={detailTotal}
+                onChange={onDetailPageChange}
+              />
             </>
           )}
         </div>
-
       </div>
     </div>
-  )
+  );
 }
 
+// ---------------- Pagination Component ----------------
+function Pagination({ page, totalPages, onChange }) {
+  return (
+    <div style={styles.pagination}>
+      <button
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+      >
+        ◀ Prev
+      </button>
+
+      <span>
+        Page {page} of {totalPages}
+      </span>
+
+      <button
+        disabled={page >= totalPages}
+        onClick={() => onChange(page + 1)}
+      >
+        Next ▶
+      </button>
+    </div>
+  );
+}
+
+// ---------------- Styles ----------------
 const styles = {
-  page: {
-    paddingTop: 60,
-    paddingLeft: 20,
-    paddingRight: 20,
-    background: '#eef3f8',
-    height: '100vh',
-    boxSizing: 'border-box',
-  },
-
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-
-  title: {
-    color: '#0f3d84',
-    margin: 0,
-  },
-
-  refreshBtn: {
-    background: 'linear-gradient(135deg, #00438f, #0062c4)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 6,
-    padding: '8px 14px',
-    cursor: 'pointer',
-    fontWeight: 600,
-    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-    transition: '0.2s',
-  },
-
-  grid: {
-    display: 'flex',
-    gap: 20,
-    height: 'calc(100% - 80px)',
-  },
-
+  page: { padding: 20, background: '#eef3f8', minHeight: '100vh' },
+  grid: { display: 'flex', gap: 20 },
   card: {
     flex: 1,
     background: 'white',
-    borderRadius: 10,
     padding: 16,
+    borderRadius: 8,
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    display: 'flex',
-    flexDirection: 'column',
   },
-
-  cardTitle: {
-    marginBottom: 12,
-    color: '#073c71',
-  },
-
-  tableWrapper: {
-    overflowY: 'auto',
-    borderRadius: 6,
-  },
-
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.9rem',
-  },
-
+  cardTitle: { color: '#073c71' },
+  table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    position: 'sticky',
-    top: 0,
     background: '#f1f5fb',
+    padding: 8,
     textAlign: 'left',
-    padding: '8px',
     borderBottom: '1px solid #d8dde5',
-    color: '#0f3d84',
-    fontWeight: 600,
   },
-
-  td: {
-    padding: '8px',
-    borderBottom: '1px solid #eef2f6',
-  },
-
-  tr: {
-    cursor: 'pointer',
-    transition: 'background 0.15s',
-  },
-
-  empty: {
-    padding: 10,
-    textAlign: 'center',
-    color: '#6b7280',
-  },
-
-  placeholder: {
-    color: '#6b7280',
-    padding: 10,
-  },
-
-  selectedDate: {
-    marginBottom: 10,
-    color: '#1f4e92',
-  },
-
+  td: { padding: 8, borderBottom: '1px solid #eef2f6' },
+  tr: { cursor: 'pointer' },
+  empty: { textAlign: 'center', padding: 10, color: '#6b7280' },
+  placeholder: { color: '#6b7280', padding: 10 },
+  selectedDate: { marginBottom: 8, color: '#1f4e92' },
   csvBtn: {
     background: '#16a34a',
     color: 'white',
     border: 'none',
-    borderRadius: 4,
     padding: '4px 8px',
-    fontSize: '0.75rem',
     cursor: 'pointer',
-    fontWeight: 600,
-    transition: '0.2s',
   },
-}
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+};
