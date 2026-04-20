@@ -33,6 +33,7 @@ export default function SchedulerPage() {
   const [submitting, setSubmitting]   = useState(false)
   const [error, setError]             = useState('')
   const [successMsg, setSuccessMsg]   = useState('')
+  // const [error, setErrorMsg]   = useState('')
 
   // Form state
   const [formRuleName, setFormRuleName] = useState('')
@@ -80,10 +81,19 @@ useEffect(() => {
   fetchRules() // ✅ NEW
 }, [])
 
-  const flash = (msg) => {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3000)
+  // const flash = (msg) => {
+  //   setSuccessMsg(msg)
+  //   setTimeout(() => setSuccessMsg(''), 3000)
+  // }
+const flash = (msg, type = "success", duration = 3000) => {
+  if (type === "error") {
+    setError(msg);
+    setTimeout(() => setError(''), duration);
+  } else {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), duration);
   }
+};
 
   const formatSchedule = (job) => {
   const config = job.schedule_config
@@ -102,6 +112,7 @@ useEffect(() => {
 
     case 'once':
       if (!config.datetime) return ''
+      console.log(`Run once at ${toLocalDisplay(config.datetime)}`)
       return `Run once at ${toLocalDisplay(config.datetime)}`
 
     default:
@@ -128,7 +139,7 @@ const resetForm = () => {
 }
 const toLocalDisplay = (utcString) => {
   if (!utcString) return ''
-
+console.log("UTC String ",utcString)
   const date = new Date(utcString)
 
   return date.toLocaleString(undefined, {
@@ -138,6 +149,7 @@ const toLocalDisplay = (utcString) => {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+     hour12: false, 
   })
 }
   const handleAddJob = async () => {
@@ -195,14 +207,16 @@ const toLocalDisplay = (utcString) => {
       fetchJobs()
 
     } catch (e) {
-      setError(e.message)
+
+       flash(`⚠️ ${e.message}`,'error')
+       
     } finally {
       setSubmitting(false)
       setFormRuleName('')
       setFormInterval('')
       setFormUnit('seconds')
       setFormActive(true)
-      setError('')
+      // setError('')
       setUseCombinations(false)
       setComboIntervals('')
       setComboUnits([])
@@ -355,7 +369,7 @@ const handleRunNow = async (job) => {
           padding: 20,
           marginBottom: 24,
         }}>
-          <h3 style={{ margin: '0 0 16px', color: '#002f6c', fontSize: '1rem' }}>Add / Update Scheduled Job</h3>
+          <h3 style={{ margin: '0 0 16px', color: '#002f6c', fontSize: '1rem' }}>Create Scheduled Job</h3>
 
           {error && (
             <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 4, padding: '8px 12px', marginBottom: 12, fontSize: '0.85rem' }}>
@@ -592,7 +606,7 @@ const handleRunNow = async (job) => {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={badge(job.is_active)}>
-                      {job.is_active ? 'Active' : 'Paused'}
+                      {job.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', color: '#5d6779', fontSize: '0.82rem' }}>
