@@ -15,7 +15,7 @@ export default function ProcessingPage({
   const [detailPage, setDetailPage] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  const limit = 25;
+  const limit = 15;
 
   // ---------------- Derived Meta (SAFE) ----------------
   const summaryCurrent = dashboardMeta.current_page || summaryPage;
@@ -165,22 +165,82 @@ export default function ProcessingPage({
 
 // ---------------- Pagination Component ----------------
 function Pagination({ page, totalPages, onChange }) {
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 7; // Show max 7 page buttons
+    let start = Math.max(1, page - 3);
+    let end = Math.min(totalPages, page + 3);
+
+    // Adjust range if near the ends
+    if (end - start < maxVisible - 1) {
+      if (start === 1) {
+        end = Math.min(totalPages, start + maxVisible - 1);
+      } else {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+    }
+
+    // Add "..." if there's a gap from start
+    if (start > 1) {
+      pages.push(
+        <button key={1} onClick={() => onChange(1)} style={styles.pageBtn}>
+          1
+        </button>
+      );
+      if (start > 2) {
+        pages.push(<span key="dots-start" style={styles.dots}>...</span>);
+      }
+    }
+
+    // Add page numbers
+    for (let i = start; i <= end; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => onChange(i)}
+          style={{
+            ...styles.pageBtn,
+            ...(i === page ? styles.activePageBtn : {}),
+          }}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    // Add "..." if there's a gap to end
+    if (end < totalPages) {
+      if (end < totalPages - 1) {
+        pages.push(<span key="dots-end" style={styles.dots}>...</span>);
+      }
+      pages.push(
+        <button key={totalPages} onClick={() => onChange(totalPages)} style={styles.pageBtn}>
+          {totalPages}
+        </button>
+      );
+    }
+
+    return pages;
+  };
+
   return (
     <div style={styles.pagination}>
       <button
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
+        style={styles.navBtn}
       >
         ◀ Prev
       </button>
 
-      <span>
-        Page {page} of {totalPages}
-      </span>
+      <div style={styles.pageNumbers}>
+        {getPageNumbers()}
+      </div>
 
       <button
         disabled={page >= totalPages}
         onClick={() => onChange(page + 1)}
+        style={styles.navBtn}
       >
         Next ▶
       </button>
@@ -222,7 +282,42 @@ const styles = {
   pagination: {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 12,
     marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  pageNumbers: {
+    display: 'flex',
+    gap: 4,
+    alignItems: 'center',
+  },
+  navBtn: {
+    padding: '6px 12px',
+    background: '#1f4e92',
+    color: 'white',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+    fontSize: 14,
+  },
+  pageBtn: {
+    padding: '4px 8px',
+    background: '#f1f5fb',
+    color: '#1f4e92',
+    border: '1px solid #d8dde5',
+    borderRadius: 3,
+    cursor: 'pointer',
+    fontSize: 12,
+    minWidth: 28,
+  },
+  activePageBtn: {
+    background: '#1f4e92',
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  dots: {
+    color: '#6b7280',
+    padding: '4px 4px',
   },
 };

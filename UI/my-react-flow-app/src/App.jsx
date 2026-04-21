@@ -43,7 +43,9 @@ export default function App() {
   const [targetFunctionInputs, setTargetFunctionInputs] = useState([])
   const [rules, setRules] = useState([])
   const [dashboardData, setDashboardData] = useState([])
+  const [dashboardMeta, setDashboardMeta] = useState({})
   const [dateDetails, setDateDetails] = useState([])
+  const [dateMeta, setDateMeta] = useState({})
   const [selectedDate, setSelectedDate] = useState(null)
   const [exportingRowId, setExportingRowId] = useState(null)
   const [dashboardExpanded, setDashboardExpanded] = useState(true)
@@ -80,12 +82,23 @@ export default function App() {
     setShowParamDialog(true)
   }, []) // stable — reads latest values via refs, never recreated
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (options = {}) => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/rule_engine/dashboard/?aggregate=true&group_by=day')
+      const { aggregate = true, group_by = 'day', page = 1, limit = 15 } = options
+      const params = new URLSearchParams({
+        aggregate: aggregate.toString(),
+        group_by,
+        page: page.toString(),
+        limit: limit.toString(),
+      })
+      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/?${params}`)
       if (!res.ok) throw new Error(`Dashboard API error: ${res.status}`)
       const data = await res.json()
       setDashboardData(data?.results || [])
+      setDashboardMeta({
+        current_page: data?.current_page || 1,
+        total_pages: data?.total_pages || 1,
+      })
       setDateDetails([])
       setSelectedDate(null)
     } catch (error) {
@@ -155,12 +168,23 @@ const handleCancelEdit = () => {
     }
   }
 
-  const fetchDateDetails = async (date) => {
+  const fetchDateDetails = async (date, options = {}) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/?start_date=${date}&end_date=${date}`)
+      const { page = 1, limit = 15 } = options
+      const params = new URLSearchParams({
+        start_date: date,
+        end_date: date,
+        page: page.toString(),
+        limit: limit.toString(),
+      })
+      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/?${params}`)
       if (!res.ok) throw new Error(`Details API error: ${res.status}`)
       const data = await res.json()
       setDateDetails(data?.results || [])
+      setDateMeta({
+        current_page: data?.current_page || 1,
+        total_pages: data?.total_pages || 1,
+      })
       setSelectedDate(date)
     } catch (error) {
       console.error('Error loading date details:', error)
@@ -515,7 +539,9 @@ console.log(ruleName)
         {currentPage === 'processing' && (
             <ProcessingPage
               dashboardData={dashboardData}
+              dashboardMeta={dashboardMeta}
               dateDetails={dateDetails}
+              dateMeta={dateMeta}
               selectedDate={selectedDate}
               fetchDashboardData={fetchDashboardData}
               fetchDateDetails={fetchDateDetails}

@@ -36,153 +36,6 @@ from django.http import StreamingHttpResponse, HttpResponseBadRequest
 from django.utils import timezone
 
 
-# API 1: Discover Functions
-
-
-# @api_view(["GET"])
-# def dashboard(request):
-
-
-#     # ------------- helpers (all inside this function) -------------
-#     def parse_bool(val, default=False):
-#         if val is None:
-#             return default
-#         return str(val).lower() in ("true", "1", "yes", "y", "t")
-
-#     def parse_int(val, name):
-#         if val is None or val == "":
-#             return None
-#         try:
-#             return int(val)
-#         except ValueError:
-#             raise ValidationError({name: "Must be an integer"})
-
-#     def parse_comma_ints(val, name):
-#         if not val:
-#             return None
-#         try:
-#             return [int(x.strip()) for x in val.split(",") if x.strip()]
-#         except ValueError:
-#             raise ValidationError({name: "Comma-separated integers expected"})
-
-#     def get_timezone(tz_param):
-#         fallback = getattr(settings, "TIME_ZONE", "UTC")
-#         tz_name = tz_param or fallback or "UTC"
-#         try:
-#             return ZoneInfo(tz_name)
-#         except Exception:
-#             raise ValidationError({"tz": f"Unknown timezone '{tz_name}'. Use a valid IANA name (e.g., 'UTC', 'America/Chicago')."})
-
-#     def parse_dates(start_date_str, end_date_str, tz):
-#         start, end = None, None
-#         if start_date_str:
-#             d = parse_date(start_date_str)
-#             if not d:
-#                 raise ValidationError({"start_date": "Expected YYYY-MM-DD"})
-#             start = datetime.combine(d, time.min).replace(tzinfo=tz)
-#         if end_date_str:
-#             d = parse_date(end_date_str)
-#             if not d:
-#                 raise ValidationError({"end_date": "Expected YYYY-MM-DD"})
-#             end = datetime.combine(d, time.max).replace(tzinfo=tz)
-#         return start, end
-#     # --------------------------------------------------------------
-
-#     params = request.query_params
-#     tz = get_timezone(params.get("tz"))
-#     aggregate = parse_bool(params.get("aggregate"), default=False)
-
-#     # base queryset with eager load
-#     qs = RuleEngineProcessed.objects.all()
-
-#     # filters
-#     engine_ids = parse_comma_ints(params.get("rule_engine_id"), "rule_engine_id")
-#     min_claims = parse_int(params.get("min_claims"), "min_claims")
-#     max_claims = parse_int(params.get("max_claims"), "max_claims")
-#     sd, ed = parse_dates(params.get("start_date"), params.get("end_date"), tz)
-
-#     if engine_ids:
-#         qs = qs.filter(rule_engine_id__in=engine_ids)
-#     if sd:
-#         qs = qs.filter(processed_at__gte=sd)
-#     if ed:
-#         qs = qs.filter(processed_at__lte=ed)
-#     if min_claims is not None:
-#         qs = qs.filter(claims_count__gte=min_claims)
-#     if max_claims is not None:
-#         qs = qs.filter(claims_count__lte=max_claims)
-
-#     order = (params.get("order") or "asc").lower()
-#     ordering = "processed_at" if order == "asc" else "-processed_at"
-#     qs = qs.order_by(ordering, "id")
-
-#     if not aggregate:
-#         # ---------- list mode (manual dicts + DRF pagination) ----------
-#         paginator = PageNumberPagination()
-#         paginator.page_size = int(params.get("page_size") or 50)
-#         # cap to 500
-#         if paginator.page_size > 500:
-#             paginator.page_size = 500
-#         page = paginator.paginate_queryset(qs, request)
-
-#         data = [
-#             {
-#                 "id": obj.id,
-#                 "rule_engine": {
-#                     "id": obj.rule_engine_id,
-#                     "rule_name": obj.rule_name,
-#                 },
-#                 "processed_at": obj.processed_at,
-#                 "claims_count": obj.claims_count,
-#             }
-#             for obj in page
-#         ]
-#         return paginator.get_paginated_response(data)
-
-#     # ---------- aggregate mode ----------
-#     group_by = (params.get("group_by") or "").lower()
-#     if group_by not in ("day", "week", "month"):
-#         raise ValidationError({"group_by": "Required when aggregate=true. Must be one of: day, week, month."})
-
-#     if group_by == "day":
-#         trunc = TruncDate("processed_at", tzinfo=tz)
-#     elif group_by == "week":
-#         trunc = TruncWeek("processed_at", tzinfo=tz)
-#     else:
-#         trunc = TruncMonth("processed_at", tzinfo=tz)
-
-#     values = ["period_start"]
-#     if engine_ids and len(engine_ids) > 1:
-#         values.append("rule_engine_id")
-
-#     agg_qs = (
-#         qs.annotate(period_start=trunc)
-#           .values(*values)
-#           .annotate(claims_count=Sum("claims_count"))
-#     )
-
-#     # ordering for aggregates
-#     if "rule_engine_id" in values:
-#         agg_qs = agg_qs.order_by("period_start" if order == "asc" else "-period_start", "rule_engine_id")
-#     else:
-#         agg_qs = agg_qs.order_by("period_start" if order == "asc" else "-period_start")
-
-#     results = []
-#     for row in agg_qs:
-#         item = {
-#             "period_start": row["period_start"],
-#             "claims_count": row["claims_count"],
-#         }
-#         if "rule_engine_id" in row:
-#             item["rule_engine_id"] = row["rule_engine_id"]
-#         results.append(item)
-
-#     return Response({
-#         "aggregate": True,
-#         "group_by": group_by,
-#         "timezone": str(tz),
-#         "results": results,
-#     })
 from math import ceil
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -207,9 +60,24 @@ def dashboard(request):
     params = request.query_params
     aggregate = params.get("aggregate") == "true"
 
-    qs = RuleEngineProcessed.objects.all()
+    qs = RuleEngineProcessed.objects.all().order_by("-processed_at", "-id")
+
+    # -------- DATE FILTERING --------
+    start_date_str = params.get("start_date")
+    end_date_str = params.get("end_date")
+    
+    if start_date_str:
+        start_date = parse_date(start_date_str)
+        if start_date:
+            qs = qs.filter(processed_at__date__gte=start_date)
+    
+    if end_date_str:
+        end_date = parse_date(end_date_str)
+        if end_date:
+            qs = qs.filter(processed_at__date__lte=end_date)
 
     paginator = StandardResultsSetPagination()
+    paginator.page_size = 15  # Default page size
     page = paginator.paginate_queryset(qs, request)
 
     # ---------------- LIST MODE ----------------
