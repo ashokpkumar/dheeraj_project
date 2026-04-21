@@ -84,7 +84,7 @@ export default function App() {
 
   const fetchDashboardData = async (options = {}) => {
     try {
-      const { aggregate = true, group_by = 'day', page = 1, limit = 15 } = options
+      const { aggregate = true, group_by = 'day', page = 1, limit = 10 } = options
       const params = new URLSearchParams({
         aggregate: aggregate.toString(),
         group_by,
@@ -170,7 +170,7 @@ const handleCancelEdit = () => {
 
   const fetchDateDetails = async (date, options = {}) => {
     try {
-      const { page = 1, limit = 15 } = options
+      const { page = 1, limit = 10 } = options
       const params = new URLSearchParams({
         start_date: date,
         end_date: date,

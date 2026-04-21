@@ -15,7 +15,7 @@ export default function ProcessingPage({
   const [detailPage, setDetailPage] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  const limit = 15;
+  const limit = 10;
 
   // ---------------- Derived Meta (SAFE) ----------------
   const summaryCurrent = dashboardMeta.current_page || summaryPage;
@@ -42,12 +42,12 @@ export default function ProcessingPage({
   const onDateClick = (date) => {
     setSelectedDate(date);
     setDetailPage(1);
-    fetchDateDetails(date, { page: 1, limit });
+    fetchDateDetails(date, { page: 1, limit: 10 });
   };
 
   const onDetailPageChange = (page) => {
     setDetailPage(page);
-    fetchDateDetails(selectedDate, { page, limit });
+    fetchDateDetails(selectedDate, { page, limit: 10 });
   };
 
   return (

@@ -111,7 +111,7 @@ def dashboard(request):
         qs.annotate(period_start=trunc_map[group_by])
           .values("period_start")
           .annotate(claims_count=Sum("claims_count"))
-          .order_by("period_start")
+          .order_by("-period_start")
     )
 
     page = paginator.paginate_queryset(agg_qs, request)
