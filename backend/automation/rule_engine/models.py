@@ -91,7 +91,11 @@ class RuleEngine(models.Model):
 
 
 class RuleList(models.Model):
-
+    """
+    Stores rule execution nodes.
+    function_name is stored as a string (NOT a foreign key).
+    This allows RuleLogic to be deleted/recreated without affecting RuleList records.
+    """
     id = models.AutoField(primary_key=True)
 
     rule_engine = models.ForeignKey(
@@ -100,10 +104,9 @@ class RuleList(models.Model):
         db_column="rule_engine_id"
     )
 
-    rule_logic = models.ForeignKey(
-        RuleLogic,
-        on_delete=models.CASCADE,
-        db_column="rule_logic_id"
+    function_name = models.CharField(
+        max_length=255,
+        help_text="Reference to RuleLogic.function_name (string, not a foreign key)"
     )
 
     rule_function_order = models.IntegerField()

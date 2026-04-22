@@ -59,7 +59,7 @@ class GraphRuleExecutor:
 
     def execute_node(self, node):
 
-        function = get_function(node.rule_logic.function_name)
+        function = get_function(node.function_name)
 
         params = node.params or {}
         merged = {**self.context, **params}
@@ -81,7 +81,7 @@ class GraphRuleExecutor:
 
         self.execution_log.append({
             "node": node.id,
-            "function": node.rule_logic.function_name,
+            "function": node.function_name,
             "result": result,
             "context_after": self.context.copy()
         })

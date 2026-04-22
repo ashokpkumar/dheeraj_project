@@ -11,10 +11,6 @@ class RuleEngineSerializer(serializers.ModelSerializer):
 
 class RuleListSerializer(serializers.ModelSerializer):
 
-    function_name = serializers.CharField(
-        source="rule_logic.function_name"
-    )
-
     class Meta:
         model = RuleList
         fields = [

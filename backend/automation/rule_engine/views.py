@@ -253,6 +253,8 @@ def save_rule(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Verify the function exists in RuleLogic
+        # (for validation, but don't create a FK relationship)
         try:
             rule_logic = RuleLogic.objects.get(
                 function_name=function_name
@@ -263,9 +265,10 @@ def save_rule(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Store function_name as a string, not as a FK reference
         rule_node = RuleList.objects.create(
             rule_engine=rule_engine,
-            rule_logic=rule_logic,
+            function_name=function_name,
             rule_function_order=index,
             params=params
         )
