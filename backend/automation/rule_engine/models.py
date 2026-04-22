@@ -150,6 +150,8 @@ class DailyInventory(ReadOnlyModel):
     RULE_REGN = models.CharField(max_length=50, db_column="RULE-REGN", null=True)
     RULE_NAME = models.CharField(max_length=255, db_column="RULE-NAME", null=True)
     MCRFM_ROLL_CD = models.CharField(max_length=50, db_column="MCRFM-ROLL-CD", null=True)
+    INDIV_SEQ_NBR = models.CharField(max_length=50, db_column="INDIV-SEQ-NBR", null=True)
+    ENRL_CERT_NBR = models.CharField(max_length=50, db_column="ENRL-CERT-NBR", null=True)
 
     # Example of how to map date fields
     ACTV_DT = models.DateField(db_column="ACTV-DT", null=True)
