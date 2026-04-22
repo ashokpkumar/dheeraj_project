@@ -77,7 +77,7 @@ def dashboard(request):
             qs = qs.filter(processed_at__date__lte=end_date)
 
     paginator = StandardResultsSetPagination()
-    paginator.page_size = 15  # Default page size
+    paginator.page_size = 10  # Default page size
     page = paginator.paginate_queryset(qs, request)
 
     # ---------------- LIST MODE ----------------
