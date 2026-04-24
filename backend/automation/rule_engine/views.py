@@ -323,7 +323,7 @@ def execute_rule(request, rule_id):
 
     result = executor.execute()
 
-    return Response(result)
+    return Response({"success":True})
 
 
 # API 4: List Rules
