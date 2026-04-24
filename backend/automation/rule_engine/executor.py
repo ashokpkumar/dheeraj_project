@@ -4,13 +4,31 @@ from .registry import get_function
 import inspect
 import multiprocessing
 from multiprocessing import Process, Queue
+import django
+import os
+
+
+def _execute_in_separate_process_worker(rule_engine_id, queue):
+    """Worker function to execute the workflow in a separate process with Django setup"""
+    try:
+        # Setup Django in the child process
+        django.setup()
+        
+        executor = GraphRuleExecutor(rule_engine_id, manual=False)
+        result = executor._execute_workflow()
+        queue.put(result)
+    except Exception as e:
+        print(f"Error in separate process: {e}")
+        import traceback
+        traceback.print_exc()
+        queue.put([])
 
 
 class GraphRuleExecutor:
 
-    def __init__(self, rule_engine_id,manual):
+    def __init__(self, rule_engine_id, manual):
         self.rule_engine_id = rule_engine_id
-        self.context = {"manual":manual}
+        self.context = {"manual": manual}
         self.execution_log = []
 
     def execute(self):
@@ -18,7 +36,7 @@ class GraphRuleExecutor:
         if not self.context.get("manual"):
             # Run in separate process for automated execution
             queue = Queue()
-            process = Process(target=self._execute_in_separate_process, args=(self.rule_engine_id, queue))
+            process = Process(target=_execute_in_separate_process_worker, args=(self.rule_engine_id, queue))
             process.start()
             process.join()  # Wait for process to complete
             
@@ -29,18 +47,6 @@ class GraphRuleExecutor:
         else:
             # Run in current process for manual execution
             return self._execute_workflow()
-
-    def _execute_in_separate_process(self, rule_engine_id, queue):
-        """Execute the workflow in a separate process"""
-        try:
-            executor = GraphRuleExecutor(rule_engine_id, manual=False)
-            result = executor._execute_workflow()
-            queue.put(result)
-        except Exception as e:
-            print(f"Error in separate process: {e}")
-            import traceback
-            traceback.print_exc()
-            queue.put([])
 
     def _execute_workflow(self):
         """The actual execution logic that can run in current or separate process"""
