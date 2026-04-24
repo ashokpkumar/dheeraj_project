@@ -2,6 +2,8 @@ from collections import deque
 from .models import RuleEngine, RuleList, RuleEdge
 from .registry import get_function
 import inspect
+import multiprocessing
+from multiprocessing import Process, Queue
 
 
 class GraphRuleExecutor:
@@ -12,6 +14,36 @@ class GraphRuleExecutor:
         self.execution_log = []
 
     def execute(self):
+        # Check if running in manual mode
+        if not self.context.get("manual"):
+            # Run in separate process for automated execution
+            queue = Queue()
+            process = Process(target=self._execute_in_separate_process, args=(self.rule_engine_id, queue))
+            process.start()
+            process.join()  # Wait for process to complete
+            
+            if not queue.empty():
+                self.execution_log = queue.get()
+            
+            return self.execution_log
+        else:
+            # Run in current process for manual execution
+            return self._execute_workflow()
+
+    def _execute_in_separate_process(self, rule_engine_id, queue):
+        """Execute the workflow in a separate process"""
+        try:
+            executor = GraphRuleExecutor(rule_engine_id, manual=False)
+            result = executor._execute_workflow()
+            queue.put(result)
+        except Exception as e:
+            print(f"Error in separate process: {e}")
+            import traceback
+            traceback.print_exc()
+            queue.put([])
+
+    def _execute_workflow(self):
+        """The actual execution logic that can run in current or separate process"""
         # is_active = RuleEngine.objects.filter(id=self.rule_engine_id, is_active=True).exists()
         # if not is_active:
         #     print(f"RuleEngine {self.rule_engine_id} is not active. Exiting execution.")
