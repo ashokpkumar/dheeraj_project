@@ -167,7 +167,7 @@ export default function ProcessingPage({
 function Pagination({ page, totalPages, onChange }) {
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisible = 7; // Show max 7 page buttons
+    const maxVisible = 7 // Show max 7 page buttons
     let start = Math.max(1, page - 3);
     let end = Math.min(totalPages, page + 3);
 
