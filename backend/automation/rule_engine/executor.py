@@ -60,7 +60,11 @@ class GraphRuleExecutor:
     def execute_node(self, node):
 
         function = get_function(node.function_name)
-
+        print(f"function_name {function}")
+        if not self.context.get("rule_name"):
+            rule_engine = RuleEngine.objects.filter(id=self.rule_engine_id).first()
+            self.context['rule_engine_id']=self.rule_engine_id
+            self.context["rule_name"]=rule_engine.rule_name
         params = node.params or {}
         merged = {**self.context, **params}
 
