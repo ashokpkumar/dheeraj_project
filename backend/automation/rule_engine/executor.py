@@ -1,6 +1,4 @@
 from collections import deque
-from .models import RuleEngine, RuleList, RuleEdge
-from .registry import get_function
 import inspect
 import multiprocessing
 from multiprocessing import Process, Queue
@@ -11,8 +9,11 @@ import os
 def _execute_in_separate_process_worker(rule_engine_id, queue):
     """Worker function to execute the workflow in a separate process with Django setup"""
     try:
-        # Setup Django in the child process
+        # Setup Django in the child process FIRST
         django.setup()
+        
+        # Import models AFTER django.setup()
+        from .models import RuleEngine, RuleList, RuleEdge
         
         executor = GraphRuleExecutor(rule_engine_id, manual=False)
         result = executor._execute_workflow()
@@ -33,6 +34,7 @@ class GraphRuleExecutor:
 
     def execute(self):
         # Check if running in manual mode
+        #self.context["manual"]=False
         if not self.context.get("manual"):
             # Run in separate process for automated execution
             queue = Queue()
@@ -50,6 +52,8 @@ class GraphRuleExecutor:
 
     def _execute_workflow(self):
         """The actual execution logic that can run in current or separate process"""
+        from .models import RuleEngine, RuleList, RuleEdge
+        
         # is_active = RuleEngine.objects.filter(id=self.rule_engine_id, is_active=True).exists()
         # if not is_active:
         #     print(f"RuleEngine {self.rule_engine_id} is not active. Exiting execution.")
@@ -96,7 +100,9 @@ class GraphRuleExecutor:
         return self.execution_log
 
     def execute_node(self, node):
-
+        from .models import RuleEngine
+        from .registry import get_function
+        
         function = get_function(node.function_name)
         print(f"function_name {function}")
         if not self.context.get("rule_name"):
