@@ -91,7 +91,11 @@ class RuleEngine(models.Model):
 
 
 class RuleList(models.Model):
-
+    """
+    Stores rule execution nodes.
+    function_name is stored as a string (NOT a foreign key).
+    This allows RuleLogic to be deleted/recreated without affecting RuleList records.
+    """
     id = models.AutoField(primary_key=True)
 
     rule_engine = models.ForeignKey(
@@ -100,10 +104,9 @@ class RuleList(models.Model):
         db_column="rule_engine_id"
     )
 
-    rule_logic = models.ForeignKey(
-        RuleLogic,
-        on_delete=models.CASCADE,
-        db_column="rule_logic_id"
+    function_name = models.CharField(
+        max_length=255,
+        help_text="Reference to RuleLogic.function_name (string, not a foreign key)"
     )
 
     rule_function_order = models.IntegerField()
@@ -150,6 +153,8 @@ class DailyInventory(ReadOnlyModel):
     RULE_REGN = models.CharField(max_length=50, db_column="RULE-REGN", null=True)
     RULE_NAME = models.CharField(max_length=255, db_column="RULE-NAME", null=True)
     MCRFM_ROLL_CD = models.CharField(max_length=50, db_column="MCRFM-ROLL-CD", null=True)
+    INDIV_SEQ_NBR = models.CharField(max_length=50, db_column="INDIV-SEQ-NBR", null=True)
+    ENRL_CERT_NBR = models.CharField(max_length=50, db_column="ENRL-CERT-NBR", null=True)
 
     # Example of how to map date fields
     ACTV_DT = models.DateField(db_column="ACTV-DT", null=True)
@@ -185,14 +190,16 @@ class ScheduledJob(models.Model):
     One row = one scheduled task that maps to a named RuleEngine rule.
     The scheduler process reads this table every minute and syncs jobs live.
     """
+    job_name = models.CharField(max_length=255, unique=True)
+    combinations = models.JSONField(null=True, blank=True)
+    schedule_config = models.JSONField(null=True, blank=True) 
     rule_id      = models.IntegerField(null=True, blank=True,
         help_text="Must match RuleEngine.id exactly"    )
     rule_name   = models.CharField(
         max_length=255,
-        unique=True,
         help_text="Must match RuleEngine.rule_name exactly"
     )
-    interval    = models.PositiveIntegerField(
+    interval    = models.PositiveIntegerField(blank=True, null=True,
         help_text="How often to run (numeric value)"
     )
     unit        = models.CharField(

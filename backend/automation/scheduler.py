@@ -1,37 +1,48 @@
 # myproject/scheduler.py
-import django
-import os
-import schedule
-import time
-import logging
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+import os
+import django
+import time
+import schedule
+import logging
+from datetime import datetime
+from threading import Thread
+
+# ─────────────────────────────────────────────────────────────
+# Django setup
+# ─────────────────────────────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "automation.settings")
 django.setup()
 
-from rule_engine.models import RuleEngine
+from rule_engine.models import RuleEngine, ScheduledJob
 from rule_engine.executor import GraphRuleExecutor as RuleExecutor
-from rule_engine.models import ScheduledJob   # ← your new model
 
 logger = logging.getLogger(__name__)
 
-# ── Tracks registered jobs: { ScheduledJob.id -> (schedule.Job, interval, unit) }
-_registered_jobs: dict = {}
+# ─────────────────────────────────────────────────────────────
+# In-memory job registry
+# { job_id: [(schedule.Job, meta1, meta2), ...] }
+# ─────────────────────────────────────────────────────────────
+_registered_jobs: dict[int, list] = {}
 
 
+# ─────────────────────────────────────────────────────────────
+# Task factory
+# ─────────────────────────────────────────────────────────────
 def _make_task(rule_name: str):
-    """
-    Returns a plain callable that runs the named RuleEngine rule.
-    Using a factory keeps the closure correct for each iteration.
-    """
     def task():
         try:
-            print(f"[scheduler] Running rule: {rule_name}")
+            print(f"[scheduler] Running rule: {rule_name} at {datetime.utcnow().isoformat()}")
+
             rule_obj = RuleEngine.objects.filter(rule_name=rule_name).first()
             if not rule_obj:
-                logger.warning(f"[scheduler] RuleEngine '{rule_name}' not found — skipping")
+                logger.warning(f"[scheduler] Rule '{rule_name}' not found")
                 return
-            executor = RuleExecutor(rule_obj.id,False)
+
+            executor = RuleExecutor(rule_obj.id, False)
             executor.execute()
+
         except Exception as e:
             logger.error(f"[scheduler] Error running '{rule_name}': {e}")
 
@@ -39,68 +50,177 @@ def _make_task(rule_name: str):
     return task
 
 
-def _build_schedule_job(db_job: "ScheduledJob") -> schedule.Job:
-    """Register a single ScheduledJob with the schedule library and return it."""
-    every = schedule.every(db_job.interval)
+# ─────────────────────────────────────────────────────────────
+# Build schedule jobs from DB config
+# ─────────────────────────────────────────────────────────────
+def _build_schedule_jobs(db_job):
+    jobs = []
 
-    unit_map = {
-        "seconds": every.seconds,
-        "minutes": every.minutes,
-        "hours":   every.hours,
-    }
+    config = db_job.schedule_config or {}
+    schedule_type = config.get("type")
 
-    scheduled = unit_map.get(db_job.unit, every.seconds)
-    return scheduled.do(_make_task(db_job.rule_name))
+    # ── INTERVAL ─────────────────────────────────────────────
+    if not schedule_type or schedule_type == "interval":
+
+        combos = db_job.combinations or {}
+
+        intervals = combos.get("intervals") or [db_job.interval]
+        units = combos.get("units") or [db_job.unit]
+
+        for interval in intervals:
+            for unit in units:
+                every = schedule.every(interval)
+
+                unit_map = {
+                    "seconds": every.seconds,
+                    "minutes": every.minutes,
+                    "hours": every.hours,
+                }
+
+                job = unit_map.get(unit, every.seconds).do(
+                    _make_task(db_job.rule_name)
+                )
+
+                jobs.append((job, interval, unit))
+
+    # ── DAILY ────────────────────────────────────────────────
+    elif schedule_type == "daily":
+
+        time_str = config.get("time", "00:00")
+
+        job = schedule.every().day.at(time_str).do(
+            _make_task(db_job.rule_name)
+        )
+
+        jobs.append((job, "daily", time_str))
+
+    # ── WEEKLY ───────────────────────────────────────────────
+    elif schedule_type == "weekly":
+
+        time_str = config.get("time", "00:00")
+        days = config.get("days", [])
+
+        day_map = {
+            "monday": schedule.every().monday,
+            "tuesday": schedule.every().tuesday,
+            "wednesday": schedule.every().wednesday,
+            "thursday": schedule.every().thursday,
+            "friday": schedule.every().friday,
+            "saturday": schedule.every().saturday,
+            "sunday": schedule.every().sunday,
+        }
+
+        for d in days:
+            sched = day_map.get(d.lower())
+            if sched:
+                job = sched.at(time_str).do(
+                    _make_task(db_job.rule_name)
+                )
+                jobs.append((job, d, time_str))
+
+    # ── ONCE ─────────────────────────────────────────────────
+    elif schedule_type == "once":
+
+        date_str = config.get("date")
+        time_str = config.get("time", "00:00")
+
+        def one_time_task():
+            now = datetime.utcnow()
+            target = datetime.fromisoformat(f"{date_str}").utcnow()
+
+            if now >= target:
+                _make_task(db_job.rule_name)()
+                return schedule.CancelJob
+
+        job = schedule.every(1).minutes.do(one_time_task)
+        jobs.append((job, "once", f"{date_str} {time_str}"))
+
+    return jobs
 
 
-def sync_jobs_from_db():
-    """
-    Diff the DB against currently registered jobs:
-      - New active jobs      → register
-      - Deactivated/deleted  → cancel
-      - Changed interval/unit → cancel + re-register
-    Called once at startup and then every 60 seconds.
-    """
-    db_jobs = {job.id: job for job in ScheduledJob.objects.all()}
+# ─────────────────────────────────────────────────────────────
+# PUBLIC API FUNCTIONS (call from your Django views/services)
+# ─────────────────────────────────────────────────────────────
 
-    # ── Cancel jobs that were removed or deactivated ──────────────────────
-    for job_id in list(_registered_jobs.keys()):
-        db_job = db_jobs.get(job_id)
-        if db_job is None or not db_job.is_active:
-            sched_job, _, __ = _registered_jobs.pop(job_id)
-            schedule.cancel_job(sched_job)
-            label = db_job.rule_name if db_job else job_id
-            print(f"[scheduler] Cancelled job: {label}")
+def add_job(job_id: int):
+    db_job = ScheduledJob.objects.filter(id=job_id).first()
 
-    # ── Register new active jobs / re-register changed ones ───────────────
-    for job_id, db_job in db_jobs.items():
-        if not db_job.is_active:
-            continue
+    if not db_job:
+        print(f"[scheduler] Job {job_id} not found or inactive")
+        return
 
-        existing = _registered_jobs.get(job_id)
+    # overwrite safely
+    remove_job(job_id)
 
-        if existing is not None:
-            sched_job, reg_interval, reg_unit = existing
-            # Check if interval or unit changed → cancel and re-register
-            if reg_interval == db_job.interval and reg_unit == db_job.unit:
-                continue  # nothing changed
-            schedule.cancel_job(sched_job)
-            del _registered_jobs[job_id]
-            print(f"[scheduler] Re-registering changed job: {db_job.rule_name}")
+    sched_jobs = _build_schedule_jobs(db_job)
 
-        sched_job = _build_schedule_job(db_job)
-        _registered_jobs[job_id] = (sched_job, db_job.interval, db_job.unit)
-        print(f"[scheduler] Registered: {db_job.rule_name} — every {db_job.interval} {db_job.unit}")
+    _registered_jobs[job_id] = sched_jobs
+
+    for sched_job, meta1, meta2 in sched_jobs:
+        print(f"[scheduler] Registered: {db_job.rule_name} — {meta1} {meta2}")
 
 
-# ── Startup ───────────────────────────────────────────────────────────────────
-print("[scheduler] Starting dynamic scheduler...")
-sync_jobs_from_db()
+def remove_job(job_id: int):
+    existing = _registered_jobs.pop(job_id, None)
 
-# Re-sync DB every 60 seconds so new/changed/removed jobs take effect live
-schedule.every(60).seconds.do(sync_jobs_from_db)
+    if not existing:
+        return
 
-print("[scheduler] Scheduler running")
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+    for sched_job, _, __ in existing:
+        schedule.cancel_job(sched_job)
+
+    print(f"[scheduler] Removed job: {job_id}")
+
+
+def update_job(job_id: int):
+    remove_job(job_id)
+    add_job(job_id)
+
+
+def list_jobs():
+    return list(_registered_jobs.keys())
+
+
+# ─────────────────────────────────────────────────────────────
+# Scheduler runner (run ONCE)
+# ─────────────────────────────────────────────────────────────
+def load_diff_jobs():
+    new_jobs = ScheduledJob.objects.filter(is_active=True).all()
+    for job in new_jobs:
+        if job.id not in _registered_jobs:
+            add_job(job.id)
+    for jobs in list(_registered_jobs.keys()):
+        if jobs not in [j.id for j in new_jobs]:
+            remove_job(jobs)
+
+
+def _run_scheduler():
+    print("[scheduler] Started...")
+    while True:
+        schedule.run_pending()
+        time.sleep(10)
+        load_diff_jobs()
+        print(f"Total Jobs {len(list_jobs())}")
+
+
+
+def start_scheduler_in_background():
+    thread = Thread(target=_run_scheduler, daemon=True)
+    thread.start()
+    print("[scheduler] Background thread started")
+
+
+# ─────────────────────────────────────────────────────────────
+# OPTIONAL: preload active jobs on startup
+# ─────────────────────────────────────────────────────────────
+def load_active_jobs():
+    jobs = ScheduledJob.objects.filter(is_active=True).all()
+
+    for job in jobs:
+        add_job(job.id)
+
+    print(f"[scheduler] Loaded {len(jobs)} jobs from DB")
+
+if __name__ == "__main__":
+    load_active_jobs()
+    _run_scheduler()

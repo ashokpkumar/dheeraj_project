@@ -33,15 +33,25 @@ export default function SchedulerPage() {
   const [submitting, setSubmitting]   = useState(false)
   const [error, setError]             = useState('')
   const [successMsg, setSuccessMsg]   = useState('')
+  // const [error, setErrorMsg]   = useState('')
 
   // Form state
   const [formRuleName, setFormRuleName] = useState('')
   const [formInterval, setFormInterval] = useState('')
   const [formUnit, setFormUnit]         = useState('seconds')
   const [formActive, setFormActive]     = useState(true)
-const [rulesList, setRulesList] = useState([])
-const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
+  const [useCombinations, setUseCombinations] = useState(false)
+  const [comboIntervals, setComboIntervals] = useState('')
+  const [comboUnits, setComboUnits] = useState([])
+  const [rulesList, setRulesList] = useState([])
 
+  const [scheduleType, setScheduleType] = useState('interval')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleDays, setScheduleDays] = useState([])
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [jobName, setJobName] = useState('')
+  const allPaused = jobs.length > 0 && jobs.every(j => !j.is_active)
+const [formKey, setFormKey] = useState(0)
 const fetchRules = async () => {
   try {
     const res = await fetch(`${API_BASE}/rules/`)
@@ -71,36 +81,121 @@ useEffect(() => {
   fetchRules() // ✅ NEW
 }, [])
 
-  const flash = (msg) => {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3000)
+  // const flash = (msg) => {
+  //   setSuccessMsg(msg)
+  //   setTimeout(() => setSuccessMsg(''), 3000)
+  // }
+const flash = (msg, type = "success", duration = 3000) => {
+  if (type === "error") {
+    setError(msg);
+    setTimeout(() => setError(''), duration);
+  } else {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), duration);
   }
+};
 
-  const resetForm = () => {
-    setFormRuleName('')
-    setFormInterval('')
-    setFormUnit('seconds')
-    setFormActive(true)
-    setError('')
+  const formatSchedule = (job) => {
+  const config = job.schedule_config
+
+  if (!config) return ''
+
+  switch (config.type) {
+    case 'interval':
+      return `Every ${job.interval} ${job.unit}`
+
+    case 'daily':
+      return `Daily at ${config.time}`
+
+    case 'weekly':
+      return `Every week on ${config.days?.join(', ')} at ${config.time}`
+
+    case 'once':
+      if (!config.datetime) return ''
+      console.log(`Run once at ${toLocalDisplay(config.datetime)}`)
+      return `Run once at ${toLocalDisplay(config.datetime)}`
+
+    default:
+      return ''
   }
+}
 
+const resetForm = () => {
+  setFormRuleName('')
+  setFormInterval('')
+  setFormUnit('seconds')
+  setFormActive(true)
+  setError('')
+  setUseCombinations(false)
+  setComboIntervals('')
+  setComboUnits([])
+  setScheduleType('interval')
+  setScheduleTime('')
+  setScheduleDays([])
+  setScheduleDate('')
+  setJobName('')
+
+  setFormKey(prev => prev + 1) // 🔥 force re-render
+}
+const toLocalDisplay = (utcString) => {
+  if (!utcString) return ''
+console.log("UTC String ",utcString)
+  const date = new Date(utcString)
+
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+     hour12: false, 
+  })
+}
   const handleAddJob = async () => {
     setError('')
     if (!formRuleName.trim()) return setError('Rule name is required')
-    if (!formInterval || isNaN(formInterval) || Number(formInterval) <= 0)
-      return setError('Interval must be a positive number')
+    const toUTCISOString = (localDateTime) => {
+              if (!localDateTime) return null
+              const date = new Date(localDateTime)
+              return date.toISOString() // converts to UTC
+            }
+    const payload = {
+      rule_id: formRuleName.trim(),
+      is_active: formActive,
+      job_name: jobName.trim() || `Job for ${formRuleName.trim()}`,
+      schedule_config: {
+        type: scheduleType,
+        ...(scheduleType === 'daily' && { time: scheduleTime }),
+        ...(scheduleType === 'weekly' && { time: scheduleTime, days: scheduleDays }),
+        ...(scheduleType === 'once'   && { datetime: toUTCISOString(scheduleDate) }),
+      },
+    }
 
+    if (scheduleType === 'interval') {
+      if (!formInterval || isNaN(formInterval) || Number(formInterval) <= 0)
+        return setError('Interval must be a positive number')
+      payload.interval = Number(formInterval)
+      payload.unit = formUnit
+
+      if (useCombinations) {
+        const intervals = comboIntervals
+          .split(',')
+          .map(x => parseInt(x.trim()))
+          .filter(x => !isNaN(x) && x > 0)
+
+        if (intervals.length === 0) return setError('Provide valid combination intervals')
+        if (comboUnits.length === 0) return setError('Select at least one unit')
+
+        payload.combinations = { intervals, units: comboUnits }
+      }
+    }
     setSubmitting(true)
     try {
       const res = await fetch(`${API_BASE}/scheduler/jobs/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rule_id: formRuleName.trim(),
-          interval:  Number(formInterval),
-          unit:      formUnit,
-          is_active: formActive,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save job')
@@ -112,9 +207,19 @@ useEffect(() => {
       fetchJobs()
 
     } catch (e) {
-      setError(e.message)
+
+       flash(`⚠️ ${e.message}`,'error')
+       
     } finally {
       setSubmitting(false)
+      setFormRuleName('')
+      setFormInterval('')
+      setFormUnit('seconds')
+      setFormActive(true)
+      // setError('')
+      setUseCombinations(false)
+      setComboIntervals('')
+      setComboUnits([])
     }
   }
 
@@ -202,12 +307,13 @@ const handleRunNow = async (job) => {
 }
 
   return (
-    <div style={{
-      maxWidth: 860,
-      margin: '0 auto',
-      padding: '32px 24px',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    }}>
+   <div style={{
+  width: '100%',
+  minHeight: '100vh',
+  padding: '32px',
+  boxSizing: 'border-box',
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+}}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -249,7 +355,7 @@ const handleRunNow = async (job) => {
         </div>
       )}
       {error && !showForm && (
-        <div style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
+        <div key={formKey} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 16px', marginBottom: 16, fontSize: '0.9rem' }}>
           ✕ {error}
         </div>
       )}
@@ -263,7 +369,7 @@ const handleRunNow = async (job) => {
           padding: 20,
           marginBottom: 24,
         }}>
-          <h3 style={{ margin: '0 0 16px', color: '#002f6c', fontSize: '1rem' }}>Add / Update Scheduled Job</h3>
+          <h3 style={{ margin: '0 0 16px', color: '#002f6c', fontSize: '1rem' }}>Create Scheduled Job</h3>
 
           {error && (
             <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 4, padding: '8px 12px', marginBottom: 12, fontSize: '0.85rem' }}>
@@ -273,7 +379,16 @@ const handleRunNow = async (job) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
+              <label style={labelStyle}>Job Name</label>
+              <input type="text" value={jobName} onChange={e => setJobName(e.target.value)} />
+              
+              
+            </div>
+
+            <div>
               <label style={labelStyle}>Rule Name</label>
+              
+              
               <select
                 value={formRuleName}
                 onChange={(e) => setFormRuleName(e.target.value)}
@@ -288,7 +403,64 @@ const handleRunNow = async (job) => {
                 ))}
               </select>
             </div>
+            <div>
+ <select value={scheduleType} onChange={e => setScheduleType(e.target.value)} style={inputStyle}>
+          <option value="interval">Interval</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="once">Run Once</option>
+        </select>
 
+            </div>
+           {scheduleType === 'daily' && (
+              <input
+                type="time"
+                value={scheduleTime}
+                onChange={e => setScheduleTime(e.target.value)}
+                style={inputStyle}
+              />
+            )}
+
+            {scheduleType === 'weekly' && (
+  <>
+   <input
+  type="time"
+  value={scheduleTime}
+  onChange={e => setScheduleTime(e.target.value)}
+  style={inputStyle}
+/>
+
+    
+
+    <div>
+      {['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(day => (
+        <label key={day}>
+          <input
+            type="checkbox"
+            checked={scheduleDays.includes(day)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setScheduleDays([...scheduleDays, day])
+              } else {
+                setScheduleDays(scheduleDays.filter(d => d !== day))
+              }
+            }}
+          />
+          {day}
+        </label>
+      ))}
+    </div>
+  </>
+)}
+
+{scheduleType === 'once' && (
+  <>
+    <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+   
+  </>
+)}
+
+            {scheduleType === 'interval' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={labelStyle}>Interval</label>
@@ -309,7 +481,60 @@ const handleRunNow = async (job) => {
                   ))}
                 </select>
               </div>
+              <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>
+                <input
+                  type="checkbox"
+                  checked={useCombinations}
+                  onChange={(e) => setUseCombinations(e.target.checked)}
+                  style={{ marginRight: 6 }}
+                />
+                Use advanced combinations
+              </label>
             </div>
+
+            {useCombinations && (
+              <div style={{ marginTop: 10 }}>
+                
+                {/* Intervals */}
+                <div>
+                  <label style={labelStyle}>Intervals (comma separated)</label>
+                  <input
+                    type="text"
+                    value={comboIntervals}
+                    onChange={(e) => setComboIntervals(e.target.value)}
+                    placeholder="e.g. 5,10,30"
+                    style={inputStyle}
+                  />
+                </div>
+
+                {/* Units */}
+                <div style={{ marginTop: 10 }}>
+                  <label style={labelStyle}>Units</label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {UNIT_OPTIONS.map(u => (
+                      <label key={u}>
+                        <input
+                          type="checkbox"
+                          checked={comboUnits.includes(u)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setComboUnits([...comboUnits, u])
+                            } else {
+                              setComboUnits(comboUnits.filter(x => x !== u))
+                            }
+                          }}
+                        />
+                        {u}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
+            </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
               <input
@@ -351,7 +576,7 @@ const handleRunNow = async (job) => {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ background: '#f0f6ff', borderBottom: '1px solid #d8dde5' }}>
-                {['Rule Name', 'Schedule', 'Status', 'Last Updated', 'Actions'].map((h) => (
+                {['Job Name', 'Rule Name', 'Schedule', 'Status', 'Last Updated', 'Actions'].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', color: '#0f3d84', fontWeight: 600, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {h}
                   </th>
@@ -364,6 +589,9 @@ const handleRunNow = async (job) => {
                   key={job.id}
                   style={{ borderBottom: i < jobs.length - 1 ? '1px solid #eef2f6' : 'none', background: i % 2 === 0 ? 'white' : '#fafbff' }}
                 >
+                  <td style={{ padding: '12px 16px', color: '#5d6779', fontSize: '0.82rem' }}>
+                    {job.job_name}
+                  </td>
                   <td style={{ padding: '12px 16px', fontWeight: 500, color: '#1a273d' }}>
                     {job.rule_name}
                   </td>
@@ -373,16 +601,16 @@ const handleRunNow = async (job) => {
                       padding: '3px 10px', borderRadius: 12,
                       fontSize: '0.82rem', fontWeight: 500,
                     }}>
-                      ⏱ {job.schedule}
+                      ⏱ {formatSchedule(job)}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={badge(job.is_active)}>
-                      {job.is_active ? 'Active' : 'Paused'}
+                      {job.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', color: '#5d6779', fontSize: '0.82rem' }}>
-                    {job.updated_at}
+                    {toLocalDisplay(job.updated_at)}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

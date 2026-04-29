@@ -38,6 +38,14 @@ def validate_required_fields(claims, required_fields, context=None):
 
 
 # Validate claim amount range
+@register_function(    name="test_dummy_jb",    inputs=[       ],    outputs=[       ])
+def test_dummy_jb(context=None):
+    print("Executing test_dummy_jb function")
+    return {
+       
+    }
+
+# Validate claim amount range
 @register_function(
     name="validate_claim_amount_range",
     inputs=[
