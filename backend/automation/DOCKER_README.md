@@ -65,6 +65,27 @@ This guide explains how to run the automation application using Docker with Cele
 - MS SQL Server (local or external)
 - At least 4GB RAM available
 
+### 0. Setup Redis Container
+
+Redis is required as the message broker for Celery tasks. Set it up using Docker:
+
+#### Option A: Manual Docker Command
+
+```bash
+# Create Docker network (if not exists)
+docker network create automation_network
+
+# Start Redis container
+docker run -d \
+  --name automation_redis \
+  --network automation_network \
+  -p 6379:6379 \
+  redis:7-alpine
+
+# Verify Redis is running
+docker ps -a | grep automation_redis
+```
+
 ### 1. Update Environment Variables
 
 Copy and update the `.env.example` file:

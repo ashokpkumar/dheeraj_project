@@ -89,21 +89,35 @@ WSGI_APPLICATION = 'automation.wsgi.application'
 #         },
 #     }
 # }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'mssql',
+#         'NAME': 'master',
+#         # 'HOST': 'localhost\\SQLEXPRESS',
+#         "HOST": "host.docker.internal",
+#         'PORT': '',
+#         'OPTIONS': {
+#             'driver': 'ODBC Driver 18 for SQL Server',
+#             'trusted_connection': 'yes',
+#             'extra_params': 'Encrypt=no;TrustServerCertificate=yes;',
+#         },
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': 'master',
-        'HOST': 'localhost\\SQLEXPRESS',
-        'PORT': '',
+        'HOST': 'host.docker.internal',
+        'PORT': '1433',
+        'USER': 'root',
+        'PASSWORD': 'admin',
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
-            'trusted_connection': 'yes',
             'extra_params': 'Encrypt=no;TrustServerCertificate=yes;',
         },
     }
 }
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -176,5 +190,4 @@ CELERY_IMPORTS = ['rule_engine.tasks']
 # ─────────────────────────────────────────────────────────────
 # Logging Configuration
 # ─────────────────────────────────────────────────────────────
-from automation.logging_config import LOGGING_CONFIG
-LOGGING = LOGGING_CONFIG
+from automation.logging_config import LOGGING
