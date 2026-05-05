@@ -1,14 +1,16 @@
-.PHONY: help setup build-orch build-worker run-orch run-worker run-beat run-flower logs-all clean stop restart ps migrate superuser shell redis-cli up down logs build status test requirements freeze
+.PHONY: help setup build-orch build-worker build-ui run-orch run-worker run-beat run-flower run-ui logs-all clean stop restart ps migrate superuser shell redis-cli up down logs build status test requirements freeze
 
 help:
 	@echo "Build & Deploy Commands:"
 	@echo "  make setup              - Setup Docker network and Redis"
 	@echo "  make build-orch         - Build orchestrator image"
 	@echo "  make build-worker       - Build worker image"
+	@echo "  make build-ui           - Build React UI image"
 	@echo "  make run-orch           - Run orchestrator (API server)"
 	@echo "  make run-worker N=1     - Run worker_N (celery worker)"
 	@echo "  make run-beat           - Run beat scheduler"
 	@echo "  make run-flower         - Run flower monitoring"
+	@echo "  make run-ui             - Run React frontend (port 3000)"
 	@echo ""
 	@echo "Status & Logs:"
 	@echo "  make ps                 - List all containers"
@@ -40,6 +42,10 @@ build-worker:
 	@echo "Building worker image..."
 	docker build --build-arg ROLE=worker --build-arg IS_ORCHESTRATOR=False -t automation:worker .
 
+build-ui:
+	@echo "Building React UI image..."
+	docker build -t automation:ui ../UI/my-react-flow-app
+
 run-orch:
 	@echo "Starting orchestrator API server..."
 	docker run -d --name automation_main -p 8000:8000 --env-file .env --network automation_network automation:orchestrator serve
@@ -55,6 +61,10 @@ run-beat:
 run-flower:
 	@echo "Starting Flower monitoring..."
 	docker run -d --name automation_flower -p 5555:5555 --env-file .env --network automation_network automation:orchestrator flower
+
+run-ui:
+	@echo "Starting React UI..."
+	docker run -d --name automation_ui -p 3000:3000 --network automation_network automation:ui
 
 ps:
 	docker ps -a | findstr automation || docker ps -a | grep automation

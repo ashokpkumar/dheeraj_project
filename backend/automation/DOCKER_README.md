@@ -369,6 +369,179 @@ docker-compose ps celery_beat
 | `DB_PASSWORD` | - | Database password |
 | `DB_NAME` | master | Database name |
 
+## React Frontend Dockerization
+
+### Overview
+
+The React frontend (Vite-based) can be containerized separately using a multi-stage Docker build to optimize the final image size.
+
+**Architecture:**
+- **Build Stage**: Node.js environment to build the React app
+- **Runtime Stage**: Nginx server to serve the built static files
+- **Proxy**: Nginx reverse proxy to forward API calls to Django backend
+
+### Files Included
+
+The following files have been created:
+
+1. **Dockerfile** - Multi-stage build for React app
+2. **nginx.conf** - Nginx configuration with API proxy
+3. **.dockerignore** - Exclude unnecessary files from Docker build
+
+### Build the React UI Image
+
+```bash
+# From backend/automation directory
+make build-ui
+
+# Or manually
+docker build -t automation:ui ../UI/my-react-flow-app
+```
+
+### Run the React UI Container
+
+```bash
+# From backend/automation directory
+make run-ui
+
+# Or manually
+docker run -d \
+  --name automation_ui \
+  -p 3000:3000 \
+  --network automation_network \
+  automation:ui
+```
+
+### Access the Frontend
+
+- **React UI**: http://localhost:3000
+- **API Requests**: Automatically proxied to http://automation_main:8000/api/
+
+### Build and Push to Registry
+
+```bash
+export DOCKER_REGISTRY="docker.io"
+export DOCKER_USERNAME="your_username"
+export IMAGE_TAG="v1.0.0"
+
+# Build and tag
+docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/automation-ui:$IMAGE_TAG ../UI/my-react-flow-app
+docker build -t $DOCKER_REGISTRY/$DOCKER_USERNAME/automation-ui:latest ../UI/my-react-flow-app
+
+# Push
+docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/automation-ui:$IMAGE_TAG
+docker push $DOCKER_REGISTRY/$DOCKER_USERNAME/automation-ui:latest
+```
+
+### Environment Configuration
+
+The React app connects to the backend API through Nginx proxy. By default, it connects to:
+- `http://localhost:3000/api/` (local development)
+
+In Nginx, this is proxied to `http://automation_main:8000/api/` (Docker network).
+
+To change the API endpoint, modify the Vite configuration or environment variables in your React app.
+
+### Docker Compose Integration
+
+Add to your `docker-compose.yml`:
+
+```yaml
+  ui:
+    image: automation:ui
+    build:
+      context: ../UI/my-react-flow-app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - automation_network
+    depends_on:
+      - web
+    environment:
+      - API_BASE_URL=http://automation_main:8000/api
+```
+
+### Full Stack Deployment (All Services)
+
+Start all services in order:
+
+**Terminal 1 - Backend (API):**
+```bash
+make setup        # Redis + network
+make build-orch
+make build-worker
+make build-ui
+make run-orch
+```
+
+**Terminal 2 - Worker:**
+```bash
+make run-worker N=1
+```
+
+**Terminal 3 - Scheduler:**
+```bash
+make run-beat
+```
+
+**Terminal 4 - Monitoring:**
+```bash
+make run-flower
+```
+
+**Terminal 5 - Frontend:**
+```bash
+make run-ui
+```
+
+**Access All Services:**
+- Frontend: http://localhost:3000
+- API: http://localhost:8000
+- Admin: http://localhost:8000/admin
+- Flower: http://localhost:5555
+
+### Stop/Clean Everything
+
+```bash
+make stop      # Stop all containers
+make clean     # Remove all containers
+
+# Clean up images
+docker rmi automation:ui automation:orchestrator automation:worker automation:orchestrator
+```
+
+### Troubleshooting React Frontend
+
+**Frontend can't reach API:**
+```bash
+# Check if backend is running
+docker ps | grep automation_main
+
+# Check Nginx logs
+docker logs -f automation_ui
+
+# Verify network connectivity
+docker exec automation_ui ping automation_main
+```
+
+**Build fails with Node version issues:**
+```bash
+# Use specific Node version in Dockerfile
+# Change: FROM node:20-alpine
+# To: FROM node:18-alpine  # or node:22-alpine
+```
+
+**CORS errors in browser:**
+Edit nginx.conf to add CORS headers:
+```nginx
+location /api/ {
+    proxy_pass http://automation_main:8000/api/;
+    proxy_set_header Host $host;
+    proxy_set_header Access-Control-Allow-Origin *;
+}
+```
+
 ## Additional Resources
 
 - [Celery Documentation](https://docs.celeryproject.io/)
@@ -376,3 +549,6 @@ docker-compose ps celery_beat
 - [Redis Documentation](https://redis.io/documentation)
 - [Flower Documentation](https://flower.readthedocs.io/)
 - [Django Celery Integration](https://docs.celeryproject.io/en/stable/django/)
+- [Vite Documentation](https://vitejs.dev/)
+- [React Documentation](https://react.dev/)
+- [Nginx Documentation](https://nginx.org/en/docs/)
