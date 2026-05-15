@@ -1,141 +1,60 @@
-version: '3.9'
+version: '3.8'
 
 services:
-  # Redis service
+
+  # ── Redis ────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: automation_redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
+      interval: 10s
+      timeout: 5s
       retries: 5
-    networks:
-      - automation_network
 
-  # Django application
-  web:
+  # ── Django API ───────────────────────────────────────────
+  api:
     build: .
-    container_name: automation_web
-    command: gunicorn automation.wsgi:application --bind 0.0.0.0:8000 --workers 4
+    container_name: automation_api
+    command: python manage.py runserver 0.0.0.0:8000
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=False
-      - ALLOWED_HOSTS=localhost,127.0.0.1,web
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - IS_ORCHESTRATOR=True  # Set to False for worker-only instances
-      # Database configuration - update as needed
-      - DB_ENGINE=mssql
-      - DB_NAME=master
-      - DB_HOST=mssql_server
-      - DB_PORT=1433
-      - DB_USER=sa
-      - DB_PASSWORD=YourStrongPassword123!
+    env_file:
+      - .env
     depends_on:
       redis:
         condition: service_healthy
-    volumes:
-      - .:/app
-    networks:
-      - automation_network
     restart: unless-stopped
+    volumes:
+      - .:/app                  # live reload during development
 
-  # Celery Worker
-  celery_worker:
+  # ── Celery Worker ────────────────────────────────────────
+  celery-worker:
     build: .
-    container_name: automation_celery_worker
-    command: celery -A automation worker --loglevel=info --concurrency=4 --pool=prefork
-    environment:
-      - DEBUG=False
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - IS_ORCHESTRATOR=False  # Workers are not orchestrators
-      # Database configuration - same as web service
-      - DB_ENGINE=mssql
-      - DB_NAME=master
-      - DB_HOST=mssql_server
-      - DB_PORT=1433
-      - DB_USER=sa
-      - DB_PASSWORD=YourStrongPassword123!
+    container_name: automation_worker
+    command: celery -A automation worker --loglevel=info
+    env_file:
+      - .env
     depends_on:
-      - redis
-      - web
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
       - .:/app
-    networks:
-      - automation_network
-    restart: unless-stopped
 
-  # Celery Beat Scheduler (only in orchestrator instances)
-  celery_beat:
+  # ── Celery Beat (Scheduler) ──────────────────────────────
+  celery-beat:
     build: .
-    container_name: automation_celery_beat
-    command: celery -A automation beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    environment:
-      - DEBUG=False
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - IS_ORCHESTRATOR=True  # Only run scheduler in orchestrator mode
-      # Database configuration
-      - DB_ENGINE=mssql
-      - DB_NAME=master
-      - DB_HOST=mssql_server
-      - DB_PORT=1433
-      - DB_USER=sa
-      - DB_PASSWORD=YourStrongPassword123!
+    container_name: automation_beat
+    command: celery -A automation beat --loglevel=info
+    env_file:
+      - .env
     depends_on:
-      - redis
-      - web
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
       - .:/app
-    networks:
-      - automation_network
-    restart: unless-stopped
-
-  # Flower - Celery monitoring UI
-  flower:
-    image: mher/flower:2.0
-    container_name: automation_flower
-    command: celery --broker=redis://redis:6379/0 flower --port=5555
-    ports:
-      - "5555:5555"
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-      - celery_worker
-    networks:
-      - automation_network
-    restart: unless-stopped
-
-  # MS SQL Server (optional - for local development)
-  # Uncomment if you want to run MS SQL in Docker
-  # mssql_server:
-  #   image: mcr.microsoft.com/mssql/server:2022-latest
-  #   container_name: automation_mssql
-  #   environment:
-  #     - ACCEPT_EULA=Y
-  #     - SA_PASSWORD=YourStrongPassword123!
-  #   ports:
-  #     - "1433:1433"
-  #   volumes:
-  #     - mssql_data:/var/opt/mssql
-  #   networks:
-  #     - automation_network
-  #   restart: unless-stopped
-
-networks:
-  automation_network:
-    driver: bridge
-
-volumes:
-  redis_data:
-  # mssql_data:  # Uncomment if using MS SQL in Docker

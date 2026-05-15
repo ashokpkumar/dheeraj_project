@@ -1,130 +1,99 @@
-from rule_engine.functions.helpers import attach_emulator_sessions, process_claim
-from rule_engine.registry import register_function
+"""
+Claims Functions for Rule Engine
+=================================
 
-from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
-from typing import List, Dict, Any, Tuple
-# from helpers import process_claim,attach_emulator_sessions
+These functions are registered with the rule engine and can be called
+from within rule workflows. 
+
+Functions that interact with the EXTRA emulator communicate with
+the Windows Automation Service, which must be running on Windows.
+"""
+
+from rule_engine.registry import register_function
+from windows_client import get_windows_client, WindowsAutomationClientError, WindowsServiceUnavailable
+
+from typing import List, Dict, Any
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @register_function(
     name="convert_claims_data_to_csv", 
-    inputs=[{"name": "output_path", "type": "string"}], # 
+    inputs=[{"name": "output_path", "type": "string"}], 
     outputs=[{"name": "status", "type": "boolean"}]
 )
-def convert_claims_data_to_csv(output_path,context=None) :
-    """
-    """
-    print("Convert claims to csv")
+def convert_claims_data_to_csv(output_path, context=None):
+    """Convert scrapped claims data to CSV file."""
+    logger.info(f"Converting claims to CSV: {output_path}")
     try:
         results = context.get("scrapped_claims")
+        if not results:
+            logger.warning("No scrapped claims in context")
+            return {"status": False}
         df = pd.DataFrame(results)
-        df.to_csv(output_path)
-        print("Successfully completed claims to DB\\CSV")
-        return {"status":True}
+        df.to_csv(output_path, index=False)
+        logger.info(f"Successfully saved {len(results)} claims to CSV")
+        return {"status": True}
     except Exception as e:
-        return {"Status":False}
-    
+        logger.error(f"Error converting claims to CSV: {e}")
+        return {"status": False}
+
 
 @register_function(
     name="scrap_claims_from_emulator", 
-    inputs=[], # 
+    inputs=[],
     outputs=[{"name": "scrapped_claims", "type": "list"}]
 )
-def scrap_claims_from_emulator(context=None) :
+def scrap_claims_from_emulator(context=None):
     """
-    Processes claims in parallel using up to 4 emulator sessions, round-robin assignment,
-    and returns results in the original input order.
+    Scrap claims from EXTRA emulator via Windows Automation Service.
+    
+    This function communicates with a Windows-based automation service that
+    handles all emulator interactions. Requires windows_automation_service.py
+    running on Windows with EXTRA emulator open.
     """
-    print("Started scrap claims from emulator")
-    claim_ids = context.get("claim_ids")
+    logger.info("Starting scrap claims from emulator")
+    
+    claim_ids = context.get("claim_ids", [])
     if not claim_ids:
-        return []
+        logger.warning("No claim IDs provided in context")
+        return {"scrapped_claims": []}
 
     try:
-        sessions = attach_emulator_sessions(n=4)
+        client = get_windows_client()
+        
+        if not client.health_check():
+            raise WindowsServiceUnavailable(
+                f"Windows service unavailable at {client.base_url}. "
+                "Make sure windows_automation_service.py is running on Windows."
+            )
+        
+        logger.info(f"Requesting to scrap {len(claim_ids)} claims from Windows service")
+        
+        results = client.scrap_claims(
+            claim_ids=claim_ids,
+            method=context.get("method", "SEARCH BY CCN"),
+            cert_date_mmddyy=context.get("cert_date_mmddyy"),
+            seq_no=context.get("seq_no", "00"),
+            dental_flag=context.get("dental_flag", False)
+        )
+        
+        cleaned_results = [
+            {k: (v if v is not None else "") for k, v in result.items()}
+            for result in results
+        ]
+        
+        logger.info(f"Successfully scrapped {len(cleaned_results)} claims")
+        return {"scrapped_claims": cleaned_results}
+        
+    except WindowsServiceUnavailable as e:
+        logger.error(f"Windows service error: {e}")
+        raise Exception(f"Cannot access Windows Automation Service. {str(e)}") from e
+    except WindowsAutomationClientError as e:
+        logger.error(f"Error from Windows service: {e}")
+        raise Exception(f"Windows service error: {str(e)}") from e
     except Exception as e:
-        # You can log or raise based on your preference
-        print(f"Failed to attach sessions: {e}")
-        # Fallback: process sequentially using your current code?
-        # return _process_sequentially(claim_ids)
+        logger.error(f"Unexpected error scraping claims: {e}")
         raise
-
-    worker_count = min(4, len(sessions))
-    print(f"Using {worker_count} emulator session(s) for {len(claim_ids)} claim(s).")
-
-    # Defaults you already use
-    default_method = "SEARCH BY CCN"
-    default_seq_no = "00"
-    default_dental = False
-    default_cert_mmddyy = None
-
-    # Index claims so we can put results back in the same order
-    indexed_claims: List[Tuple[int, str]] = list(enumerate(claim_ids))
-
-    # Round-robin partition: bucket i gets i, i+worker_count, i+2*worker_count, ...
-    buckets: List[List[Tuple[int, str]]] = [
-        indexed_claims[i::worker_count] for i in range(worker_count)
-    ]
-
-    # We’ll collect results via a thread-safe queue as (idx, result_dict)
-    out_q: Queue = Queue()
-
-    def _worker(worker_idx: int, items: List[Tuple[int, str]]):
-        """
-        Runs on its own thread, using its own COM apartment.
-        Each worker uses exactly one emulator session.
-        """
-        import pythoncom
-        pythoncom.CoInitialize()
-        try:
-            session = sessions[worker_idx]
-            screen = session.Screen
-            try:
-                screen.WaitHostQuiet(2000)
-            except Exception:
-                pass
-
-            for (idx, cid) in items:
-                try:
-                    res = process_claim(
-                        screen=screen,
-                        claim_id=cid,
-                        method=default_method,
-                        cert_date_mmddyy=default_cert_mmddyy,
-                        seq_no=default_seq_no,
-                        dental_flag=default_dental,
-                    )
-                except Exception as e:
-                    print(f"Worker {worker_idx} error on {cid}: {e}")
-                    res = {
-                        "CLAIM CONTROL #": cid,
-                        "MACRO STATUS": f"ERROR: {e}",
-                    }
-
-                # Normalize None -> ""
-                cleaned = {k: (v if v is not None else "") for k, v in res.items()}
-                out_q.put((idx, cleaned))
-
-        finally:
-            # Keep it tidy
-            try:
-                pythoncom.CoUninitialize()
-            except Exception:
-                pass
-
-    # Launch exactly one worker per session
-    with ThreadPoolExecutor(max_workers=worker_count) as pool:
-        for i in range(worker_count):
-            pool.submit(_worker, i, buckets[i])
-
-        # Reassemble results in original order
-        results: List[Dict[str, Any]] = [None] * len(indexed_claims)
-        collected = 0
-        while collected < len(indexed_claims):
-            idx, res = out_q.get()
-            results[idx] = res
-            collected += 1
-    print(f"completed scrap claims from emulator {len(results)}")
-    return {"scrapped_claims":results }
-
