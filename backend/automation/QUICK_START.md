@@ -55,6 +55,15 @@ Should return: `{"status": "healthy", "service": "windows_automation"}`
 
 ---
 
+
+cd ~/dheeraj_project/backend/automation
+
+# Build images and start all services
+docker compose up -d --build
+
+# Verify all containers are running
+docker compose ps
+
 ## Step 2: Linux/Celery Setup (10 minutes)
 
 ### 2.1 Install Dependencies on Linux
