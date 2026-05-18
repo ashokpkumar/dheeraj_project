@@ -10,6 +10,7 @@ echo   Quick Start - All Services
 echo ========================================
 echo.
 echo This will start:
+echo   0. Clean Docker containers and images
 echo   1. Infrastructure (Redis, Network)
 echo   2. Windows Automation Service
 echo   3. Orchestrator API (port 8000)
@@ -22,7 +23,21 @@ echo Press any key to continue or Ctrl+C to cancel...
 pause >nul
 
 echo.
-echo [1/7] Setting up infrastructure...
+echo [1/8] Cleaning up Docker containers and images...
+echo.
+echo Stopping and removing all containers...
+for /f "tokens=*" %%i in ('docker ps -aq') do (
+    docker stop %%i >nul 2>&1
+    docker rm %%i >nul 2>&1
+)
+echo All containers removed.
+echo.
+echo Removing unused images...
+docker image prune -f >nul 2>&1
+echo Unused images removed.
+echo.
+
+echo [2/8] Setting up infrastructure...
 call setup-infrastructure.bat
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Infrastructure setup failed
@@ -31,7 +46,12 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [2/7] Setting up Windows Automation Service...
+echo [3/8] Setting up Windows Automation Service...
+echo.
+echo Unblocking PowerShell scripts...
+powershell -Command "Unblock-File -Path '.\start-windows-service.ps1'"
+powershell -Command "Get-ChildItem -Path '.' -Filter '*.ps1' -Recurse | Unblock-File"
+echo PowerShell scripts unblocked.
 echo.
 echo Installing Python dependencies...
 pip install pywin32 flask flask-cors
@@ -78,7 +98,7 @@ echo ✓ Windows Automation Service is running at http://localhost:5555
 echo.
 
 echo.
-echo [3/7] Building Orchestrator...
+echo [4/8] Building Orchestrator...
 call build-and-deploy.bat orchestrator main serve
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Orchestrator build failed
@@ -87,7 +107,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [4/7] Building Worker...
+echo [5/8] Building Worker...
 call build-and-deploy.bat worker w1 worker
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Worker build failed
@@ -96,7 +116,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [5/7] Building Beat Scheduler...
+echo [6/8] Building Beat Scheduler...
 call build-and-deploy.bat orchestrator scheduler beat
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Beat build failed
@@ -105,7 +125,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [6/7] Building React UI...
+echo [7/8] Building React UI...
 call build-and-deploy-ui.bat run
 if %ERRORLEVEL% neq 0 (
     echo ERROR: UI build/start failed
@@ -114,7 +134,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo [7/7] Building Flower...
+echo [8/8] Building Flower...
 call build-and-deploy.bat orchestrator flower flower
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Flower build failed
