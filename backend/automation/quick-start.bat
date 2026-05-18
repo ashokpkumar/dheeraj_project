@@ -76,22 +76,20 @@ echo.
 pause /PROMPT "Press any key when EXTRA emulator is ready..."
 
 echo.
-echo Starting Windows Automation Service...
-powershell -ExecutionPolicy Bypass -File .\start-windows-service.ps1
-if %ERRORLEVEL% neq 0 (
-    echo ERROR: Failed to start Windows Automation Service
-    pause
-    exit /b 1
-)
+echo Starting Windows Automation Service in background terminal...
+START "Windows Automation Service" powershell -ExecutionPolicy Bypass -File .\start-windows-service.ps1
+
+echo Waiting for service to start...
+timeout /t 3 /nobreak
 
 echo.
 echo Testing Windows Automation Service health...
-timeout /t 2 /nobreak
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:5555/health' -ErrorAction Stop; Write-Host 'Service is healthy!' } catch { Write-Host 'ERROR: Service health check failed'; exit 1 }"
+:health_check_retry
+powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:5555/health' -ErrorAction Stop; Write-Host 'Service is healthy!' } catch { exit 1 }"
 if %ERRORLEVEL% neq 0 (
-    echo ERROR: Windows Automation Service health check failed
-    pause
-    exit /b 1
+    echo Service not ready yet, retrying...
+    timeout /t 2 /nobreak
+    goto health_check_retry
 )
 
 echo ✓ Windows Automation Service is running at http://localhost:5555
