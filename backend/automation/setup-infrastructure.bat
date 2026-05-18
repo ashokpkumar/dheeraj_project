@@ -8,6 +8,18 @@ echo   Automation Infrastructure Setup
 echo ========================================
 echo.
 
+REM Step 1: Load OS base image
+echo Loading OS base image...
+if exist os_image.tar (
+  docker load -i os_image.tar
+  echo OS image loaded successfully
+  echo.
+) else (
+  echo WARNING: os_image.tar not found
+  echo Please ensure os_image.tar exists in the current directory
+  echo.
+)
+
 REM Check if network exists
 docker network inspect automation_network >nul 2>&1
 if errorlevel 1 (

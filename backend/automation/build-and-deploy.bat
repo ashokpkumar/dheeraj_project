@@ -71,17 +71,11 @@ echo Docker image built: %IMAGE_NAME%
 echo.
 
 REM Step 2: Stop existing container if running
-docker ps -a --format "{{.Names}}" | findstr /R "^%CONTAINER_NAME%$" > nul
-if not errorlevel 1 (
-  echo Step 2: Stopping existing container...
-  docker stop %CONTAINER_NAME% >nul 2>&1 || true
-  docker rm %CONTAINER_NAME% >nul 2>&1 || true
-  echo Existing container stopped and removed
-  echo.
-) else (
-  echo Step 2: No existing container found
-  echo.
-)
+echo Step 2: Cleaning up existing containers...
+docker stop %CONTAINER_NAME% >nul 2>&1
+docker rm %CONTAINER_NAME% >nul 2>&1
+echo Existing containers cleaned up (if any)
+echo.
 
 REM Step 3: Run container
 echo Step 3: Starting new container...
