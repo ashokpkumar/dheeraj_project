@@ -88,16 +88,46 @@ exit /b 0
 
 :build
 echo Building React UI image...
-echo Command: docker build -t !IMAGE_NAME! !UI_PATH!
+echo UI Path: !UI_PATH!
 echo.
-docker build -t !IMAGE_NAME! !UI_PATH!
+
+REM Change to UI directory
+pushd !UI_PATH!
+if !ERRORLEVEL! neq 0 (
+    echo ERROR: Could not change to UI directory: !UI_PATH!
+    pause
+    exit /b 1
+)
+
+REM Check if Dockerfile exists
+if not exist "Dockerfile" (
+    echo ERROR: Dockerfile not found in !UI_PATH!
+    popd
+    pause
+    exit /b 1
+)
+
+REM Check if package.json exists
+if not exist "package.json" (
+    echo ERROR: package.json not found in !UI_PATH!
+    popd
+    pause
+    exit /b 1
+)
+
+echo Docker build command: docker build -t !IMAGE_NAME! .
+echo.
+docker build -t !IMAGE_NAME! .
 if !ERRORLEVEL! neq 0 (
     echo ERROR: Build failed
+    popd
     pause
     exit /b 1
 )
 echo.
 echo Build completed successfully
+
+popd
 echo.
 echo Next steps:
 echo   Run container: build-and-deploy-ui.bat run
@@ -108,12 +138,43 @@ exit /b 0
 
 :build_and_run
 echo Building React UI image...
-docker build -t !IMAGE_NAME! !UI_PATH!
+echo UI Path: !UI_PATH!
+echo.
+
+REM Change to UI directory
+pushd !UI_PATH!
 if !ERRORLEVEL! neq 0 (
-    echo ERROR: Build failed
+    echo ERROR: Could not change to UI directory: !UI_PATH!
     pause
     exit /b 1
 )
+
+REM Check if Dockerfile exists
+if not exist "Dockerfile" (
+    echo ERROR: Dockerfile not found in !UI_PATH!
+    popd
+    pause
+    exit /b 1
+)
+
+REM Check if package.json exists
+if not exist "package.json" (
+    echo ERROR: package.json not found in !UI_PATH!
+    popd
+    pause
+    exit /b 1
+)
+
+echo Docker build command: docker build -t !IMAGE_NAME! .
+docker build -t !IMAGE_NAME! .
+if !ERRORLEVEL! neq 0 (
+    echo ERROR: Build failed
+    popd
+    pause
+    exit /b 1
+)
+
+popd
 
 echo.
 echo Image built successfully, starting container...
