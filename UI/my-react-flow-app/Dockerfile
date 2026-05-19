@@ -1,13 +1,13 @@
 # Build stage
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
-# Install dependencies (including devDependencies for build tools like vite)
-RUN npm ci --include=dev || npm install
+# Install dependencies fresh (no lockfile to avoid Windows/Linux platform conflicts)
+RUN npm install --include=dev
 
 # Copy source code
 COPY . .
