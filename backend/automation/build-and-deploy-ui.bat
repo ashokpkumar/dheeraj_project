@@ -115,6 +115,17 @@ if not exist "package.json" (
     exit /b 1
 )
 
+REM Build React app on Windows host (avoids Docker npm registry issues)
+echo Building React app with npm...
+call npm run build
+if !ERRORLEVEL! neq 0 (
+    echo ERROR: npm build failed
+    popd
+    pause
+    exit /b 1
+)
+echo.
+
 echo Docker build command: docker build -t !IMAGE_NAME! .
 echo.
 docker build -t !IMAGE_NAME! .
@@ -164,6 +175,17 @@ if not exist "package.json" (
     pause
     exit /b 1
 )
+
+REM Build React app on Windows host (avoids Docker npm registry issues)
+echo Building React app with npm...
+call npm run build
+if !ERRORLEVEL! neq 0 (
+    echo ERROR: npm build failed
+    popd
+    pause
+    exit /b 1
+)
+echo.
 
 echo Docker build command: docker build -t !IMAGE_NAME! .
 docker build -t !IMAGE_NAME! .
