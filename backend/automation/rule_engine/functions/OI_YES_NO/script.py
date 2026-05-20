@@ -9,7 +9,7 @@ from rule_engine.registry import register_function
     inputs=[{"name": "search_by", "type": "str", "options": ["CERT", "CLAIM"]},
             {"name": "action", "type": "str", "options": ["UPDATE_OI", "UPDATE_PLAN_ID"]},
             {"name": "oi_status", "type": "str", "options": ["YES", "NO"]},
-            {"name": "bg_sv_dt", "type": "str"},
+            {"name": "bg_sv_dt", "type": "date"},
             {"name": "level_mode", "type": "str"},
             {"name": "default_tp", "type": "str"},
             {"name": "TYPE", "type": "str"},

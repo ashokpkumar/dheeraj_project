@@ -907,6 +907,18 @@ console.log(ruleName)
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
+                ) : input.type === "date" ? (
+                  <input
+                    type="date"
+                    value={connectionParams[input.name] || ""}
+                    onChange={(e) =>
+                      setConnectionParams(prev => ({
+                        ...prev,
+                        [input.name]: e.target.value
+                      }))
+                    }
+                    style={{ width: '100%', padding: 5 }}
+                  />
                 ) : (
                   <input
                     type="text"
