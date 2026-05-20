@@ -13,7 +13,7 @@ import '@xyflow/react/dist/style.css'
 
 import RuleNode from './components/RuleNode'
 
-import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule } from './api/api'
+import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule, refreshFunctions } from './api/api'
 import SchedulerPage from './components/SchedulerPage'
 import ProcessingPage from './components/ProcessingPage'
 
@@ -55,6 +55,7 @@ export default function App() {
   const [originalNodes, setOriginalNodes] = useState([])
   const [originalEdges, setOriginalEdges] = useState([])
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -727,6 +728,34 @@ console.log(ruleName)
           )
         })()}
 
+        <button
+          onClick={async () => {
+            setIsRefreshing(true)
+            try {
+              await refreshFunctions()
+              await loadFunctions().then((funcs) => setFunctions(Array.isArray(funcs) ? funcs : []))
+            } catch (e) {
+              console.error('Refresh failed', e)
+            } finally {
+              setIsRefreshing(false)
+            }
+          }}
+          disabled={isRefreshing}
+          title="Clear and re-register all functions from the server"
+          style={{
+            marginLeft: 10,
+            background: isRefreshing ? '#94a3b8' : '#1e6b3a',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            padding: '6px 12px',
+            cursor: isRefreshing ? 'not-allowed' : 'pointer',
+            opacity: isRefreshing ? 0.7 : 1,
+          }}
+        >
+          {isRefreshing ? 'Refreshing...' : 'Refresh Functions'}
+        </button>
+
          {(() => {
           const canSave = (isEditMode && !!currentRuleId) || (!currentRuleId && nodes.length > 0)
           return (
@@ -862,17 +891,35 @@ console.log(ruleName)
             {targetFunctionInputs.map((input) => (
               <div key={input.name} style={{ marginBottom: 10 }}>
                 <label>{input.name} ({input.type})</label>
-                <input
-                  type="text"
-                  value={connectionParams[input.name] || ""}
-                  onChange={(e) =>
-                    setConnectionParams(prev => ({
-                      ...prev,
-                      [input.name]: e.target.value
-                    }))
-                  }
-                  style={{ width: '100%', padding: 5 }}
-                />
+                {input.options && input.options.length > 0 ? (
+                  <select
+                    value={connectionParams[input.name] || ""}
+                    onChange={(e) =>
+                      setConnectionParams(prev => ({
+                        ...prev,
+                        [input.name]: e.target.value
+                      }))
+                    }
+                    style={{ width: '100%', padding: 5 }}
+                  >
+                    <option value="">-- select --</option>
+                    {input.options.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={connectionParams[input.name] || ""}
+                    onChange={(e) =>
+                      setConnectionParams(prev => ({
+                        ...prev,
+                        [input.name]: e.target.value
+                      }))
+                    }
+                    style={{ width: '100%', padding: 5 }}
+                  />
+                )}
               </div>
             ))}
 

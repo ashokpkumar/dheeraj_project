@@ -42,5 +42,6 @@ urlpatterns = [
     # Delete a specific job
     path("scheduler/jobs/<int:job_id>/",        views.delete_job,  name="delete-job"),
 
+    path("functions/refresh/", views.refresh_functions, name="refresh-functions"),
 
 ]

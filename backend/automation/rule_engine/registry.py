@@ -88,20 +88,19 @@ def _create_param_group(function_name, params, group_type):
     ).first()
 
     if existing:
-        return existing.parameter_group_id
+        group_id = existing.parameter_group_id
+    else:
+        max_group = ParamModel.objects.aggregate(
+            max_group=models.Max("parameter_group_id")
+        )["max_group"]
 
-    max_group = ParamModel.objects.aggregate(
-        max_group=models.Max("parameter_group_id")
-    )["max_group"]
+        group_id = (max_group or 0) + 1
 
-    new_group_id = (max_group or 0) + 1
-
-    # group marker
-    ParamModel.objects.create(
-        parameter_group_id=new_group_id,
-        param_name="__group__",
-        param_type=group_key
-    )
+        ParamModel.objects.create(
+            parameter_group_id=group_id,
+            param_name="__group__",
+            param_type=group_key
+        )
 
     # normalize params
     normalized_params = []
@@ -112,14 +111,16 @@ def _create_param_group(function_name, params, group_type):
 
             normalized_params.append({
                 "name": param,
-                "type": "string"
+                "type": "string",
+                "options": None
             })
 
         elif isinstance(param, dict):
 
             normalized_params.append({
                 "name": param["name"],
-                "type": param.get("type", "string")
+                "type": param.get("type", "string"),
+                "options": param.get("options", None)
             })
 
         else:
@@ -127,16 +128,19 @@ def _create_param_group(function_name, params, group_type):
                 f"Invalid param format in {function_name}: {param}"
             )
 
-    # save params
+    # upsert params so re-registration picks up new options
     for param in normalized_params:
 
-        ParamModel.objects.create(
-            parameter_group_id=new_group_id,
+        ParamModel.objects.update_or_create(
+            parameter_group_id=group_id,
             param_name=param["name"],
-            param_type=param["type"]
+            defaults={
+                "param_type": param["type"],
+                "param_options": param["options"]
+            }
         )
 
-    return new_group_id
+    return group_id
 
 
 

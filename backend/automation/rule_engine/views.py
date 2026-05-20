@@ -161,7 +161,8 @@ def _get_params(parameter_group_id):
     return [
         {
             "name": param.param_name,
-            "type": param.param_type
+            "type": param.param_type,
+            "options": param.param_options
         }
         for param in params
     ]
@@ -592,3 +593,19 @@ def delete_job(request, job_id):
     job.delete()
 
     return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)
+
+
+from .registry import FUNCTION_REGISTRY, _register_function_in_db
+
+@api_view(["POST"])
+def refresh_functions(request):
+    from django.db import transaction
+
+    with transaction.atomic():
+        ParamModel.objects.all().delete()
+        RuleLogic.objects.all().delete()
+
+        for function_name, meta in FUNCTION_REGISTRY.items():
+            _register_function_in_db(function_name, meta.inputs, meta.outputs)
+
+    return Response({"message": f"Refreshed {len(FUNCTION_REGISTRY)} function(s)."}, status=status.HTTP_200_OK)
