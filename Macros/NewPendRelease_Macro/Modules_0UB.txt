@@ -1,0 +1,972 @@
+Public Function UB_Per_Diem_Process(ByRef mw As Worksheet, ByRef rw) As Integer
+    Dim blnRvwSvc As Boolean, p As Integer
+    UB_Per_Diem_Process = 1: blnRvwSvc = False
+    With objSess.Screen
+        For p = 6 To 9 'Service Line Section
+             If Len(Trim(.GetString(p, 3, 4))) > 0 Then
+                Select Case UCase(Trim(mw.Range(s1cell_newOiIndctr))) 'ADDED 2024.10.24
+                    Case "N/A"
+                    Case "1ST LINE"
+                        If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                             RemoveValue 18, 26
+                             PlaceValue Trim(mw.Range(s1col_newOiInd & rw)), 18, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    Case "2ND LINE"
+                        If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                             RemoveValue 19, 26
+                             PlaceValue Trim(mw.Range(s1col_newOiInd & rw)), 19, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    Case "3RD LINE"
+                        If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                             RemoveValue 20, 26
+                             PlaceValue Trim(mw.Range(s1col_newOiInd & rw)), 20, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    Case "4TH LINE"
+                        If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                             RemoveValue 21, 26
+                             PlaceValue Trim(mw.Range(s1col_newOiInd & rw)), 21, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    Case "ALL LINES"
+                        If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                             RemoveValue p + 12, 26
+                             PlaceValue Trim(mw.Range(s1col_newOiInd & rw)), p + 12, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                End Select
+            End If: DoEvents
+        Next p
+       .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop 'REINSTATED 2024.10.24
+        If mw.Range(s1cell_remvPrcrtByps) = "Y" Then  'ADDED 2024.10.24
+            If InStr(Trim(.GetString(31, 1, 70)), "PC# NOT VALID FOR PATIENT") > 0 Or InStr(Trim(.GetString(31, 1, 70)), "8803") > 0 Then
+                 RemoveValue 2, 12
+                 PlaceValue "RP", 2, 5: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            End If
+        End If
+        PlaceValue "60", 3, 13
+        PlaceValue "N", 3, 39
+        PlaceValue "O99", 3, 53
+        PlaceValue "CF10", 4, 13
+        PlaceValue "001", 4, 38
+        PlaceValue "PER DIEM LINE", 4, 50
+       .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+       .SendKeys "<PF8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        PlaceValue "460", 2, 37
+       .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+EntryPoint:
+        Select Case Trim(.GetString(1, 2, 11))
+            Case "CPS445.01" 'REVIEWED SERVICES
+                blnRvwSvc = True
+               .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                GoTo EntryPoint
+            Case "CPS450.01"
+               .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If blnRvwSvc <> False Then
+                    PlaceValue "x", 29, 78 'DPSV
+                   .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+                GoTo EntryPoint
+            Case "BLX2460.01"
+                PlaceValue Trim(mw.Range(s1col_newPos & rw)), 1, 26 'POS
+                PlaceValue Trim(mw.Range(s1col_newTos & rw)), 6, 14 'TOS
+                PlaceValue "0001", 6, 3 'RC
+                PlaceValue Trim(.GetString(2, 63, 6)), 6, 17 'SERDT
+                PlaceValue "001", 6, 32 'BU
+                PlaceValue Trim(mw.Range(s1col_tBill & rw)), 6, 40 'CHARGE
+                PlaceValue Trim(mw.Range(s1col_tDisc & rw)), 12, 2  'INEL AMT
+                PlaceValue Trim(mw.Range(s1col_newInelCd & rw)), 12, 14 'CD 'ADJUSTED 2024.10.24
+               .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If Trim(.GetString(1, 2, 11)) = "BLX2460.01" Then
+                    UB_Per_Diem_Process = 0
+                    mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 70))
+                End If
+                GoTo EntryPoint
+            Case "CPS506.01"
+                PlaceValue "60", 3, 13
+                PlaceValue "N", 3, 39
+                PlaceValue "O99", 3, 53
+                PlaceValue "CF10", 4, 13
+                PlaceValue "001", 4, 38
+                PlaceValue "PER DIEM CREATED", 4, 50
+                PlaceValue Trim(mw.Range(s1cell_payee)), 7, 8 'ADDED 10/31/2024
+               .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If Trim(.GetString(1, 2, 11)) = "CPS506.01" Then
+                    UB_Per_Diem_Process = 0
+                    mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 70))
+                Else
+                    mw.Range(s1col_statEdit & rw) = "PER DIEM CREATED"
+                End If
+        End Select
+    End With
+End Function
+
+Public Function UB_Data_Entry(ByRef mw As Worksheet, ByRef rw As Long) As Integer
+    Dim o As Integer, p As Integer, EditMsg As String, s As Integer, rtnMsg, z As Integer, ineltoRemoveDict As New Dictionary, x As Integer, y As Integer, CalcDbl As Double
+    Dim l As Integer, SP_AMT As String
+    Dim currentMod As String: UB_Data_Entry = 1
+    With objSess.Screen
+BLX2460_Screen:
+        If Trim(.GetString(1, 2, 11)) = "CPS450.01" Then 'ADDED 2022.02.10
+            .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        End If
+        If Len(Trim(mw.Range(s1col_newPos & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newPos & rw)), 1, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'New POS value
+        If mw.Range(s1cell_aplyUC) = "Y" Then .Putstring "X", 29, 71: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'UC Field
+        If Len(Trim(mw.Range(s1col_newOvAj & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newOvAj & rw)), 27, 62: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'New OV/AJ value
+        For o = 18 To 21 'Other Insurance Section
+            If Len(Trim(.GetString(o, 12, 15))) > 0 Then
+                If mw.Range(s1cell_remOiEligAmt) = "Y" Then  'Remove OI ELIG/AMT 'modified 11.01.2022
+                    .MoveTo o, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'OI ELIG
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .MoveTo o, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'OI AMT
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    'Added 06112020
+                    .MoveTo o, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'O
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+            End If
+           'Added 07/29/2021 Removed 10/06/2021
+           'If Len(Trim(mw.Range("G" & rw))) > 0 Then .Putstring Trim(mw.Range("G" & rw)), o, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'New OI Indicator
+            If mw.Range(s1cell_remvAdjCd) = "Y" Then 'added 05.05.2023 Remove Adj Code UB
+                    .MoveTo o, 28: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            End If '========================================
+        Next o
+        If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newOiElig & rw)), 18, 2
+        If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newOiPd & rw)), 18, 14
+        z = 3: l = 0
+        For p = 6 To 9 'Service Line Section
+            If Len(Trim(.GetString(p, 3, 4))) > 0 Then
+                If mw.Range(slcell_FaieAdjInel) = "Y" Then 'ADDED 2025.08.26
+                    If Trim(.GetString(p + 6, 14, 3)) = "908" Then
+                        PlaceValue Trim(.GetString(p + 6, 2, 12)), p + 6, 18 'INEL AMT 2
+                        PlaceValue Format(mw.Range(Trim(slcol_FaieInelCd & rw)), "000"), p + 6, 30 'INEL CD 2
+                        RemoveValue p + 6, 2 'INEL AMT 1
+                    End If
+                End If
+                Select Case mw.Range(slcell_RemDiscAmt) 'ADDED 2025.03.10
+                    Case "Y"
+                        If RemDiscAmt.Exists(Trim(.GetString(p + 6, 14, 3))) Then
+                            If UCase(Trim(.GetString(p + 12, 26, 1))) = "X" Or UCase(Trim(.GetString(p + 12, 26, 1))) = "A" Then RemoveValue p + 6, 2
+                        End If
+                    Case "Y-DONT READ OITYPE"
+                        If RemDiscAmt.Exists(Trim(.GetString(p + 6, 14, 3))) Then RemoveValue p + 6, 2
+                End Select
+                If mw.Range(s1cell_inelSwitch) = "Y" Then 'ADDED 2024.01.04
+                    If Trim(.GetString(12, 14, 3)) = "908" Then PlaceValue Trim(mw.Range(s1col_inelSwitch & rw)), 12, 14
+                End If
+                If mw.Range(slcell_RemIU) = "Y" Then RemoveValue p, 36 'ADDED 2024.07.24
+                
+                Select Case mw.Range(s1cell_apply001)  'Apply 001 Line
+                    Case "1 ONLY"
+                        If p + 6 = 12 Then 'Applies to line 1 only
+                            'If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then
+                                .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .Putstring "001", p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            'End If
+                            If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then
+                                .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 2
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .Putstring "001", p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                        End If
+                    Case "ALL LINES"
+                        'If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then
+                            .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .Putstring "001", p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        'End If
+                        If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then
+                            .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 2
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .Putstring "001", p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    Case "N/A" 'Do not apply 001 EligCode
+                         If mw.Range(s1cell_removeInelAmtInelCd) = "N/A" Then  'Added logic 2022.12.16 ---
+                             If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'Added 2022.12.09 ***
+                                 If Trim(.GetString(p + 6, 14, 3)) = "001" Then
+                                     mw.Range(s1col_statEdit & rw) = "001 FOUND": GoTo JustExit
+                                 End If
+                             End If
+                             If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then
+                                 If Trim(.GetString(p + 6, 30, 3)) = "001" Then
+                                     mw.Range(s1col_statEdit & rw) = "001 FOUND": GoTo JustExit
+                                 End If
+                             End If '***
+                         End If
+                End Select
+                Select Case mw.Range(s1cell_removeInelAmtInelCd)  'Remove Inel/Cd
+                    Case "INEL/CD1"
+                         If mw.Range(s1cell_aplyInelCdSpcfcRmval) = "Y" Then  '====== added 05.06.2022 ======
+                            If .GetString(p + 6, 14, 3) = mw.Range(s1cell_inelCdToRmv).Text Then
+                                .MoveTo p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If '==============================
+                         Else
+                            'If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'REMOVED 2023.02.01
+                                .MoveTo p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            'End If
+                         End If
+                    Case "INEL/CD2"
+                        If mw.Range(s1cell_aplyInelCdSpcfcRmval) = "Y" Then  '====== added 05.06.2022 ======
+                            If .GetString(p + 6, 30, 3) = mw.Range(s1cell_inelCdToRmv).Text Then
+                                .MoveTo p + 6, 18: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If '==============================
+                        Else
+                            'If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then 'REMOVED 2023.02.01
+                                .MoveTo p + 6, 18: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            'End If
+                        End If
+                    Case "INEL/CD ALL"
+                        If mw.Range(s1cell_aplyInelCdSpcfcRmval) = "Y" Then  '====== added 05.06.2022 ======
+                            If .GetString(p + 6, 14, 3) = mw.Range(s1cell_inelCdToRmv).Text Then
+                                .MoveTo p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If .GetString(p + 6, 30, 3) = mw.Range(s1cell_inelCdToRmv).Text Then
+                                .MoveTo p + 6, 18: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If '==============================
+                        Else
+                            'If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'REMOVED 2023.02.01
+                                .MoveTo p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            'End If
+                            'If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then 'REMOVED 2023.02.01
+                                .MoveTo p + 6, 18: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            'End If
+                        End If
+                     Case "SPECIFIC" '===============added 04.11.2023============= delete specific inel code UB
+                         ineltoRemoveDict.RemoveAll
+                         For i = 0 To UBound(Split(mw.Range(s1col_remvSpcfcInel & rw), ";"))
+                             ineltoRemoveDict.Add Trim(Split(mw.Range(s1col_remvSpcfcInel & rw), ";")(i)), i
+                         Next i
+                         For y = 14 To 30 Step 16
+                             For x = 12 To 15
+                                 If ineltoRemoveDict.Exists(.GetString(x, y, 3)) Then
+                                     .MoveTo x, y: .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     .MoveTo x, y - 12: .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 End If
+                             Next x
+                         Next y '============================================
+                     Case "N/A"
+                End Select
+                If mw.Range(s1cell_denyClm) = "Y" Then  'Deny Claim UB
+                '====removed 2023.05.05====
+                     'If Trim(.getstring(p + 6, 14, 3)) <> "950" Then 'added 2022.08.10 replace inel except code 950
+                 '====removed 2023.05.05====
+                     If Not DnlInelCdExceptions.Exists(Trim(.GetString(p + 6, 14, 3))) Then 'ADDED 2023.09.22
+                        If mw.Range(s1cell_DisAftDnl) = "Y" Then 'ADDED 2024.04.03 ***
+                            If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then
+                                mw.Range(s1col_statEdit & rw) = "APPLY DISCOUNT AFTER DENIAL:INELCD2 PRESENT."
+                                UB_Data_Entry = 0: Exit Function
+                            Else
+                                If ApplyDiscAfterDnl.Exists(Trim(.GetString(p + 6, 14, 3))) Then
+                                    If Len(Trim(mw.Range(s1cell_inelCode))) > 0 Then 'ADDED LOGIC 2026.03.25
+                                        If DnyByCPT.Exists(Trim(.GetString(p, 8, 5))) Then
+                                            If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'ADDDED 2024.05.02
+                                                CalcDbl = Round(CDbl(Trim(.GetString(p, 40, 11))) - CDbl(Trim(.GetString(p + 6, 2, 11))), 2)
+                                                If CalcDbl <> 0 Then
+                                                    PlaceValue Format(CalcDbl, "0.00"), p + 6, 18
+                                                    PlaceValue Format(Trim(mw.Range(s1cell_inelCode)), "000"), p + 6, 30
+                                                Else
+                                                    PlaceValue CDbl(Trim(.GetString(p, 32, 3))), p, 36  'IU
+                                                End If
+                                            Else
+                                                PlaceValue CDbl(Trim(.GetString(p, 21, 11))), p + 6, 18
+                                                PlaceValue Format(Trim(mw.Range(s1cell_inelCode)), "000"), p + 6, 30
+                                            End If
+'                                        Else
+'                                            If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'ADDDED 2024.05.02
+'                                                CalcDbl = Round(CDbl(Trim(.GetString(p, 40, 11))) - CDbl(Trim(.GetString(p + 6, 2, 11))), 2)
+'                                                If CalcDbl <> 0 Then
+'                                                    PlaceValue Format(CalcDbl, "0.00"), p + 6, 18
+'                                                Else
+'                                                    PlaceValue CDbl(Trim(.GetString(p, 32, 3))), p, 36  'IU
+'                                                End If
+'                                            Else
+'                                                PlaceValue CDbl(Trim(.GetString(p, 40, 11))), p + 6, 18
+'                                            End If
+                                        End If
+                                    Else
+                                        If Len(Trim(.GetString(p + 6, 2, 11))) > 0 Then 'ADDDED 2024.05.02
+                                            CalcDbl = Round(CDbl(Trim(.GetString(p, 40, 11))) - CDbl(Trim(.GetString(p + 6, 2, 11))), 2)
+                                            If CalcDbl <> 0 Then
+                                                PlaceValue Format(CalcDbl, "0.00"), p + 6, 18
+                                                PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 30
+                                            Else
+                                                PlaceValue CDbl(Trim(.GetString(p, 32, 3))), p, 36  'IU
+                                            End If
+                                        Else
+                                            PlaceValue CDbl(Trim(.GetString(p, 40, 11))), p + 6, 18
+                                            PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 30
+                                        End If
+                                    End If
+                                Else
+                                    If Len(Trim(.GetString(p + 6, 14, 3))) < 1 Then
+                                        PlaceValue CDbl(Trim(.GetString(p, 40, 11))), p + 6, 2
+                                        PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 14
+                                    End If
+                                End If
+                            End If '***
+                            Select Case Trim(.GetString(p + 6, 14, 3)) 'ADDED 2025.12.01
+                                Case "183"
+                                    PlaceValue "0", p + 6, 50 'PROVRATE
+                            End Select
+                        Else
+                           .MoveTo p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Amt 1
+                           .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           .MoveTo p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                           .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           .Putstring Trim(.GetString(p, 40, 11)), p + 6, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Amt 1
+                           .Putstring Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'Elig Code 1
+                            If Len(Trim(.GetString(p + 6, 18, 11))) > 0 Then 'Remove InelCode/Amt 2
+                               .MoveTo p + 6, 18: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Amt 2
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .MoveTo p + 6, 30: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 2
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                        End If
+                    Else
+                        If Len(Trim(.GetString(p + 6, 2, 11))) < 1 Then 'ADDED 2024.05.02
+                            PlaceValue CDbl(Trim(.GetString(p, 40, 11))), p + 6, 2
+                            PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 14
+                        End If
+                    End If
+                 '====removed 2023.05.05====
+                     'End If
+                 '====removed 2023.05.05====
+                 End If
+                 
+                 If Trim(mw.Range(slcell_aplyDnlAftMedcr)) = "Y" Then 'ADDED 2025.02.25
+                    If Len(Trim(.GetString(p + 12, 2, 11))) > 0 Then 'OI ELIG
+                        PlaceValue Trim(.GetString(p + 12, 2, 11)), p + 6, 18
+                        PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p + 6, 30
+                    End If
+                 End If
+                
+                    If Trim(mw.Range(s1cell_removeAp)) = "Y" Then  'Added 2022.10.21
+                        .MoveTo 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Ap Code 'ADJUSTED 2025.08.08
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    End If
+                    If Trim(mw.Range(s1cell_remCodeSet)) = "Y" Then  'Added 2024.01.17
+                        .MoveTo p, 24: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'CS
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    End If
+    '                   If Len(Trim(mw.Range("H" & rw))) > 0 Then .Putstring Trim(mw.Range("H" & rw)), p, 68: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code
+                    If mw.Range(s1cell_chngeDxCd) = "Y" Then  '07/19/2021 - Change DxCodes
+                        .MoveTo 10, z: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Amt 1
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .Putstring Trim(mw.Range(s1col_dxCd & rw)), 10, z: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'DxCode
+                    End If
+'                   If Len(Trim(mw.Range("H" & rw))) > 0 Then .Putstring Trim(mw.Range("H" & rw)), p, 68: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code
+                    If mw.Range(s1cell_aplyDx) = "Y" And Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 And LabCodes.Exists(Trim(.GetString(p, 8, 5))) Then
+                         .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'AP Code 'ADJUSTED 2025.08.08
+                    End If
+                    If mw.Range(s1cell_aplyDx) = "N" And Trim(mw.Range(s1cell_aplyLab)) = "N" Then   '11/10/2021
+                         If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 Then _
+                        .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code 'ADJUSTED 2025.08.08
+                    End If
+                    If mw.Range(s1cell_aplyDx) = "N" And Trim(mw.Range(s1cell_aplyLab)) = "Y" Then   'Added 03162021 11/10/2021
+                         If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 And LabCodes.Exists(Trim(.GetString(p, 8, 5))) Then _
+                             If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l 'ADJUSTED 2025.08.08
+                    End If
+                    If Trim(mw.Range(s1cell_aplyTwoApCd)) = "Y" And Len(Trim(mw.Range(s1col_1stApCd & rw))) > 0 Then '============ Added: 2023.03.23 '============
+                       .Putstring Trim(mw.Range(s1col_1stApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   '1st AP Code UB 'ADJUSTED 2025.08.08
+                    End If '============================================
+                    If mw.Range(s1cell_remvProvRate) = "Y" Then '============ Updated: 2023.02.17 '============
+                        If Len(Trim(.GetString(12, 50, 11))) > 0 Then
+                            .MoveTo 12, 50: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                        If Len(Trim(.GetString(13, 50, 11))) > 0 Then
+                            .MoveTo 13, 50: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                        If Len(Trim(.GetString(14, 50, 11))) > 0 Then
+                            .MoveTo 14, 50: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                        If Len(Trim(.GetString(15, 50, 11))) > 0 Then
+                            .MoveTo 15, 50: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        End If
+                    End If '==============================================
+                    If mw.Range(s1cell_remvModifr) = "Y" Then '============ Updated: 2023.03.17 '============ 'remove modifier ub
+                        For i = 6 To 9
+                            For j = 52 To 64 Step 4
+                                currentMod = Trim(.GetString(i, j, 3))
+                                If ModCodesDict.Exists(currentMod) Then
+                                    .MoveTo i, j: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                End If
+                            Next j
+                        Next i
+                        
+                    End If '==============================================
+'                   If Trim(mw.Range("O7")) = "Y" Then 'Added 03162021
+'                        If LabCodes.Exists(Trim(.Getstring(p, 8, 5))) Then .Putstring "#", p, 68
+'                   End If
+'                  'Added 02/03/2021 dxcode validition referencing dxcode list
+'                  'Modified 0316 to apply # as labcodes
+'                   If Len(Trim(.Getstring(10, z, 7))) > 0 Then
+'                        If mw.Range("O6") = "Y" Then 'DXCode Check Activated
+'                            If DxCodes.Exists(Trim(.Getstring(10, z, 7))) Then
+'                             'mw.Range("B" & rw) = "DIAGNOSIS NOT MATCHING."
+'                             'UB_Data_Entry = 0: Exit Function
+'                             .Putstring "#", p, 68
+'                            End If
+'                        End If
+'                   End If
+                  'Added 03252021 CHECK CPT AND DX IN LIST THEN APPLY #
+                   If Trim(mw.Range(s1cell_dxLabRev)) = "Y" Then
+                       If UBRevCodes.Exists(Trim(.GetString(p, 3, 4))) And DxCodes.Exists(Trim(.GetString(10, z, 7))) Then
+                            .Putstring "#", 10, 46 + l 'ADJUSTED 2025.08.08
+                       End If
+                       If LabCodes.Exists(Trim(.GetString(p, 8, 5))) And DxCodes.Exists(Trim(.GetString(10, z, 7))) Then
+                            .Putstring "#", 10, 46 + l 'ADJUSTED 2025.08.08
+                       End If
+                   End If
+                   Select Case UCase(Trim(mw.Range(s1cell_newOiEligPd)))  'NEW OI ELIG AND PAID AMT 'Added 10062021
+                       Case "N/A"
+                       Case "1ST LINE"
+                            If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then
+                               .MoveTo 18, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiElig & rw)), 18, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then
+                               .MoveTo 18, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiPd & rw)), 18, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                       Case "2ND LINE"
+                           If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then
+                               .MoveTo 19, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiElig & rw)), 19, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then
+                               .MoveTo 19, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiPd & rw)), 19, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                       Case "3RD LINE"
+                           If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then
+                               .MoveTo 20, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiElig & rw)), 20, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then
+                               .MoveTo 20, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiPd & rw)), 20, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                       Case "4TH LINE"
+                           If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then
+                               .MoveTo 21, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiElig & rw)), 21, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then
+                               .MoveTo 21, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiPd & rw)), 21, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                       Case "ALL LINES"
+                           If Len(Trim(mw.Range(s1col_newOiElig & rw))) > 0 Then
+                               .MoveTo p + 12, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiElig & rw)), p + 12, 2: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If Len(Trim(mw.Range(s1col_newOiPd & rw))) > 0 Then
+                               .MoveTo p + 12, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiPd & rw)), p + 12, 14: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                   End Select
+                   If mw.Range(slcell_DelBN) = "Y" Then
+                        RemoveValue p + l2, 43: RemoveValue p + l2, 48 'ADDED 2025.02.10
+                   End If
+                   If mw.Range(s1cell_dnyS9451) = "Y" Then 'ADDED 2025.12.15
+                        If Trim(.GetString(p, 8, 5)) = "S9451" Then
+                            PlaceValue Trim(.GetString(p, 39, 11)), p + 6, 2
+                            PlaceValue "947", p + q, 14
+                        End If
+                   End If
+                   If mw.Range(s1cell_idHCR) = "Y" Then 'ADDED 2025.12.15
+                        If PossibleHCR.Exists(Trim(.GetString(p, 8, 5))) Then
+                            Select Case Trim(.GetString(p + 6, 14, 3))
+                                Case "947", "200", "750", "751", "800", "804"
+                                    mw.Range(s1col_statEdit & rw) = "POSSIBLE HCR"
+                                    UB_Data_Entry = 0: Exit Function
+                            End Select
+                        End If
+                   End If
+                   If mw.Range(s1cell_2ndInel_001) = "Y" Then  'ADDED 2026.03.25
+                        Select Case mw.Range(s1col_newInelCd & rw) 'added 2026.04.10
+                            Case ""
+                            Case "001": PlaceValue "001", p + 6, 30 'Inel Code 2
+                            Case Else
+                                PlaceValue "0.00", p + 6, 18 'Inel Code 2
+                                PlaceValue mw.Range(s1col_newInelCd & rw), p + 6, 30 'Inel Code 2
+                        End Select
+                    End If
+                   Select Case UCase(Trim(mw.Range(s1cell_newOiIndctr)))  'NEW OI INDICATOR/TYPE 'Added 10062021
+                       Case "N/A"
+                       Case "1ST LINE"
+                           If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                               .MoveTo 18, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiInd & rw)), 18, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           End If
+                       Case "2ND LINE"
+                           If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                               .MoveTo 19, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiInd & rw)), 19, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           End If
+                       Case "3RD LINE"
+                           If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                               .MoveTo 20, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiInd & rw)), 20, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           End If
+                       Case "4TH LINE"
+                           If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                               .MoveTo 21, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiInd & rw)), 21, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           End If
+                       Case "ALL LINES"
+                           If Len(Trim(mw.Range(s1col_newOiInd & rw))) > 0 Then
+                               .MoveTo p + 12, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Inel Code 1
+                               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                               .Putstring Trim(mw.Range(s1col_newOiInd & rw)), p + 12, 26: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                           End If
+                   End Select: z = z + 10: l = l + 3
+               End If: DoEvents
+           Next p
+           
+           If mw.Range(s1cell_aply631Inel) = "Y" Then Apply631Inel "UB", "631" '=========added 05.23.2023========
+           If mw.Range(s1cell_aply034Inel) = "Y" Then Apply631Inel "UB", "034" '=========added 05.23.2023========
+
+           If mw.Range(s1cell_removePrv) = "Y" Then  'Remove PRV
+               .MoveTo 22, 6: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+               .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+           End If
+           If Len(Trim(mw.Range(s1col_newPrvCd & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newPrvCd & rw)), 22, 6: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'PRV Code
+           If mw.Range(s1cell_aplyBnQty) = "Y" Then  '07/19/2021 - BNCD and BN$QTY
+                For s = 12 To 15
+                    'If Len(Trim(.GetString(s, 14, 3))) > 0 Then 'REMOVED LOGIC 2025.02.25
+                        .MoveTo s + 6, 43: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .Putstring Trim(mw.Range(s1col_bnCode & rw)), s + 6, 43  'BN
+                        .MoveTo s + 6, 48: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .Putstring Trim(mw.Range(s1col_bnQty & rw)), s + 6, 48  'BN $ QTY
+                    'End If: DoEvents
+                Next s
+           End If
+           If mw.Range(s1cell_verify) = "Y" Then  'Show confirmation
+               If MsgBox("Verify if all changes applied correctly." & vbNewLine & "Do you want to continue?", vbYesNo, ThisWorkbook.Name) <> vbYes Then
+                    MsgBox "Macro processing cancelled.", vbExclamation, ThisWorkbook.Name
+                    End 'Abort
+               End If
+           End If
+RE_CHECK_EDITS:
+          .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop 'will go to release screen
+           If InStr(1, Trim(.GetString(30, 1, 20)), "EDIT ERROR", vbTextCompare) > 0 Then '====== added 06.13.2022 ======
+               If .fieldattribute(4, 35) = "201" Then                                      'added 10.25.2022
+                   .MoveTo 4, 35: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                   .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+               End If                                                                      'added 10.25.2022
+               If .fieldattribute(4, 63) = "201" Then                                      'added 10.27.2022
+                   .MoveTo 4, 63: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                   .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+               End If                                                                      'added 10.27.2022
+               If Trim(.GetString(24, 2, 4)) = "MPIN" Then .MoveTo 24, 7: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+               If Trim(.GetString(22, 29, 4)) = "MPIN" Then .MoveTo 22, 34: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+              .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+              .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+           End If '==============================
+           If Trim(.GetString(1, 2, 11)) = "CPS445.01" Then 'Added 07152020
+                If mw.Range(s1cell_aplyDPSV) <> "N" Then 'Added Logic 2024.02.21
+                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                     If Trim(.GetString(1, 2, 11)) = "CPS450.01" Then
+                       .SendKeys "<pf8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Added 07212020
+                       .Putstring "460", 2, 37: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                       .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                     End If
+                    .Putstring "x", 29, 78 'DPSV
+                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                 Else
+                    If IsNumeric(Trim(.GetString(17, 66, 11))) Then
+                        mw.Range(s1col_statEdit & rw) = "POSSIBLE DUP"
+                    Else
+                        mw.Range(s1col_statEdit & rw) = Trim(.GetString(17, 58, 20))
+                    End If
+                    UB_Data_Entry = 0: Exit Function
+                 End If
+           End If
+           EditMsg = Trim(.GetString(31, 2, 78))
+           If InStr(1, EditMsg, "1432-CALC CHRG NOT EQUAL TO TOTAL") > 0 Then
+                If Trim(mw.Range(slcell_aplyDnlAftMedcr)) = "Y" Then 'ADDED 2025.02.25
+                    For p = 18 To 21
+                        If (Len(Trim(.GetString(p, 2, 11))) > 0) And (Len(Trim(.GetString(p, 14, 11))) > 0) Then
+                            PlaceValue Round(CDbl(Trim(.GetString(p, 2, 11))) - CDbl(Trim(.GetString(p, 14, 11))), 2), p - 6, 18
+                            PlaceValue Format(Trim(mw.Range(s1cell_denialCode)), "000"), p - 6, 30
+                        End If
+                    Next p
+                End If
+               .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If Trim(.GetString(1, 2, 11)) = "BLX2460.01" Then 'ADDED 2026.02.23
+                    mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 60))
+                    UB_Data_Entry = 0: Exit Function
+                End If
+           End If
+           
+           EditMsg = Trim(.GetString(31, 2, 78))
+           If InStr(1, EditMsg, "FOR BN") > 0 Then 'Added 5/13/2020
+                 For s = 12 To 15
+                     If Len(Trim(.GetString(s, 14, 3))) > 0 Then
+                         .Putstring mw.Range(s1col_bnCode & rw), s + 6, 43
+                     End If: DoEvents
+                 Next s
+                .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+           End If
+           EditMsg = Trim(.GetString(31, 2, 78))
+           Dim blnSP As Boolean 'ADDED 2026.03.11
+           blnSP = False
+RetryUBEdits_for_POSTOS:
+           EditMsg = "": EditMsg = Trim(.GetString(31, 2, 78))
+          'Removed 08202020 Requested by Cally
+          'Select Case EDI
+          'Case "SAD 01   18193-DISC REQD. REF TO PRVD OPI P&P FOR PRCDS"
+          '    If Len(Trim(.GetString(12, 2, 11))) < 1 And Len(Trim(.GetString(12, 14, 4))) < 1 Then
+          '        .Putstring "0.00", 12, 2
+          '        .Putstring "908", 12, 14
+          '        .SendKeys "<ENTER>"
+          '        Do While .OIA.Xstatus <> 0: DoEvents: Loop
+          '        GoTo RetryUBEdits_for_POSTOS
+          '    End If
+          'End Select
+            Select Case Mid(EditMsg, 10, 4)
+                Case "8803", "8806", "8807"
+                        .Putstring "RP", 2, 5
+                        .MoveTo 2, 12: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         GoTo RetryUBEdits_for_POSTOS
+            End Select
+            
+            Select Case InStr(1, EditMsg, "1237-SP REQUIRED") 'Added 03/28
+                Case Is > 0
+                    Select Case Trim(Left(EditMsg, 7))
+                        Case "SAD 01"
+                            SP_AMT = Format(Trim(.GetString(6, 40, 12)) / Trim(.GetString(6, 32, 3)), "0.00")
+                            .Putstring SP_AMT, 18, 30
+                            .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                             blnSP = True
+                             GoTo RetryUBEdits_for_POSTOS
+                        Case "SAD 02"
+                            SP_AMT = Format(Trim(.GetString(7, 40, 12)) / Trim(.GetString(7, 32, 3)), "0.00")
+                            .Putstring SP_AMT, 19, 30
+                            .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            blnSP = True
+                            GoTo RetryUBEdits_for_POSTOS
+                        Case "SAD 03"
+                            SP_AMT = Format(Trim(.GetString(8, 40, 12)) / Trim(.GetString(8, 32, 3)), "0.00")
+                            .Putstring SP_AMT, 20, 30
+                            .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            blnSP = True
+                            GoTo RetryUBEdits_for_POSTOS
+                        Case "SAD 04"
+                            SP_AMT = Format(Trim(.GetString(9, 40, 12)) / Trim(.GetString(9, 32, 3)), "0.00")
+                            .Putstring SP_AMT, 21, 30
+                            .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            blnSP = True
+                            GoTo RetryUBEdits_for_POSTOS
+                    End Select
+            End Select
+            If blnSP <> False Then 'ADDED 2026.03.11
+                Select Case InStr(1, EditMsg, "PRVD OPI P&P") 'RE-INSTATED LOGIC 2026.02.23 'APPLIES ONLY IF TO SP REQUIRED WHEN OCCURED
+                    Case Is > 0
+                        Select Case Trim(Left(EditMsg, 7))
+                            Case "SAD 01"
+                                If Len(Trim(.GetString(12, 2, 11))) < 1 Then
+                                    .Putstring "0.00", 12, 2: .Putstring "908", 12, 14
+                                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     GoTo RetryUBEdits_for_POSTOS
+                                Else
+                                    mw.Range(s1col_statEdit & rw) = "INEL AMT PRESENT"
+                                    UB_Data_Entry = 0: Exit Function
+                                End If
+                            Case "SAD 02"
+                                If Len(Trim(.GetString(13, 2, 11))) < 1 Then
+                                    .Putstring "0.00", 13, 2: .Putstring "908", 13, 14
+                                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     GoTo RetryUBEdits_for_POSTOS
+                                Else
+                                    mw.Range(s1col_statEdit & rw) = "INEL AMT PRESENT"
+                                    UB_Data_Entry = 0: Exit Function
+                                End If
+                            Case "SAD 03"
+                                If Len(Trim(.GetString(14, 2, 11))) < 1 Then
+                                    .Putstring "0.00", 14, 2: .Putstring "908", 14, 14
+                                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     GoTo RetryUBEdits_for_POSTOS
+                                Else
+                                    mw.Range(s1col_statEdit & rw) = "INEL AMT PRESENT"
+                                    UB_Data_Entry = 0: Exit Function
+                                End If
+                            Case "SAD 04"
+                                If Len(Trim(.GetString(15, 2, 11))) < 1 Then
+                                    .Putstring "0.00", 15, 2: .Putstring "908", 15, 14
+                                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     GoTo RetryUBEdits_for_POSTOS
+                                Else
+                                    mw.Range(s1col_statEdit & rw) = "INEL AMT PRESENT"
+                                    UB_Data_Entry = 0: Exit Function
+                                End If
+                        End Select
+                End Select
+            End If
+ApplyDxException:
+            If mw.Range(s1cell_aplyDxExcptn) = "Y" Then
+                EditMsg = Trim(.GetString(31, 2, 78))
+                If InStr(1, EditMsg, "INVALID DX FOR SERVICE") > 0 Then 'Added 10/25/2021
+                     Select Case Trim(Left(EditMsg, 7))
+                        Case "SAD 01": .Putstring "E", 10, 11
+                        Case "SAD 02": .Putstring "E", 10, 21
+                        Case "SAD 03": .Putstring "E", 10, 31
+                        Case "SAD 04": .Putstring "E", 10, 41
+                     End Select
+                   .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    GoTo ApplyDxException
+                End If
+            End If
+            EditMsg = Trim(.GetString(31, 2, 78))
+            If InStr(1, EditMsg, "1235-INVALID POS/TOS") > 0 Or InStr(1, EditMsg, "T.O.S.") > 0 Or InStr(1, EditMsg, "SAD") > 0 Then 'ADDED CONDITION 2023.08.30: 100 1605-INVALID PROC CODE, CODE SET, T.O.S.
+'RetryUBEdits_for_POSTOS:
+                UB_TOS_Entry mw.Range(s1col_newTos & rw), mw.Range(s1col_oldTos & rw), EditMsg, rw, mw
+            End If
+            If .GetString(1, 5, 3) <> "506" And .GetString(1, 74, 3) = "140" Then GoTo RetryUBEdits_for_POSTOS
+            If mw.Range(s1cell_remvPrcrtByps) = "Y" Then 'ADDED 2023.04.10 - remove precert (bypass) for UB
+                If InStr(Trim(.GetString(31, 1, 70)), "PC# NOT VALID FOR PATIENT") > 0 Then
+                    .MoveTo 2, 12: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .Putstring "RP", 2, 5: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+            End If
+ApplyStateType:
+            EditMsg = Trim(.GetString(31, 2, 78))
+            Select Case mw.Range(s1cell_aplyStTyp) 'MODIFIED 2024.05.23
+                Case "BY SAD ERR"
+                    If InStr(1, EditMsg, "318 24 MANUALLY CONTRACTED SVC") > 0 Then 'Added 2024.02.01
+                        Select Case Trim(Left(EditMsg, 7))
+                            Case "SAD 01"
+                                 PlaceValue Trim(mw.Range(s1col_stateType & rw)), 18, 60
+                                .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 GoTo ApplyStateType
+                            Case "SAD 02"
+                                 PlaceValue Trim(mw.Range(s1col_stateType & rw)), 19, 60
+                                .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                GoTo ApplyStateType
+                            Case "SAD 03"
+                                 PlaceValue Trim(mw.Range(s1col_stateType & rw)), 20, 60
+                                .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 GoTo ApplyStateType
+                            Case "SAD 04"
+                                 PlaceValue Trim(mw.Range(s1col_stateType & rw)), 21, 60
+                                .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 GoTo ApplyStateType
+                        End Select
+                    End If
+                Case "ALL LINES" 'ADDED 2024.05.23
+                     PlaceValue Trim(mw.Range(s1col_stateType & rw)), 18, 60
+                     PlaceValue Trim(mw.Range(s1col_stateType & rw)), 19, 60
+                     PlaceValue Trim(mw.Range(s1col_stateType & rw)), 20, 60
+                     PlaceValue Trim(mw.Range(s1col_stateType & rw)), 21, 60
+                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            End Select
+            If InStr(1, EditMsg, "SURP BILL") Or InStr(1, EditMsg, "SURPRISE BILL ") Then 'ADDED 2025.05.07
+                Select Case Trim(.GetString(22, 6, 1))
+                    Case "E", "G", "Y"
+                         PlaceValue "}", 22, 6
+                        .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End Select
+            End If
+            
+            If InStr(1, EditMsg, "MULTIPLE PRE-CERTS FOUND") > 0 Then 'ADDED 2026.03.17
+                PlaceValue Trim(mw.Range(slcol_PreCertNo & rw)), 2, 12
+                GoTo RE_CHECK_EDITS
+            End If
+            
+            If Trim(.GetString(1, 2, 11)) = "CPS506.01" Then
+                If Trim(.GetString(7, 8, 1)) = "1" And mw.Range(s1cell_payee) = "0" Then 'ADDED 2024.05.10
+                    mw.Range(s1col_statEdit & rw) = "CHANGE PAYEE TO 1"
+                    UB_Data_Entry = 0: Exit Function
+                End If
+                If mw.Range(s1cell_vldteAmtPd) = "Y" Then  'Added 11/16/20
+                    If Is_It_Fully_Paid(rtnMsg, "InelCodes") <> True Then
+                        If Len(rtnMsg) <> 0 Then
+                            mw.Range(s1col_statEdit & rw) = rtnMsg
+                        Else
+                            mw.Range(s1col_statEdit & rw) = "NOT PROCESSED. NOT 100% FULLY PD."
+                        End If
+                        UB_Data_Entry = 0: Exit Function
+                    End If
+                End If
+                If mw.Range(s1cell_vldteAmtPdByCpt) = "Y" Then 'added 2026.03.31
+                    If Is_It_Fully_Paid(rtnMsg, "CPTCodes") <> True Then
+                        If Len(rtnMsg) <> 0 Then
+                            mw.Range(s1col_statEdit & rw) = rtnMsg
+                        Else
+                            mw.Range(s1col_statEdit & rw) = "NOT PROCESSED. NOT 100% FULLY PD."
+                        End If
+                        UB_Data_Entry = 0: Exit Function
+                    End If
+                End If
+                If mw.Range(s1cell_858AmtInq) = "Y" Then 'ADDED 2023.04.11
+                    mw.Range(s1col_858amt & rw) = "'" & Format(IIf(Len(Trim(mw.Range(s1col_858amt & rw))) > 0, CDbl(mw.Range(s1col_858amt & rw)) + CDbl(Total_Amt_858), Total_Amt_858), "#.00") 'Total_Amt_858
+                    UB_Data_Entry = 1: Exit Function
+                End If
+                If mw.Range(s1cell_aplyTwoApCd) = "Y" And Len(Trim(mw.Range(s1col_2ndApCd & rw))) > 0 Then 'ADDED 2023.03.23 - Enter 2nd AP Codes UB
+                    UB_APCode_Entry mw, rw
+                End If
+CPS506_Screen:
+                If mw.Range(s1cell_updtHic) = "Y" And Len(Trim(mw.Range(s1col_seqNo & rw))) > 0 And _
+                Len(Trim(mw.Range(s1col_newPlanId & rw))) > 0 And Len(Trim(mw.Range(s1col_hicStat & rw))) = 0 Then 'added 04.12.2023 update HIC UB
+                    Plan_ID_UpdateByClaimNo rw
+                End If '=================================
+                If mw.Range(s1cell_aply631Inel) = "Y" Then ByPassDuplicate "UB" 'added 05.23.2023========
+                If mw.Range(s1cell_aply034Inel) = "Y" Then ByPassDuplicate "UB"
+                
+                If mw.Range(s1cell_ChkInel) = "Y" Then 'Added 2024.02.21
+                    If CHECK_INEL_CODE(rw) <> False Then
+                        UB_Data_Entry = 0: Exit Function
+                    End If
+                End If
+DataEntry_506:
+                Data_Entry_In_Cps506 mw, rw
+                If mw.Range(s1cell_verify) = "Y" Then  'Show confirmation
+                   If MsgBox("Verify if all changes applied correctly." & vbNewLine & "Do you want to continue?", _
+                       vbYesNo, ThisWorkbook.Name) <> vbYes Then
+                           MsgBox "Macro processing cancelled.", vbExclamation, ThisWorkbook.Name
+                           End 'Abort
+                       End If
+                End If
+               .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If InStr(1, Trim(.GetString(31, 12, 65)), "SAF") > 0 Then
+                     .Putstring "SAF", 5, 31: Do While .OIA.Xstatus <> 0: DoEvents: Loop ' CK
+                     .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+                If Trim(.GetString(31, 12, 60)) = "CRL 37   PROMPT PAY - RLS TYPE R REQUIRED" Then
+                  .Putstring "R", 3, 39: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                  .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+                If Trim(.GetString(31, 12, 60)) = "CRL 36   281136  DENIAL RELEASE CODE REQUIRED" Then
+                    .Putstring "71", 3, 13: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .Putstring "Y", 3, 39: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End If
+                If Trim(.GetString(31, 12, 60)) = "CRL 95   281035DUPLICATE INEL. CODES FOR SAME SERVICE" Then 'ADDED 2024.06.13
+                   .SendKeys "<PF8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    PlaceValue "460", 2, 37
+                   .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    For i = 12 To 15
+                        Select Case Trim(.GetString(i, 14, 3))
+                            Case "908"
+                                If Len(Trim(.GetString(i, 2, 11))) < 1 Then RemoveValue i, 14
+                        End Select
+                    Next i
+                   .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    If Trim(.GetString(1, 2, 11)) = "CPS506.01" Then 'ADDED 2026.02.23
+                        mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 60))
+                        UB_Data_Entry = 0: Exit Function
+                    End If
+                    GoTo DataEntry_506
+                End If
+                
+                If Trim(.GetString(1, 74, 3)) = "115" Then
+                     mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 75))
+                     UB_Data_Entry = 0: Exit Function
+                End If
+                If .GetString(1, 74, 3) = "112" Then
+                     Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    mw.Range(s1col_statEdit & rw) = Trim(mw.Range(s1col_statEdit & rw) & " Released.")
+                Else
+                    mw.Range(s1col_statEdit & rw) = Trim(mw.Range(s1col_statEdit & rw) & " Not Released.")
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    mw.Range(s1col_statEdit & rw) = Replace(Trim(.GetString(31, 12, 60)), "  ", " ")
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    If .GetString(1, 74, 3) = "114" Then mw.Range(s1col_statEdit & rw) = Trim(mw.Range(s1col_statEdit & rw) & " Duplicate Claim")
+                    UB_Data_Entry = 0: Exit Function
+                End If
+        Else
+           If InStr(1, Trim(.GetString(31, 12, 65)), "SAF") > 0 Then
+                .Putstring "SAF", 5, 31: Do While .OIA.Xstatus <> 0: DoEvents: Loop ' CK
+                .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+           End If
+           mw.Range(s1col_statEdit & rw) = "NOT PROCESSED. " & Trim(.GetString(31, 2, 75))
+JustExit:
+           UB_Data_Entry = 0
+        End If
+    End With
+End Function
+
+Public Function UB_TOS_Entry(ByVal newTos As String, ByVal oldTos As String, ByVal Edit As String, ByVal rw As Long, ByRef mw As Worksheet)
+    With objSess.Screen
+        Select Case Mid(Edit, 6, 1)
+            Case "1"
+                PlaceValue CStr(newTos), 6, 14
+                If (Trim(.GetString(7, 40, 11)) = ".00" Or Trim(.GetString(7, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 7, 14
+                If (Trim(.GetString(8, 40, 11)) = ".00" Or Trim(.GetString(8, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 8, 14
+                If (Trim(.GetString(9, 40, 11)) = ".00" Or Trim(.GetString(9, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 9, 14
+            Case "2"
+                PlaceValue CStr(newTos), 7, 14
+                If (Trim(.GetString(6, 40, 11)) = ".00" Or Trim(.GetString(6, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 6, 14
+                If (Trim(.GetString(8, 40, 11)) = ".00" Or Trim(.GetString(8, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 8, 14
+                If (Trim(.GetString(9, 40, 11)) = ".00" Or Trim(.GetString(9, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 9, 14
+            Case "3"
+                PlaceValue CStr(newTos), 8, 14
+                If (Trim(.GetString(6, 40, 11)) = ".00" Or Trim(.GetString(6, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 6, 14
+                If (Trim(.GetString(7, 22, 10)) = ".00" Or Trim(.GetString(7, 22, 10)) = ".01") Then PlaceValue CStr(newTos), 7, 14
+                If (Trim(.GetString(9, 40, 11)) = ".00" Or Trim(.GetString(9, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 9, 14
+            Case "4"
+                PlaceValue CStr(newTos), 9, 14
+                If (Trim(.GetString(6, 40, 11)) = ".00" Or Trim(.GetString(6, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 6, 14
+                If (Trim(.GetString(7, 22, 10)) = ".00" Or Trim(.GetString(7, 22, 10)) = ".01") Then PlaceValue CStr(newTos), 7, 14
+                If (Trim(.GetString(8, 40, 11)) = ".00" Or Trim(.GetString(8, 40, 11)) = ".01") Then PlaceValue CStr(newTos), 8, 14
+        End Select
+       'Update 02/08 - Replace if there is 947 with 908
+        If Len(Trim(.GetString(12, 14, 3))) > 0 And Trim(.GetString(12, 14, 3)) = Trim(oldTos) Then PlaceValue Trim(Tos), 12, 14
+        If Len(Trim(.GetString(13, 14, 3))) > 0 And Trim(.GetString(13, 14, 3)) = Trim(oldTos) Then PlaceValue Trim(Tos), 13, 14
+        If Len(Trim(.GetString(14, 14, 3))) > 0 And Trim(.GetString(14, 14, 3)) = Trim(oldTos) Then PlaceValue Trim(Tos), 14, 14
+        If Len(Trim(.GetString(15, 14, 3))) > 0 And Trim(.GetString(15, 14, 3)) = Trim(oldTos) Then PlaceValue Trim(Tos), 15, 14
+        PlaceValue "x", 29, 71
+       .SendKeys "<ENTER>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
