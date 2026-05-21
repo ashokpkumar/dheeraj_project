@@ -1,0 +1,92 @@
+Public Function TOD_Update(ByVal CCN As String, ByVal rw As Long) As Boolean
+    Dim mw As Worksheet, i As Integer, totalDrafts As Integer, blnRls As Boolean, j As Integer
+    Dim myTOD As String, myRCN As String, totalDraft As Integer, PgCtr As Integer
+    TOD_Update = False
+    Set mw = ThisWorkbook.Worksheets("MAIN")
+    With objSess.Screen
+        If mw.Range(s1cell_aplyGridPrc) = "Y" Then 'Added 04.28.2022
+            If InStr(mw.Range(s1col_statEdit & rw), "GRID PRICE MISMATCH") > 0 Then GoTo NextClaim
+        End If
+        If CheckTOD(mw, rw) = False Then
+            mw.Range(s1col_statEdit & rw) = "CHECK TOD VALUE": GoTo NextClaim
+        End If
+        mw.Range(s1cell_curRow) = rw
+EntryPoint1:
+       .SendKeys "<Pf9>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        Select Case Trim(.GetString(1, 2, 11))
+            Case "CPS520.01"
+                PlaceValue Trim(mw.Range(s1col_clamNo & rw)), 8, 15
+                RemoveValue 9, 15: RemoveValue 12, 15
+            Case Else
+               .SendKeys "<Pf9>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                RemoveValue 9, 15: RemoveValue 12, 15
+                GoTo EntryPoint1
+        End Select
+       .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        If Trim(.GetString(1, 2, 11)) <> "CPS520.01" Then
+           .SendKeys "<Pf9>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            PlaceValue Trim(mw.Range(s1col_clamNo & rw)), 8, 15
+            RemoveValue 9, 15: RemoveValue 12, 15
+           .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            PlaceValue "01", 3, 26
+           .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            PlaceValue "X", 29, 9
+           .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            PgCtr = 0
+NextConditionPage:
+            For k = 4 To 18 Step 2
+                If x > 0 Then
+                    For x = 1 To PgCtr
+                        .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    Next x
+                    x = 0
+                End If
+                myTOD = Trim(.GetString(k, 34, 2))
+                myRCN = Trim(.GetString(k, 5, 3))
+                Select Case myTOD
+                    Case "99", "00"
+                        PlaceValue myRCN, 2, 18: PlaceValue "X", 29, 55
+                       .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        PlaceValue Format(Trim(mw.Range(s1col_tod & rw)), "00"), 5, 60
+                       .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        If Trim(.GetString(1, 2, 11)) <> "CPS910.01" Then
+                           .SendKeys "<PF8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            PlaceValue "850", 2, 37
+                           .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            PlaceValue "X", 29, 9
+                           .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            x = PgCtr
+                            GoTo NxtCond
+                         Else
+                            mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 60))
+                            GoTo NextClaim
+                         End If
+                 End Select
+                 If Len(Trim(myRCN)) < 1 Then Exit For
+NxtCond:
+                DoEvents
+            Next k
+           .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            If Trim(.GetString(31, 2, 65)) <> "YOU MAY NOT PAGE FORWARD AT THIS TIME" Then
+                PgCtr = PgCtr + 1
+                GoTo NextConditionPage
+            End If
+NextDraft:
+            DoEvents
+        Else
+            mw.Range(s1col_statEdit & rw) = Trim(.GetString(31, 2, 70))
+            GoTo NextClaim
+        End If
+        TOD_Update = True
+NextClaim: 'Next row data
+        DoEvents
+       .SendKeys "<Pf9>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
+Function CheckTOD(mw As Worksheet, rw As Long) As Boolean
+    CheckTOD = True
+    myTOD = mw.Range(s1col_tod & rw).Text
+    If IsNumeric(myTOD) = False Then CheckTOD = False
+    If Len(myTOD) > 2 Then CheckTOD = False
+End Function

@@ -1,0 +1,35 @@
+Private Sub CheckBox1_Click()
+    ToggleShowHideRow
+End Sub
+
+Private Sub cmdClear_Click()
+        If MsgBox("This will clear all data listed." & vbNewLine & _
+    "Do you want to continue?", vbYesNo + vbQuestion, ThisWorkbook.Name) <> vbYes Then Exit Sub
+    With ThisWorkbook
+         With .Worksheets("MAIN")
+            .AutoFilterMode = False
+            .Range("A14") = "TEMP"
+            '.Range("A14:AR" & .Cells(.Rows.Count, "A").End(xlUp).Row + 1).ClearContents
+            .Range("14:" & Rows.Count).ClearContents
+            .Range(s1cell_start) = 14: .Range(s1cell_end) = 14
+            .Range(s1cell_curRow) = 0
+             SET_DEFAULT 'ADDED 2024.05.02
+         End With
+    End With
+End Sub
+
+Private Sub cmdRelPend_Click()
+    Release_or_Pend_Claim
+End Sub
+
+Private Sub cmdRun_Click()
+    Get_Claim_Details
+End Sub
+
+Private Sub CommandButton1_Click()
+    Call Open_Session
+End Sub
+
+Private Sub CommandButton2_Click()
+    Call Toggle_View
+End Sub
