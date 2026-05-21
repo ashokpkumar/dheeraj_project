@@ -1,0 +1,14 @@
+Private Sub cmdClear1_Click()
+    Worksheets("CONDITION SELECT SCRAPER").Range("B14:B" & Rows.Count).ClearContents
+End Sub
+
+Private Sub cmdClear2_Click()
+    Worksheets("CONDITION SELECT SCRAPER").Range("D14:S" & Rows.Count).ClearContents
+    Worksheets("CONDITION SELECT SCRAPER").Range("A14:A" & Rows.Count).ClearContents
+End Sub
+
+Private Sub cmdConditionSelect_Click()
+    Call ConditionalSelect_Scraper
+    MsgBox "Done!"
+End Sub
+
