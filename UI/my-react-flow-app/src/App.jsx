@@ -885,69 +885,126 @@ console.log(ruleName)
 
       {showParamDialog && (
         <div style={modalOverlay}>
-          <div style={modalBox}>
-            <h3>Enter Parameters</h3>
+          <div style={{
+            background: 'white',
+            borderRadius: 8,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+            width: 'min(920px, 94vw)',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+            {/* Sticky header */}
+            <div style={{
+              padding: '14px 20px',
+              borderBottom: '1px solid #e8e8e8',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0,
+            }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                Enter Parameters
+                <span style={{ fontSize: 12, fontWeight: 400, color: '#888', marginLeft: 10 }}>
+                  {targetFunctionInputs.length} field{targetFunctionInputs.length !== 1 ? 's' : ''}
+                </span>
+              </h3>
+              <span
+                onClick={() => {
+                  setShowParamDialog(false)
+                  setPendingConnection(null)
+                  setPendingNodeId(null)
+                  setConnectionParams({})
+                }}
+                style={{ cursor: 'pointer', fontSize: 18, color: '#888', lineHeight: 1 }}
+              >✕</span>
+            </div>
 
-            {targetFunctionInputs.map((input) => (
-              <div key={input.name} style={{ marginBottom: 10 }}>
-                <label>{input.name} ({input.type})</label>
-                {input.options && input.options.length > 0 ? (
-                  <select
-                    value={connectionParams[input.name] || ""}
-                    onChange={(e) =>
-                      setConnectionParams(prev => ({
-                        ...prev,
-                        [input.name]: e.target.value
-                      }))
-                    }
-                    style={{ width: '100%', padding: 5 }}
-                  >
-                    <option value="">-- select --</option>
-                    {input.options.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : input.type === "date" ? (
-                  <input
-                    type="date"
-                    value={connectionParams[input.name] || ""}
-                    onChange={(e) =>
-                      setConnectionParams(prev => ({
-                        ...prev,
-                        [input.name]: e.target.value
-                      }))
-                    }
-                    style={{ width: '100%', padding: 5 }}
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={connectionParams[input.name] || ""}
-                    onChange={(e) =>
-                      setConnectionParams(prev => ({
-                        ...prev,
-                        [input.name]: e.target.value
-                      }))
-                    }
-                    style={{ width: '100%', padding: 5 }}
-                  />
-                )}
-              </div>
-            ))}
+            {/* Scrollable 2-column body */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '16px 20px',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px 20px',
+              alignContent: 'start',
+            }}>
+              {targetFunctionInputs.map((input) => (
+                <div key={input.name} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#444' }}>
+                    {input.name}
+                    <span style={{ fontWeight: 400, color: '#999', marginLeft: 4 }}>({input.type})</span>
+                  </label>
+                  {input.options && input.options.length > 0 ? (
+                    <select
+                      value={connectionParams[input.name] || ""}
+                      onChange={(e) =>
+                        setConnectionParams(prev => ({ ...prev, [input.name]: e.target.value }))
+                      }
+                      style={{ padding: '6px 8px', border: '1px solid #d0d0d0', borderRadius: 4, fontSize: 13 }}
+                    >
+                      <option value="">-- select --</option>
+                      {input.options.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : input.type === "date" ? (
+                    <input
+                      type="date"
+                      value={connectionParams[input.name] || ""}
+                      onChange={(e) =>
+                        setConnectionParams(prev => ({ ...prev, [input.name]: e.target.value }))
+                      }
+                      style={{ padding: '6px 8px', border: '1px solid #d0d0d0', borderRadius: 4, fontSize: 13 }}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={connectionParams[input.name] || ""}
+                      onChange={(e) =>
+                        setConnectionParams(prev => ({ ...prev, [input.name]: e.target.value }))
+                      }
+                      style={{ padding: '6px 8px', border: '1px solid #d0d0d0', borderRadius: 4, fontSize: 13 }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
 
-            <button onClick={handleConfirmConnection} style={{ marginRight: 10 }}>
-              Confirm
-            </button>
-            <button
-              onClick={() => {
-                setShowParamDialog(false)
-                setPendingConnection(null)
-                setPendingNodeId(null)
-                setConnectionParams({})
-              }}
-            >
-              Cancel
-            </button>
+            {/* Sticky footer */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid #e8e8e8',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8,
+              flexShrink: 0,
+            }}>
+              <button
+                onClick={() => {
+                  setShowParamDialog(false)
+                  setPendingConnection(null)
+                  setPendingNodeId(null)
+                  setConnectionParams({})
+                }}
+                style={{
+                  padding: '7px 18px', borderRadius: 5,
+                  border: '1px solid #ccc', background: 'white',
+                  cursor: 'pointer', fontSize: 13,
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleConfirmConnection}
+                style={{
+                  padding: '7px 18px', borderRadius: 5,
+                  border: 'none', background: '#1976d2',
+                  color: 'white', cursor: 'pointer',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >Confirm</button>
+            </div>
           </div>
         </div>
       )}
@@ -1057,6 +1114,7 @@ const modalOverlay = {
 const modalBox = {
   background: 'white',
   padding: 20,
-  borderRadius: 5,
+  borderRadius: 8,
   minWidth: 350,
+  boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
 }
