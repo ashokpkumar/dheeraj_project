@@ -6,6 +6,6 @@ class RuleEngineConfig(AppConfig):
     name = "rule_engine"
 
     def ready(self):
-
+        pass
         # This forces function registration
         import rule_engine.functions

@@ -12,15 +12,17 @@ _REGISTRATION_LOCK = threading.Lock()
 #TODO this registration function should not be called while loading the app.
 class FunctionMeta:
 
-    def __init__(self, func, name, inputs=None, outputs=None):
+    def __init__(self, func, name, inputs=None, outputs=None, tag=None, color=None):
 
         self.func = func
         self.name = name
         self.inputs = inputs or []
         self.outputs = outputs or []
+        self.tag = tag
+        self.color = color
 
 
-def register_function(name=None, inputs=None, outputs=None):
+def register_function(name=None, inputs=None, outputs=None, tag=None, color=None):
 
     def decorator(func):
 
@@ -36,14 +38,18 @@ def register_function(name=None, inputs=None, outputs=None):
                 func=func,
                 name=function_name,
                 inputs=input_params,
-                outputs=output_params
+                outputs=output_params,
+                tag=tag,
+                color=color,
             )
 
             # Register in database #TODO comment and uncomment this for testing without db
             _register_function_in_db(
                 function_name,
                 input_params,
-                output_params
+                output_params,
+                tag=tag,
+                color=color,
             )
 
         return func
@@ -51,7 +57,7 @@ def register_function(name=None, inputs=None, outputs=None):
     return decorator
 
 
-def _register_function_in_db(function_name, inputs, outputs):
+def _register_function_in_db(function_name, inputs, outputs, tag=None, color=None):
 
     with transaction.atomic():
 
@@ -67,12 +73,18 @@ def _register_function_in_db(function_name, inputs, outputs):
             "output"
         )
 
+        defaults = {
+            "input_params": input_group_id,
+            "output_params": output_group_id,
+        }
+        if tag is not None:
+            defaults["tag"] = tag
+        if color is not None:
+            defaults["color"] = color
+
         RuleLogic.objects.update_or_create(
             function_name=function_name,
-            defaults={
-                "input_params": input_group_id,
-                "output_params": output_group_id
-            }
+            defaults=defaults,
         )
 
 def _create_param_group(function_name, params, group_type):

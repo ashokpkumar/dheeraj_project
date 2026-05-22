@@ -33,6 +33,7 @@ export default function App() {
   const [functions, setFunctions] = useState([])
   const [showDialog, setShowDialog] = useState(false)
   const [selectedFunction, setSelectedFunction] = useState('')
+  const [funcSearch, setFuncSearch] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [ruleName, setRuleName] = useState('')
   const [currentRuleId, setCurrentRuleId] = useState(null)
@@ -291,6 +292,26 @@ const handleCancelEdit = () => {
     setShowDialog(true)
   }
 
+  // Groups functions by tag for the color-coded dialog list
+  const groupedFunctions = (search) => {
+    const lower = search.toLowerCase()
+    const filtered = lower
+      ? functions.filter(f => f.function_name.toLowerCase().includes(lower))
+      : functions
+    const map = {}
+    filtered.forEach(func => {
+      const tag   = func.tag   || 'Other'
+      const color = func.color || '#9e9e9e'
+      if (!map[tag]) map[tag] = { tag, color, items: [] }
+      map[tag].items.push(func)
+    })
+    return Object.values(map).sort((a, b) => {
+      if (a.tag === 'Other') return 1
+      if (b.tag === 'Other') return -1
+      return a.tag.localeCompare(b.tag)
+    })
+  }
+
 
   const handleAddNode = () => {
     if (!selectedFunction) return
@@ -317,6 +338,7 @@ const handleCancelEdit = () => {
     setNodes((nds) => [...nds, newNode])
     setShowDialog(false)
     setSelectedFunction('')
+    setFuncSearch('')
 
     // immediately prompt for parameters for this new node
     const functionMeta = functions.find((f) => f.function_name === selectedFunction)
@@ -826,61 +848,129 @@ console.log(ruleName)
 
       {showDialog && (
         <div style={{
-
-          position: 'fixed',
-
-          top: 0,
-
-          left: 0,
-
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.45)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 1000,
         }}>
-
           <div style={{
-
-            background: 'white',
-
-            padding: 20,
-
-            borderRadius: 5,
-
-            minWidth: 300,
-
+            background: 'white', borderRadius: 8, padding: 20,
+            width: 480, maxHeight: '78vh',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
           }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Select Function</h3>
+              <span
+                onClick={() => { setShowDialog(false); setSelectedFunction(''); setFuncSearch('') }}
+                style={{ cursor: 'pointer', fontSize: 18, color: '#888', lineHeight: 1 }}
+              >✕</span>
+            </div>
 
-            <h3>Select Function</h3>
+            {/* Search */}
+            <input
+              autoFocus
+              placeholder="Search functions…"
+              value={funcSearch}
+              onChange={e => setFuncSearch(e.target.value)}
+              style={{
+                padding: '7px 10px', border: '1px solid #d0d0d0', borderRadius: 5,
+                fontSize: 13, marginBottom: 10, outline: 'none',
+              }}
+            />
 
-            <select
-
-              value={selectedFunction}
-
-              onChange={(e) => setSelectedFunction(e.target.value)}
-
-              style={{ width: '100%', padding: 5, marginBottom: 10 }}>
-
-              <option value="">Choose a function</option>
-
-              {functions.map((func) => (
-                <option key={func.function_name} value={func.function_name}>{func.function_name}</option>
+            {/* Grouped list */}
+            <div style={{
+              flex: 1, overflowY: 'auto',
+              border: '1px solid #e8e8e8', borderRadius: 5,
+            }}>
+              {groupedFunctions(funcSearch).length === 0 && (
+                <div style={{ padding: '18px 14px', color: '#999', fontSize: 13, textAlign: 'center' }}>
+                  No functions found
+                </div>
+              )}
+              {groupedFunctions(funcSearch).map(group => (
+                <div key={group.tag}>
+                  {/* Group header */}
+                  <div style={{
+                    background: group.color + '20',
+                    borderLeft: `4px solid ${group.color}`,
+                    padding: '5px 10px',
+                    fontSize: 11, fontWeight: 700, letterSpacing: '0.6px',
+                    textTransform: 'uppercase', color: '#444',
+                    position: 'sticky', top: 0, zIndex: 1,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span style={{
+                      width: 9, height: 9, borderRadius: '50%',
+                      background: group.color, display: 'inline-block', flexShrink: 0,
+                    }} />
+                    {group.tag}
+                    <span style={{ marginLeft: 'auto', fontWeight: 400, color: '#999', fontSize: 10 }}>
+                      {group.items.length}
+                    </span>
+                  </div>
+                  {/* Function rows */}
+                  {group.items.map(func => {
+                    const isSelected = selectedFunction === func.function_name
+                    return (
+                      <div
+                        key={func.function_name}
+                        onClick={() => setSelectedFunction(func.function_name)}
+                        style={{
+                          padding: '8px 14px',
+                          cursor: 'pointer',
+                          background: isSelected ? group.color + '18' : 'white',
+                          borderLeft: `4px solid ${isSelected ? group.color : 'transparent'}`,
+                          borderBottom: '1px solid #f2f2f2',
+                          fontSize: 13,
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f7f7f7' }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'white' }}
+                      >
+                        <span style={{
+                          width: 7, height: 7, borderRadius: '50%',
+                          background: group.color, flexShrink: 0,
+                        }} />
+                        {func.function_name}
+                      </div>
+                    )
+                  })}
+                </div>
               ))}
+            </div>
 
-            </select>
+            {/* Selected label */}
+            {selectedFunction && (
+              <div style={{ fontSize: 12, color: '#555', marginTop: 8 }}>
+                Selected: <strong>{selectedFunction}</strong>
+              </div>
+            )}
 
-            <button onClick={handleAddNode} style={{ marginRight: 10 }}>Add</button>
-
-            <button onClick={() => { setShowDialog(false); setSelectedFunction(''); }}>Cancel</button>
-
+            {/* Footer buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button
+                onClick={() => { setShowDialog(false); setSelectedFunction(''); setFuncSearch('') }}
+                style={{
+                  padding: '7px 16px', borderRadius: 5, border: '1px solid #ccc',
+                  background: 'white', cursor: 'pointer', fontSize: 13,
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleAddNode}
+                disabled={!selectedFunction}
+                style={{
+                  padding: '7px 16px', borderRadius: 5, border: 'none',
+                  background: selectedFunction ? '#1976d2' : '#b0bec5',
+                  color: 'white', cursor: selectedFunction ? 'pointer' : 'default',
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >Add</button>
+            </div>
           </div>
-
         </div>
-
       )}
 
       {showParamDialog && (

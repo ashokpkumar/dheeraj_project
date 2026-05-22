@@ -30,6 +30,8 @@ def _build_settings(**kwargs) -> dict:
 # ---------------------------------------------------------------------------
 @register_function(
     name="release_pend_run_batch",
+    tag="Release Pend Macro",
+    color="#2e7d32",
     inputs=[
         # --- source file ---
         {"name": "dx_code_ref_path", "type": "str"},
@@ -519,6 +521,8 @@ def release_pend_run_batch(
 # ---------------------------------------------------------------------------
 @register_function(
     name="release_pend_get_claim_details",
+    tag="Release Pend Macro",
+    color="#2e7d32",
     inputs=[
         {"name": "dx_code_ref_path", "type": "str"},
         {"name": "aply_grid_prc",    "type": "str", "options": ["Y", "N"]},

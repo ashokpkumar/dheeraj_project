@@ -17,6 +17,8 @@ from django.db.models import Q
 
 @register_function(
     name="oi_yes_fetch_cert_id_seq_from_db",
+    tag="OI Yes NO",
+    color="#1565c0",
     inputs=[{"name": "rules", "type": "list"}],
     outputs=[{"name": "df", "type": "dataframe"}]  # <-- updated output
 )
@@ -48,6 +50,8 @@ def oi_yes_fetch_cert_id_seq_from_db(rules, context=None):
 
 @register_function(
     name="oi_yes_fetch_File_from_folder", 
+    tag="OI Yes NO",
+    color="#1565c0",
     inputs=[{"name": "location", "type": "str"}], # 
     outputs=[{"name": "df", "type": "DataFrame"}]
 )
@@ -60,6 +64,8 @@ def oi_yes_fetch_File_from_folder( location,context=None):
 
 @register_function(
     name="oi_yes_send_status_to_db", 
+    tag="OI Yes NO",
+    color="#1565c0",
     inputs=[], # 
     outputs=[]
 )

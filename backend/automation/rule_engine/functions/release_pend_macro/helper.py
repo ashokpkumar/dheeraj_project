@@ -15,6 +15,8 @@ from rule_engine.registry import register_function
 
 @register_function(
     name="release_pend_fetch_from_file",
+    tag="Release Pend Macro",
+    color="#2e7d32",
     inputs=[{"name": "location", "type": "str"}],
     outputs=[{"name": "df", "type": "dataframe"}],
 )
@@ -44,6 +46,8 @@ def release_pend_fetch_from_file(location: str, context=None):
 
 @register_function(
     name="release_pend_fetch_from_db",
+    tag="Release Pend Macro",
+    color="#2e7d32",
     inputs=[{"name": "rules", "type": "list"}],
     outputs=[{"name": "df", "type": "dataframe"}],
 )
@@ -81,6 +85,8 @@ def release_pend_fetch_from_db(rules, context=None):
 
 @register_function(
     name="release_pend_send_status_to_db",
+    tag="Release Pend Macro",
+    color="#2e7d32",
     inputs=[],
     outputs=[],
 )

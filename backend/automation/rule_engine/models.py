@@ -64,6 +64,9 @@ class RuleLogic(models.Model):
 
     output_params = models.IntegerField(null=True,blank=True)
 
+    tag   = models.CharField(max_length=100, null=True, blank=True)
+    color = models.CharField(max_length=20,  null=True, blank=True)
+
     class Meta:
         db_table = "rule_logic"
 

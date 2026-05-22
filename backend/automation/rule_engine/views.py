@@ -143,7 +143,9 @@ def discover_functions(request):
         result.append({
             "function_name": function.function_name,
             "inputs": inputs,
-            "outputs": outputs
+            "outputs": outputs,
+            "tag":   function.tag,
+            "color": function.color,
         })
 
     return Response(result)
