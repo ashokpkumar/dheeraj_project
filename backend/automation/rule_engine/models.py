@@ -14,6 +14,8 @@ class ParamModel(models.Model):
 
     param_options = models.JSONField(null=True, blank=True)
 
+    param_default = models.CharField(max_length=500, null=True, blank=True)
+
     class Meta:
         db_table = "param_model"
 

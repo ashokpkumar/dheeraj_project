@@ -132,7 +132,8 @@ def _create_param_group(function_name, params, group_type):
             normalized_params.append({
                 "name": param["name"],
                 "type": param.get("type", "string"),
-                "options": param.get("options", None)
+                "options": param.get("options", None),
+                "default": param.get("default", None),
             })
 
         else:
@@ -148,7 +149,8 @@ def _create_param_group(function_name, params, group_type):
             param_name=param["name"],
             defaults={
                 "param_type": param["type"],
-                "param_options": param["options"]
+                "param_options": param["options"],
+                "param_default": param.get("default"),
             }
         )
 

@@ -71,10 +71,10 @@ export default function App() {
     const functionMeta = functionsRef.current.find((f) => f.function_name === node.data.label)
     const inputs = functionMeta?.inputs || []
 
-    // Pre-fill with existing param values
+    // Pre-fill with existing param values, falling back to declared default
     const prefilled = {}
     inputs.forEach((input) => {
-      prefilled[input.name] = node.data.params?.[input.name] ?? ''
+      prefilled[input.name] = node.data.params?.[input.name] ?? input.default ?? ''
     })
 
     setTargetFunctionInputs(inputs)
@@ -346,7 +346,7 @@ const handleCancelEdit = () => {
     setTargetFunctionInputs(inputs)
     const initialParams = {}
     inputs.forEach((input) => {
-      initialParams[input.name] = ''
+      initialParams[input.name] = input.default ?? ''
     })
     setConnectionParams(initialParams)
     setPendingNodeId(`${currentId}`)

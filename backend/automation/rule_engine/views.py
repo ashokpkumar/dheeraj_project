@@ -164,7 +164,8 @@ def _get_params(parameter_group_id):
         {
             "name": param.param_name,
             "type": param.param_type,
-            "options": param.param_options
+            "options": param.param_options,
+            "default": param.param_default,
         }
         for param in params
     ]
