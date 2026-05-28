@@ -338,15 +338,15 @@ def release_pend_run_batch(
                     send_pf(screen, 9)
                     continue
 
-            # EntryPoint1: navigate to CPS520.01 and enter claim number
+            # EntryPoint1: VBA always sends PF9 first, then checks the screen.
+            # If not CPS520.01: second PF9, place claim_no on current screen, retry.
             for _ in range(15):
+                send_pf(screen, 9)
                 if get_screen_id(screen) == "CPS520.01":
                     place_value(screen, claim_no, 8, 15)
                     remove_value(screen, 9, 15)
                     remove_value(screen, 12, 15)
                     break
-                send_pf(screen, 9)
-            else:
                 send_pf(screen, 9)
                 place_value(screen, claim_no, 8, 15)
                 remove_value(screen, 9, 15)
@@ -366,11 +366,18 @@ def release_pend_run_batch(
             final_status = ""
 
             for i in range(1, total_drafts + 1):
-                # Navigate back to the claim list for this draft
-                send_pf(screen, 9)
-                place_value(screen, claim_no, 8, 15)
-                remove_value(screen, 9, 15)
-                remove_value(screen, 12, 15)
+                # Navigate back to claim list — same EntryPoint1 retry pattern as VBA
+                for _ in range(10):
+                    send_pf(screen, 9)
+                    if get_screen_id(screen) == "CPS520.01":
+                        place_value(screen, claim_no, 8, 15)
+                        remove_value(screen, 9, 15)
+                        remove_value(screen, 12, 15)
+                        break
+                    send_pf(screen, 9)
+                    place_value(screen, claim_no, 8, 15)
+                    remove_value(screen, 9, 15)
+                    remove_value(screen, 12, 15)
                 send_enter(screen)
 
                 # Select the correct draft line (VBA blnRls logic)
