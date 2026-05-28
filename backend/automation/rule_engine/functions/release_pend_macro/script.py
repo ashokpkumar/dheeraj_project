@@ -3,6 +3,8 @@ Release / Pend Macro — main registered functions.
 Ports Release_or_Pend_Claim and Get_Claim_Details from Modules_oShared.txt.
 """
 
+import os
+import traceback
 import win32com.client
 
 from rule_engine.registry import register_function
@@ -227,7 +229,36 @@ def release_pend_run_batch(
     against the mainframe emulator.
     Returns {"success": True, "result": [{"CLAIM CONTROL #": ..., "MACRO STATUS": ...}]}.
     """
+    # ── Startup validation ────────────────────────────────────────────────
+    print("[release_pend_run_batch] Starting...")
+
+    if context is None:
+        print("[release_pend_run_batch] ERROR: context is None")
+        return {"success": False, "result": [], "error": "context is None"}
+
     df = context.get("df")
+
+    if df is None:
+        print("[release_pend_run_batch] ERROR: context['df'] is None — no DataFrame passed")
+        return {"success": False, "result": [], "error": "context['df'] is None"}
+
+    if df.empty:
+        print("[release_pend_run_batch] WARNING: DataFrame is empty — nothing to process")
+        return {"success": True, "result": []}
+
+    print(f"[release_pend_run_batch] {len(df)} rows to process. Columns: {list(df.columns)}")
+
+    for _col in ("CLAIM_NO", "DRAFTS", "CLAIM_TYPE"):
+        if _col not in df.columns:
+            print(f"[release_pend_run_batch] WARNING: Expected column '{_col}' not found — check your DataFrame")
+
+    if dx_code_ref_path:
+        if not os.path.exists(dx_code_ref_path):
+            print(f"[release_pend_run_batch] ERROR: dx_code_ref_path does not exist: {dx_code_ref_path!r}")
+            return {"success": False, "result": [], "error": f"dx_code_ref_path not found: {dx_code_ref_path}"}
+        print(f"[release_pend_run_batch] Code ref path OK: {dx_code_ref_path!r}")
+    else:
+        print("[release_pend_run_batch] WARNING: dx_code_ref_path is empty — code refs will be empty dicts")
 
     settings = {
         "rls_code":   rls_code,
@@ -306,104 +337,172 @@ def release_pend_run_batch(
         "2nd_inel_001":   two_nd_inel_001,
     }
 
-    # Load code reference dicts from the xlsx file
-    codes = load_code_refs(dx_code_ref_path)
+    # ── Load code references ──────────────────────────────────────────────
+    print(f"[release_pend_run_batch] Loading code refs from: {dx_code_ref_path!r}")
+    try:
+        codes = load_code_refs(dx_code_ref_path) if dx_code_ref_path else {}
+        for _k, _v in codes.items():
+            print(f"  code ref '{_k}': {len(_v)} entries")
+    except Exception as _e:
+        print(f"[release_pend_run_batch] ERROR loading code refs: {_e}")
+        traceback.print_exc()
+        return {"success": False, "result": [], "error": f"load_code_refs failed: {_e}"}
 
-    # Connect to the emulator
-    system = win32com.client.Dispatch("EXTRA.System")
-    sess   = system.ActiveSession
-    screen = sess.Screen
+    # ── Connect to emulator ───────────────────────────────────────────────
+    print("[release_pend_run_batch] Connecting to EXTRA.System...")
+    try:
+        system = win32com.client.Dispatch("EXTRA.System")
+        sess   = system.ActiveSession
+        if sess is None:
+            raise RuntimeError("ActiveSession is None — is the emulator open?")
+        screen = sess.Screen
+        if screen is None:
+            raise RuntimeError("Screen object is None — emulator may not be ready")
+        print(f"[release_pend_run_batch] Emulator connected. Initial screen: {get_screen_id(screen)!r}")
+    except Exception as _e:
+        print(f"[release_pend_run_batch] ERROR connecting to emulator: {_e}")
+        traceback.print_exc()
+        return {"success": False, "result": [], "error": f"Emulator connection failed: {_e}"}
 
     results = []
-    cert_no_skip = ""  # tracks seq-order skipping (VBA: CertNo variable)
+    cert_no_skip = ""
 
-    for _, row_series in df.iterrows():
+    for _row_idx, (_, row_series) in enumerate(df.iterrows(), start=1):
         row = {k: (str(v).strip() if v is not None else "") for k, v in row_series.to_dict().items()}
-        claim_no    = row.get("CLAIM_NO", "")
-        total_drafts = int(row.get("DRAFTS", 1) or 1)
+        claim_no = row.get("CLAIM_NO", "")
 
         try:
-            # Seq-order skip (VBA s1cell_SeqOrdr)
+            total_drafts = int(row.get("DRAFTS", 1) or 1)
+        except (ValueError, TypeError):
+            total_drafts = 1
+            print(f"[{claim_no}] WARNING: DRAFTS value {row.get('DRAFTS')!r} is not a number — defaulting to 1")
+
+        print(f"\n[{claim_no}] ── Row {_row_idx}/{len(df)} ──────────────────────────────────────────────────────")
+        print(f"[{claim_no}]  DRAFTS={total_drafts}  CLAIM_TYPE={row.get('CLAIM_TYPE','')!r}  CERT_NO={row.get('CERT_NO','')!r}")
+
+        if not claim_no:
+            print(f"[{claim_no}] WARNING: CLAIM_NO is empty on row {_row_idx} — skipping")
+            results.append({"CLAIM CONTROL #": "", "MACRO STATUS": "SKIPPED: empty CLAIM_NO"})
+            continue
+
+        _stage = "init"
+        try:
+
+            # ── Seq-order skip ────────────────────────────────────────────
             if seq_ordr == "Y":
                 if cert_no_skip and cert_no_skip == row.get("CERT_NO", ""):
+                    print(f"[{claim_no}] SKIPPED (SEQ ORDER) — cert_no_skip={cert_no_skip!r} matches")
                     results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED (SEQ ORDER)"})
                     send_pf(screen, 9)
                     continue
 
-            # TOD update (VBA s1cell_aplyTodUpdt)
+            # ── TOD update ────────────────────────────────────────────────
             if aply_tod_updt == "Y":
+                _stage = "tod_update"
+                _tod_val = row.get("TOD", "")
+                print(f"[{claim_no}] Running TOD update (TOD={_tod_val!r})...")
                 if not tod_update(screen, row, settings):
-                    results.append({"CLAIM CONTROL #": claim_no,
-                                    "MACRO STATUS": row.get("MACRO_STATUS", "TOD UPDATE FAILED")})
+                    _msg = row.get("MACRO_STATUS", "TOD UPDATE FAILED")
+                    print(f"[{claim_no}] TOD update FAILED: {_msg!r}")
+                    results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": _msg})
                     send_pf(screen, 9)
                     continue
+                print(f"[{claim_no}] TOD update OK")
 
-            # EntryPoint1: VBA always sends PF9 first, then checks the screen.
-            # If not CPS520.01: second PF9, place claim_no on current screen, retry.
-            for _ in range(15):
+            # ── EntryPoint1: navigate to CPS520.01 ───────────────────────
+            _stage = "navigate_cps520"
+            print(f"[{claim_no}] Navigating to CPS520.01... (current: {get_screen_id(screen)!r})")
+            for _attempt in range(15):
                 send_pf(screen, 9)
-                if get_screen_id(screen) == "CPS520.01":
+                _cur = get_screen_id(screen)
+                if _cur == "CPS520.01":
+                    print(f"[{claim_no}]   On CPS520.01 after {_attempt + 1} PF9(s). Placing claim number.")
                     place_value(screen, claim_no, 8, 15)
                     remove_value(screen, 9, 15)
                     remove_value(screen, 12, 15)
                     break
+                print(f"[{claim_no}]   nav attempt {_attempt + 1}: screen={_cur!r} — placing claim on current screen, retrying")
                 send_pf(screen, 9)
                 place_value(screen, claim_no, 8, 15)
                 remove_value(screen, 9, 15)
                 remove_value(screen, 12, 15)
+            else:
+                print(f"[{claim_no}]   WARNING: Never reached CPS520.01 after 15 attempts. Last screen: {get_screen_id(screen)!r}")
 
+            _stage = "claim_enter"
             send_enter(screen)
+            _scr = get_screen_id(screen)
+            print(f"[{claim_no}] After claim entry: screen={_scr!r}")
 
-            if get_screen_id(screen) == "CPS520.01":
-                results.append({"CLAIM CONTROL #": claim_no,
-                                 "MACRO STATUS": (screen.GetString(31, 2, 70) or "").strip()})
+            if _scr == "CPS520.01":
+                _err = (screen.GetString(31, 2, 70) or "").strip()
+                print(f"[{claim_no}] ERROR: Still on CPS520 after enter — {_err!r}")
+                results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": _err})
                 send_pf(screen, 9)
                 continue
 
-            # ---- Draft loop ----
+            # ── Draft loop ────────────────────────────────────────────────
             j = 1
             row_done = True
             final_status = ""
 
             for i in range(1, total_drafts + 1):
-                # Navigate back to claim list — same EntryPoint1 retry pattern as VBA
-                for _ in range(10):
+                print(f"[{claim_no}] ── Draft {i}/{total_drafts} (selector j={j}) ──")
+
+                # Navigate back to claim list
+                _stage = f"draft_{i}_navigate"
+                for _attempt in range(10):
                     send_pf(screen, 9)
-                    if get_screen_id(screen) == "CPS520.01":
+                    _cur = get_screen_id(screen)
+                    if _cur == "CPS520.01":
                         place_value(screen, claim_no, 8, 15)
                         remove_value(screen, 9, 15)
                         remove_value(screen, 12, 15)
                         break
+                    print(f"[{claim_no}]   draft {i} nav attempt {_attempt + 1}: screen={_cur!r}")
                     send_pf(screen, 9)
                     place_value(screen, claim_no, 8, 15)
                     remove_value(screen, 9, 15)
                     remove_value(screen, 12, 15)
-                send_enter(screen)
 
-                # Select the correct draft line (VBA blnRls logic)
+                send_enter(screen)
+                print(f"[{claim_no}] Draft {i}: after claim enter, screen={get_screen_id(screen)!r}")
+
+                # Select draft line
+                _stage = f"draft_{i}_select"
                 if lst_rls != "Y":
-                    # Page navigation: one PF11 per page boundary (7 items per page)
                     if i == 8:
                         j = 1
                         send_pf(screen, 11)
                     elif i > 8:
                         send_pf(screen, 11)
+                    print(f"[{claim_no}] Draft {i}: placing selector {j:02d} (non-lst_rls mode)")
                     place_value(screen, f"{j:02d}", 3, 26)
                 else:
-                    # Last-release mode: find first non-66 draft
+                    _found_dr = None
                     for dr in range(6, 19, 2):
-                        if (screen.GetString(dr, 6, 2) or "").strip() != "66":
-                            place_value(screen, (screen.GetString(dr, 2, 2) or "").strip(), 3, 26)
+                        _dr_status = (screen.GetString(dr, 6, 2) or "").strip()
+                        if _dr_status != "66":
+                            _found_dr = (screen.GetString(dr, 2, 2) or "").strip()
+                            place_value(screen, _found_dr, 3, 26)
                             break
+                    print(f"[{claim_no}] Draft {i}: lst_rls mode — selected draft row={_found_dr!r}")
+                    if _found_dr is None:
+                        print(f"[{claim_no}] Draft {i}: WARNING — no non-66 draft found on this page")
 
                 send_enter(screen)
+                _scr_draft = get_screen_id(screen)
+                print(f"[{claim_no}] Draft {i}: after draft select, screen={_scr_draft!r}")
 
-                # ---- CPS850.01 screen: OPI / Notes / DX ----
-                if get_screen_id(screen) == "CPS850.01":
+                # ── CPS850 ────────────────────────────────────────────────
+                _stage = f"draft_{i}_cps850"
+                if _scr_draft == "CPS850.01":
                     coded_opi = (screen.GetString(15, 59, 4) or "").strip()
                     row["CODED_OPI"] = coded_opi
+                    print(f"[{claim_no}] Draft {i}: On CPS850 — coded_OPI={coded_opi!r}")
 
                     if aply_opi in ("Y", "D"):
+                        print(f"[{claim_no}] Draft {i}: Applying OPI mode={aply_opi!r}, NEW_OPI={row.get('NEW_OPI','')!r}")
                         if aply_opi == "Y":
                             place_value(screen, row.get("NEW_OPI", ""), 22, 58)
                         else:
@@ -412,79 +511,115 @@ def release_pend_run_batch(
                         send_enter(screen)
                         if get_screen_id(screen) == "CPS850.01":
                             final_status = (screen.GetString(31, 2, 60) or "").strip()
+                            print(f"[{claim_no}] Draft {i}: OPI FAILED — still on 850: {final_status!r}")
                             row_done = False
                             break
                         send_pf(screen, 8)
                         place_value(screen, "850", 2, 37)
                         send_enter(screen)
                         row["CODED_OPI"] = (screen.GetString(15, 59, 4) or "").strip()
+                        print(f"[{claim_no}] Draft {i}: OPI applied, refreshed OPI={row['CODED_OPI']!r}")
 
                     if aply_850_nt in ("APPEND ON CURRENT NOTE", "2ND LINE ONLY"):
+                        print(f"[{claim_no}] Draft {i}: Placing CSR note ({aply_850_nt!r})")
                         place_new_csr_note(screen, row, aply_850_nt)
 
                     if chnge_dx_cd == "Y":
+                        print(f"[{claim_no}] Draft {i}: Changing DX code → {row.get('DX_CD','')!r}")
                         place_value(screen, row.get("DX_CD", ""), 23, 6)
                         place_value(screen, "Y", 23, 14)
 
                     if aply_int_zip == "Y":
+                        print(f"[{claim_no}] Draft {i}: Applying INT/ZIP (ZIP={row.get('ZIP','')!r}, INT_NO={row.get('INT_NO','')!r})")
                         place_value(screen, "X", 29, 26)
                         send_enter(screen)
                         if get_screen_id(screen) == "CPS325.01":
                             place_value(screen, row.get("ZIP", ""), 5, 69)
                             place_value(screen, row.get("INT_NO", ""), 7, 30)
                             send_enter(screen)
+                        else:
+                            print(f"[{claim_no}] Draft {i}: WARNING — expected CPS325.01 for INT/ZIP but got {get_screen_id(screen)!r}")
+                else:
+                    print(f"[{claim_no}] Draft {i}: NOT on CPS850 ({_scr_draft!r}) — skipping 850 block")
 
+                _stage = f"draft_{i}_post850_enter"
                 send_enter(screen)
+                _scr_post850 = get_screen_id(screen)
+                print(f"[{claim_no}] Draft {i}: after 850 enter → screen={_scr_post850!r}")
 
-                # CPS910.01: TOD prompt after entering draft
-                if get_screen_id(screen) == "CPS910.01":
-                    place_value(screen, str(row.get("TOD", "")).zfill(2), 5, 60)
+                # ── CPS910 TOD prompt ─────────────────────────────────────
+                _stage = f"draft_{i}_cps910"
+                if _scr_post850 == "CPS910.01":
+                    _tod_val = str(row.get("TOD", "")).zfill(2)
+                    print(f"[{claim_no}] Draft {i}: CPS910 TOD prompt — entering TOD={_tod_val!r}")
+                    place_value(screen, _tod_val, 5, 60)
                     send_enter(screen)
                     if get_screen_id(screen) == "CPS910.01":
                         final_status = (screen.GetString(31, 2, 70) or "").strip()
+                        print(f"[{claim_no}] Draft {i}: CPS910 TOD FAILED: {final_status!r}")
                         row_done = False
                         break
+                    print(f"[{claim_no}] Draft {i}: CPS910 TOD OK → {get_screen_id(screen)!r}")
 
-                # Condition note
+                # ── Condition note ────────────────────────────────────────
+                _stage = f"draft_{i}_cond_note"
                 if aply_cond_nt == "Y":
+                    print(f"[{claim_no}] Draft {i}: Adding condition note (COND_NOTE={row.get('COND_NOTE','')!r})...")
                     if not add_condition_note(screen, row):
                         final_status = row.get("MACRO_STATUS", "ERROR ADDING CONDITION NOTE")
+                        print(f"[{claim_no}] Draft {i}: Condition note FAILED: {final_status!r}")
                         row_done = False
                         break
+                    print(f"[{claim_no}] Draft {i}: Condition note OK")
 
-                # Condition AFV
+                # ── Condition AFV ─────────────────────────────────────────
+                _stage = f"draft_{i}_cond_afv"
                 if aply_cond_afv == "Y":
+                    print(f"[{claim_no}] Draft {i}: Updating condition AFV (AFV={row.get('AFV','')!r})...")
                     if not update_condition_afv(screen, row):
                         final_status = row.get("MACRO_STATUS", "ERROR UPDATING CONDITION AFV")
+                        print(f"[{claim_no}] Draft {i}: Condition AFV FAILED: {final_status!r}")
                         row_done = False
                         break
+                    print(f"[{claim_no}] Draft {i}: Condition AFV OK")
 
                 claim_type = row.get("CLAIM_TYPE", "").upper().strip()
+                print(f"[{claim_no}] Draft {i}: CLAIM_TYPE={claim_type!r}, screen={get_screen_id(screen)!r}")
 
+                if not claim_type:
+                    print(f"[{claim_no}] Draft {i}: ERROR — CLAIM_TYPE is empty. Check your DataFrame.")
+
+                # ── UB branch ─────────────────────────────────────────────
+                _stage = f"draft_{i}_data_entry_{claim_type or 'UNKNOWN'}"
                 if claim_type == "UB":
-                    # Sync FROM/THRU dates to service date
                     if updt_frm_to_dt == "Y":
-                        from_dt = (screen.GetString(2, 63, 6) or "").strip()
-                        thru_dt = (screen.GetString(2, 75, 6) or "").strip()
-                        serv_dt = (screen.GetString(6, 17, 6) or "").strip()
-                        if from_dt != serv_dt:
+                        _from = (screen.GetString(2, 63, 6) or "").strip()
+                        _thru = (screen.GetString(2, 75, 6) or "").strip()
+                        _svc  = (screen.GetString(6, 17, 6) or "").strip()
+                        print(f"[{claim_no}] Draft {i}: Sync dates — FROM={_from!r} THRU={_thru!r} SERV={_svc!r}")
+                        if _from != _svc:
                             remove_value(screen, 2, 63)
-                            place_value(screen, serv_dt, 2, 63)
-                        if thru_dt != serv_dt:
+                            place_value(screen, _svc, 2, 63)
+                        if _thru != _svc:
                             remove_value(screen, 2, 75)
-                            place_value(screen, serv_dt, 2, 75)
+                            place_value(screen, _svc, 2, 75)
 
+                    print(f"[{claim_no}] Draft {i}: apply_ineligibility_codes(UB)...")
                     apply_ineligibility_codes(screen, "UB", row, settings, codes.get("dny_by_cpt", {}))
 
                     if chk_per_diem == "Y":
+                        print(f"[{claim_no}] Draft {i}: Running ub_per_diem_process...")
                         ub_per_diem_process(screen, row, settings)
                         cert_no_skip = row.get("CERT_NO", "")
                         row_done = False
                         final_status = row.get("MACRO_STATUS", "PER DIEM PROCESSED")
+                        print(f"[{claim_no}] Draft {i}: Per-diem done: {final_status!r}")
                         break
 
                     status_parts: list = []
+                    print(f"[{claim_no}] Draft {i}: Running ub_data_entry...")
                     res = ub_data_entry(screen, row, settings, codes, status_parts)
+                    print(f"[{claim_no}] Draft {i}: ub_data_entry → res={res}, parts={status_parts}")
                     if res == 0:
                         cert_no_skip = row.get("CERT_NO", "")
                         final_status = "; ".join(status_parts) if status_parts else row.get("MACRO_STATUS", "UB ENTRY FAILED")
@@ -492,11 +627,15 @@ def release_pend_run_batch(
                         break
                     cert_no_skip = ""
 
+                # ── HCFA branch ───────────────────────────────────────────
                 elif claim_type == "HCFA":
+                    print(f"[{claim_no}] Draft {i}: apply_ineligibility_codes(HCFA)...")
                     apply_ineligibility_codes(screen, "HCFA", row, settings, codes.get("dny_by_cpt", {}))
 
                     status_parts = []
+                    print(f"[{claim_no}] Draft {i}: Running hcfa_data_entry...")
                     res = hcfa_data_entry(screen, row, settings, codes, status_parts)
+                    print(f"[{claim_no}] Draft {i}: hcfa_data_entry → res={res}, parts={status_parts}")
                     if res == 0:
                         cert_no_skip = row.get("CERT_NO", "")
                         final_status = "; ".join(status_parts) if status_parts else row.get("MACRO_STATUS", "HCFA ENTRY FAILED")
@@ -505,21 +644,32 @@ def release_pend_run_batch(
                     cert_no_skip = ""
 
                 else:
+                    print(f"[{claim_no}] Draft {i}: INVALID CLAIM_TYPE={claim_type!r} — must be 'UB' or 'HCFA'")
                     final_status = "INVALID CLAIM TYPE."
                     row_done = False
                     break
 
-                j += 1  # NextDraft
+                j += 1
+                print(f"[{claim_no}] Draft {i}: completed OK")
 
             macro_status = "DONE." if row_done else final_status
+            print(f"[{claim_no}] ── RESULT: {macro_status!r}")
             results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": macro_status})
 
         except Exception as exc:
-            results.append({"CLAIM CONTROL #": claim_no,
-                             "MACRO STATUS": f"EXCEPTION: {type(exc).__name__}: {exc}"})
+            print(f"[{claim_no}] EXCEPTION at stage={_stage!r}: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
+            results.append({
+                "CLAIM CONTROL #": claim_no,
+                "MACRO STATUS": f"EXCEPTION [{_stage}]: {type(exc).__name__}: {exc}",
+            })
         finally:
-            send_pf(screen, 9)
+            try:
+                send_pf(screen, 9)
+            except Exception as _fe:
+                print(f"[{claim_no}] WARNING: PF9 in finally block failed: {_fe}")
 
+    print(f"\n[release_pend_run_batch] Done. Processed {len(results)}/{len(df)} claims.")
     return {"success": True, "result": results}
 
 
