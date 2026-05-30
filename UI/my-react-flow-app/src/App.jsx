@@ -57,6 +57,7 @@ export default function App() {
   const [originalEdges, setOriginalEdges] = useState([])
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [editingFunctionMeta, setEditingFunctionMeta] = useState(null)
 
   // Refs keep latest nodes/functions accessible inside a stable callback
   const nodesRef = React.useRef(nodes)
@@ -79,6 +80,7 @@ export default function App() {
 
     setTargetFunctionInputs(inputs)
     setConnectionParams(prefilled)
+    setEditingFunctionMeta(functionMeta || null)
     setPendingNodeId(nodeId)
     setPendingConnection(null)
     setShowParamDialog(true)
@@ -344,6 +346,7 @@ const handleCancelEdit = () => {
     const functionMeta = functions.find((f) => f.function_name === selectedFunction)
     const inputs = functionMeta?.inputs || []
     setTargetFunctionInputs(inputs)
+    setEditingFunctionMeta(functionMeta || null)
     const initialParams = {}
     inputs.forEach((input) => {
       initialParams[input.name] = input.default ?? ''
@@ -994,18 +997,40 @@ console.log(ruleName)
               alignItems: 'center',
               flexShrink: 0,
             }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                Enter Parameters
-                <span style={{ fontSize: 12, fontWeight: 400, color: '#888', marginLeft: 10 }}>
-                  {targetFunctionInputs.length} field{targetFunctionInputs.length !== 1 ? 's' : ''}
-                </span>
-              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {editingFunctionMeta?.tag && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: (editingFunctionMeta.color || '#9e9e9e') + '20',
+                    borderLeft: `4px solid ${editingFunctionMeta.color || '#9e9e9e'}`,
+                    borderRadius: '0 4px 4px 0',
+                    padding: '3px 10px 3px 8px',
+                    fontSize: 11, fontWeight: 700, letterSpacing: '0.5px',
+                    textTransform: 'uppercase', color: '#555',
+                    width: 'fit-content',
+                  }}>
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: editingFunctionMeta.color || '#9e9e9e',
+                      display: 'inline-block', flexShrink: 0,
+                    }} />
+                    {editingFunctionMeta.tag}
+                  </div>
+                )}
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                  {editingFunctionMeta?.function_name || 'Enter Parameters'}
+                  <span style={{ fontSize: 12, fontWeight: 400, color: '#888', marginLeft: 10 }}>
+                    {targetFunctionInputs.length} field{targetFunctionInputs.length !== 1 ? 's' : ''}
+                  </span>
+                </h3>
+              </div>
               <span
                 onClick={() => {
                   setShowParamDialog(false)
                   setPendingConnection(null)
                   setPendingNodeId(null)
                   setConnectionParams({})
+                  setEditingFunctionMeta(null)
                 }}
                 style={{ cursor: 'pointer', fontSize: 18, color: '#888', lineHeight: 1 }}
               >✕</span>
@@ -1078,6 +1103,7 @@ console.log(ruleName)
                   setPendingConnection(null)
                   setPendingNodeId(null)
                   setConnectionParams({})
+                  setEditingFunctionMeta(null)
                 }}
                 style={{
                   padding: '7px 18px', borderRadius: 5,
