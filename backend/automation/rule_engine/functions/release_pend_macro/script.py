@@ -3,6 +3,7 @@ Release / Pend Macro — main registered functions.
 Ports Release_or_Pend_Claim and Get_Claim_Details from Modules_oShared.txt.
 """
 
+import csv
 import os
 import traceback
 import win32com.client
@@ -28,6 +29,30 @@ def _build_settings(**kwargs) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Helper: load denial_code_ref.csv
+# ---------------------------------------------------------------------------
+def _load_denial_code_ref(path: str) -> dict:
+    """
+    Reads denial_code_ref.csv and returns a dict keyed by uppercase rule name.
+    Each value has: denial_code, prv_code, eob_comment, extra_comment.
+    """
+    ref = {}
+    if not path or not os.path.exists(path):
+        return ref
+    with open(path, newline="", encoding="utf-8") as _f:
+        for _row in csv.DictReader(_f):
+            rule = (_row.get("Rule") or "").strip().upper()
+            if rule:
+                ref[rule] = {
+                    "denial_code":   (_row.get("Denial code")   or "").strip(),
+                    "prv_code":      (_row.get("PRV code")       or "").strip(),
+                    "eob_comment":   (_row.get("EOB comment")    or "").strip(),
+                    "extra_comment": (_row.get("Extra comment")  or "").strip(),
+                }
+    return ref
+
+
+# ---------------------------------------------------------------------------
 # Main batch function
 # ---------------------------------------------------------------------------
 @register_function(
@@ -36,7 +61,8 @@ def _build_settings(**kwargs) -> dict:
     color="#2e7d32",
     inputs=[
         # --- source file ---
-        {"name": "dx_code_ref_path", "type": "str", "default": ""},
+        {"name": "dx_code_ref_path",      "type": "str", "default": ""},
+        {"name": "denial_code_ref_path",  "type": "str", "default": ""},
         # --- CPS506 release screen ---
         {"name": "rls_code",   "type": "str",                              "default": "10"},
         {"name": "lst_rls",    "type": "str", "options": ["Y", "N"],       "default": "Y"},
@@ -133,6 +159,7 @@ def _build_settings(**kwargs) -> dict:
 )
 def release_pend_run_batch(
     dx_code_ref_path: str,
+    denial_code_ref_path: str = "",
     # CPS506 fields
     rls_code:   str = "10",
     lst_rls:    str = "Y",
@@ -348,6 +375,17 @@ def release_pend_run_batch(
         traceback.print_exc()
         return {"success": False, "result": [], "error": f"load_code_refs failed: {_e}"}
 
+    # ── Load denial code reference (active when rls_code=71, lst_rls=Y, deny_clm=Y) ──
+    denial_ref_mode = (rls_code == "71" and lst_rls == "Y" and deny_clm == "Y")
+    denial_code_ref: dict = {}
+    if denial_ref_mode:
+        if denial_code_ref_path and os.path.exists(denial_code_ref_path):
+            denial_code_ref = _load_denial_code_ref(denial_code_ref_path)
+            print(f"[release_pend_run_batch] Loaded {len(denial_code_ref)} denial code ref entries from {denial_code_ref_path!r}")
+        else:
+            print(f"[release_pend_run_batch] WARNING: denial_ref_mode=True but denial_code_ref_path not provided or not found — "
+                  f"column DENIAL_RULE will be ignored")
+
     # ── Connect to emulator ───────────────────────────────────────────────
     print("[release_pend_run_batch] Connecting to EXTRA.System...")
     try:
@@ -388,6 +426,50 @@ def release_pend_run_batch(
         _stage = "init"
         try:
 
+            # ── Per-claim settings: apply denial_code_ref.csv overrides ──────────
+            row_settings = settings.copy()
+            if denial_ref_mode and denial_code_ref:
+                _rule_key = row.get("DENIAL_RULE", "").strip().upper()
+                if _rule_key and _rule_key in denial_code_ref:
+                    _ref     = denial_code_ref[_rule_key]
+                    _csv_dc  = _ref["denial_code"]
+                    _csv_prv = _ref["prv_code"]
+                    _csv_eob = _ref["eob_comment"]
+                    if _csv_dc == "0":
+                        # No denial code needed — release as plain 71Y
+                        row_settings["deny_clm"] = "N"
+                        print(f"[{claim_no}] DenialRef({_rule_key}): denial disabled — plain 71Y release")
+                    elif _csv_dc not in ("#N/A", ""):
+                        row_settings["denial_code"] = f"{int(_csv_dc):03d}"
+                        print(f"[{claim_no}] DenialRef({_rule_key}): denial_code → {row_settings['denial_code']!r}")
+                    if _csv_prv not in ("#N/A", ""):
+                        row["NEW_PRV_CD"] = _csv_prv
+                        print(f"[{claim_no}] DenialRef({_rule_key}): NEW_PRV_CD → {_csv_prv!r}")
+                    if _csv_eob not in ("#N/A", "") and not row.get("EOB_PER_CLM", ""):
+                        row["EOB_PER_CLM"] = _csv_eob
+                        print(f"[{claim_no}] DenialRef({_rule_key}): EOB_PER_CLM → {_csv_eob!r}")
+                elif _rule_key:
+                    print(f"[{claim_no}] DenialRef: rule {_rule_key!r} not found in CSV — using default settings")
+
+            # ── Final decision summary ────────────────────────────────────
+            _deny      = row_settings.get("deny_clm", "N") == "Y"
+            _dc        = row_settings.get("denial_code", "").strip()
+            _prv       = row.get("NEW_PRV_CD", "").strip()
+            _eob       = row.get("EOB_PER_CLM", "").strip()
+            _rls       = row_settings.get("rls_code", "")
+            if _deny:
+                _decision = f"DENY  | code={_dc or '(from settings)'}"
+            else:
+                _decision = f"RELEASE 71Y (no denial)"
+            _extras = []
+            if _prv:
+                _extras.append(f"PRV={_prv}")
+            if _eob:
+                _extras.append(f"EOB='{_eob[:50]}{'...' if len(_eob) > 50 else ''}'")
+            if _extras:
+                _decision += "  |  " + "  ".join(_extras)
+            print(f"[{claim_no}] >>> DECISION: {_decision}")
+
             # ── Seq-order skip ────────────────────────────────────────────
             if seq_ordr == "Y":
                 if cert_no_skip and cert_no_skip == row.get("CERT_NO", ""):
@@ -401,7 +483,7 @@ def release_pend_run_batch(
                 _stage = "tod_update"
                 _tod_val = row.get("TOD", "")
                 print(f"[{claim_no}] Running TOD update (TOD={_tod_val!r})...")
-                if not tod_update(screen, row, settings):
+                if not tod_update(screen, row, row_settings):
                     _msg = row.get("MACRO_STATUS", "TOD UPDATE FAILED")
                     print(f"[{claim_no}] TOD update FAILED: {_msg!r}")
                     results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": _msg})
@@ -605,11 +687,11 @@ def release_pend_run_batch(
                             place_value(screen, _svc, 2, 75)
 
                     print(f"[{claim_no}] Draft {i}: apply_ineligibility_codes(UB)...")
-                    apply_ineligibility_codes(screen, "UB", row, settings, codes.get("dny_by_cpt", {}))
+                    apply_ineligibility_codes(screen, "UB", row, row_settings, codes.get("dny_by_cpt", {}))
 
                     if chk_per_diem == "Y":
                         print(f"[{claim_no}] Draft {i}: Running ub_per_diem_process...")
-                        ub_per_diem_process(screen, row, settings)
+                        ub_per_diem_process(screen, row, row_settings)
                         cert_no_skip = row.get("CERT_NO", "")
                         row_done = False
                         final_status = row.get("MACRO_STATUS", "PER DIEM PROCESSED")
@@ -618,7 +700,7 @@ def release_pend_run_batch(
 
                     status_parts: list = []
                     print(f"[{claim_no}] Draft {i}: Running ub_data_entry...")
-                    res = ub_data_entry(screen, row, settings, codes, status_parts)
+                    res = ub_data_entry(screen, row, row_settings, codes, status_parts)
                     print(f"[{claim_no}] Draft {i}: ub_data_entry → res={res}, parts={status_parts}")
                     if res == 0:
                         cert_no_skip = row.get("CERT_NO", "")
@@ -630,11 +712,11 @@ def release_pend_run_batch(
                 # ── HCFA branch ───────────────────────────────────────────
                 elif claim_type == "HCFA":
                     print(f"[{claim_no}] Draft {i}: apply_ineligibility_codes(HCFA)...")
-                    apply_ineligibility_codes(screen, "HCFA", row, settings, codes.get("dny_by_cpt", {}))
+                    apply_ineligibility_codes(screen, "HCFA", row, row_settings, codes.get("dny_by_cpt", {}))
 
                     status_parts = []
                     print(f"[{claim_no}] Draft {i}: Running hcfa_data_entry...")
-                    res = hcfa_data_entry(screen, row, settings, codes, status_parts)
+                    res = hcfa_data_entry(screen, row, row_settings, codes, status_parts)
                     print(f"[{claim_no}] Draft {i}: hcfa_data_entry → res={res}, parts={status_parts}")
                     if res == 0:
                         cert_no_skip = row.get("CERT_NO", "")
