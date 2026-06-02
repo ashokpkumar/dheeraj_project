@@ -145,3 +145,4 @@ Public Const slcol_CodedOpi = "BA" 'ADDED 2024.12.11
 Public Const slcol_FaieInelCd = "BB" 'ADDED 2025.08.26
 Public Const slcol_PreCertNo = "BC" 'ADDED 2026.03.17
 Public Const s1cell_vldteAmtPdByCpt = "AI7" 'ADDED 2026.03.31
+Public Const slcol_DenialRule = "BD" 'ADDED 2026.06.01 - Rule name for denial_code_ref.csv lookup

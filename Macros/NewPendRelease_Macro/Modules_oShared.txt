@@ -1,6 +1,6 @@
 Public objSess As Object, DxCodes As New Dictionary, LabCodes As New Dictionary, UBRevCodes As New Dictionary, dict As Dictionary, ModCodesDict As New Dictionary
 Public AmtCeiling_Applied As Boolean, AmtCeilingRemaining As Double, AmtCeiling As Double, DnlInelCdExceptions As New Dictionary, ckInelDict As New Dictionary
-Public ApplyDiscAfterDnl As New Dictionary, RemDiscAmt As New Dictionary, PossibleHCR As New Dictionary, DnyByCPT As New Dictionary
+Public ApplyDiscAfterDnl As New Dictionary, RemDiscAmt As New Dictionary, PossibleHCR As New Dictionary, DnyByCPT As New Dictionary, DenialCodeRef As New Dictionary
 
 Public Function Current_Session() As Boolean
     Dim objSystem As Object, objSessions As Object, msg As String
@@ -148,9 +148,11 @@ End Sub
 
 Public Sub Release_or_Pend_Claim()
     Dim mw As Worksheet, rw As Long, i As Integer, totalDrafts As Integer, blnRls As Boolean, j As Integer, DrftCntr As Integer, CertNo As String
+    Dim blnDenialRefMode As Boolean, origDenialCodeRef As String, ruleKey As String 'ADDED 2026.06.01
     DxCodes.RemoveAll: LabCodes.RemoveAll: UBRevCodes.RemoveAll: DnlInelCdExceptions.RemoveAll: ckInelDict.RemoveAll: ApplyDiscAfterDnl.RemoveAll
     PossibleHCR.RemoveAll: RemDiscAmt.RemoveAll 'ADDED 2025.03.10
     DnyByCPT.RemoveAll 'ADDED 2026.03.25
+    DenialCodeRef.RemoveAll 'ADDED 2026.06.01
     Start_Time = Now()
     CollectGridPrice 'added 08.03.2022
     Set ModCodesDict = SetDict(ModCodesDict, Sheet8, "J") 'added 03.17.2023
@@ -184,6 +186,10 @@ Public Sub Release_or_Pend_Claim()
             If Not DnyByCPT.Exists(Trim(.Range("K" & y))) Then DnyByCPT.Add Trim(.Range("K" & y)), Trim(.Range("K" & y))
         Next y
     End With
+    'ADDED 2026.06.01 - Enable denial_code_ref.csv lookup when rls=71, lst_rls=Y, deny_clm=Y
+    blnDenialRefMode = (Trim(mw.Range(s1cell_rlsCode)) = "71" And Trim(mw.Range(s1cell_lstRls)) = "Y" And Trim(mw.Range(s1cell_denyClm)) = "Y")
+    origDenialCodeRef = Trim(mw.Range(s1cell_denialCode))
+    If blnDenialRefMode Then LoadDenialCodeRef
    '====== added 05.06.2022 ======
     mw.Range(s1col_tmeUntStat & mw.Range(s1cell_start) & ":" & s1col_tmeUntStat & mw.Range(s1cell_end)).ClearContents
     If mw.Range(s1cell_addTime) = "Y" Then
@@ -210,6 +216,12 @@ Public Sub Release_or_Pend_Claim()
                'If mw.Range("S8") = "Y" Then If InStr(mw.Range("B" & rw), "Grid price mismatch") > 0 Then GoTo NextRw 'Removed 08.03.2022
                 If mw.Rows(rw & ":" & rw).Hidden = True Then GoTo NextRw
                 mw.Range(s1cell_curRow) = rw
+                If blnDenialRefMode Then 'ADDED 2026.06.01 - Restore globals then apply row-specific CSV values
+                    mw.Range(s1cell_denialCode) = origDenialCodeRef
+                    mw.Range(s1cell_denyClm) = "Y"
+                    ruleKey = UCase(Trim(mw.Range(slcol_DenialRule & rw)))
+                    If ruleKey <> "" Then ApplyDenialRefValues mw, rw, ruleKey
+                End If
                 If mw.Range(s1cell_SeqOrdr) = "Y" Then 'ADDED 2024.05.23
                     If CertNo = Trim(mw.Range(slcol_CertNo & rw)) Then GoTo NextRw
                 End If
@@ -1271,4 +1283,86 @@ Public Sub SET_DEFAULT() 'ADDED 2024.05.02
         .Range(s1cell_2ndInel_001) = "N" 'ADDED 2026.03.25
         .Range(s1cell_vldteAmtPdByCpt) = "N" 'ADDED 2026.03.31
     End With
+End Sub
+
+' ADDED 2026.06.01 - Loads denial_code_ref.csv into DenialCodeRef dictionary keyed by rule name (uppercase)
+Private Sub LoadDenialCodeRef()
+    Dim csvPath As String, fileNum As Integer, lineData As String
+    Dim fields() As String, ruleName As String
+    DenialCodeRef.RemoveAll
+    csvPath = ThisWorkbook.Path & "\Macros\denial_code_ref.csv"
+    If Dir(csvPath) = "" Then
+        MsgBox "denial_code_ref.csv not found at expected location:" & vbNewLine & csvPath, vbExclamation, ThisWorkbook.Name
+        Exit Sub
+    End If
+    fileNum = FreeFile
+    Open csvPath For Input As #fileNum
+    Dim isFirst As Boolean: isFirst = True
+    Do While Not EOF(fileNum)
+        Line Input #fileNum, lineData
+        If isFirst Then
+            isFirst = False ' Skip header row
+        Else
+            fields = ParseCSVLine(lineData)
+            If UBound(fields) >= 4 Then
+                ruleName = UCase(Trim(fields(0)))
+                If ruleName <> "" And Not DenialCodeRef.Exists(ruleName) Then
+                    DenialCodeRef.Add ruleName, Trim(fields(1)) & "|" & Trim(fields(2)) & "|" & Trim(fields(3)) & "|" & Trim(fields(4))
+                End If
+            End If
+        End If
+    Loop
+    Close #fileNum
+End Sub
+
+' ADDED 2026.06.01 - Parses a single CSV line, handling double-quoted fields that may contain commas
+Private Function ParseCSVLine(ByVal lineData As String) As String()
+    Dim result() As String
+    Dim i As Integer, c As String, field As String
+    Dim inQuotes As Boolean, fieldCount As Integer
+    ReDim result(0)
+    inQuotes = False: field = "": fieldCount = 0
+    For i = 1 To Len(lineData)
+        c = Mid(lineData, i, 1)
+        If c = Chr(34) Then
+            inQuotes = Not inQuotes
+        ElseIf c = "," And Not inQuotes Then
+            ReDim Preserve result(fieldCount)
+            result(fieldCount) = field
+            fieldCount = fieldCount + 1: field = ""
+        Else
+            field = field & c
+        End If
+    Next i
+    ReDim Preserve result(fieldCount)
+    result(fieldCount) = field
+    ParseCSVLine = result
+End Function
+
+' ADDED 2026.06.01 - Looks up the rule in DenialCodeRef and overrides denial code, PRV code, and EOB comment
+' for the current claim row. If denial code is 0, disables deny_clm (plain 71Y release).
+Private Sub ApplyDenialRefValues(ByRef mw As Worksheet, ByVal rw As Long, ByVal ruleKey As String)
+    If Not DenialCodeRef.Exists(ruleKey) Then Exit Sub
+    Dim refParts() As String
+    refParts = Split(DenialCodeRef(ruleKey), "|")
+    Dim csvDenialCode As String, csvPrvCode As String, csvEobComment As String
+    csvDenialCode = Trim(refParts(0))
+    csvPrvCode = IIf(UBound(refParts) >= 1, Trim(refParts(1)), "#N/A")
+    csvEobComment = IIf(UBound(refParts) >= 2, Trim(refParts(2)), "#N/A")
+    ' Apply denial code: 0 means no denial needed, just do 71Y release
+    If csvDenialCode = "0" Then
+        mw.Range(s1cell_denyClm) = "N"
+    ElseIf csvDenialCode <> "#N/A" And csvDenialCode <> "" Then
+        mw.Range(s1cell_denialCode) = Format(CLng(csvDenialCode), "000")
+    End If
+    ' Apply PRV code to per-row column if provided
+    If csvPrvCode <> "#N/A" And csvPrvCode <> "" Then
+        mw.Range(s1col_newPrvCd & rw) = csvPrvCode
+    End If
+    ' Apply EOB comment to per-row EOB column if provided and not already set
+    If csvEobComment <> "#N/A" And csvEobComment <> "" Then
+        If Len(Trim(mw.Range(s1col_EobPerClm & rw))) = 0 Then
+            mw.Range(s1col_EobPerClm & rw) = csvEobComment
+        End If
+    End If
 End Sub
