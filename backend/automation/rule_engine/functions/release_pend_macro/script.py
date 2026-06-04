@@ -39,7 +39,7 @@ def _load_denial_code_ref(path: str) -> dict:
     ref = {}
     if not path or not os.path.exists(path):
         return ref
-    with open(path, newline="", encoding="utf-8") as _f:
+    with open(path, newline="", encoding="utf-8-sig") as _f:
         for _row in csv.DictReader(_f):
             rule = (_row.get("Rule") or "").strip().upper()
             if rule:
