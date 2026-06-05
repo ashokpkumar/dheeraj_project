@@ -22,34 +22,114 @@ from .utils import (
 
 
 # ---------------------------------------------------------------------------
-# Helper: build settings dict from individual function parameters
+# Default values for all rule settings
 # ---------------------------------------------------------------------------
-def _build_settings(**kwargs) -> dict:
-    return {k: v for k, v in kwargs.items()}
+_SETTING_DEFAULTS = {
+    "rls_code":                 "10",
+    "lst_rls":                  "Y",
+    "pnd_rsn":                  "",
+    "pnd_op_id":                "",
+    "flw_up":                   "",
+    "dist_unit":                "",
+    "eob":                      "",
+    "ck":                       "",
+    "note":                     "",
+    "payee":                    "0",
+    "eob_note":                 "",
+    "verify":                   "N",
+    "apply_uc":                 "Y",
+    "rem_oi_elig_amt":          "N",
+    "apply_001":                "N/A",
+    "deny_clm":                 "N",
+    "add_time":                 "N",
+    "vld_amt_pd":               "N",
+    "vld_amt_pd_by_cpt":        "N",
+    "remove_prv":               "N",
+    "remove_inel_amt_cd":       "N/A",
+    "denial_code":              "",
+    "aply_inel_cd_spcfc_rmval": "N",
+    "inel_cd_to_rmv":           "",
+    "apply_dx":                 "N",
+    "apply_lab":                "N",
+    "dx_lab_rev":               "N",
+    "apply_bn_t_hold":          "N",
+    "apply_bn_qty":             "N",
+    "chnge_dx_cd":              "N",
+    "new_oi_elig_pd":           "N/A",
+    "new_oi_indctr":            "N/A",
+    "inel_switch":              "N",
+    "aply_dx_excptn":           "N",
+    "aply_cond_nt":             "N",
+    "aply_grid_prc":            "N",
+    "updt_frm_to_dt":           "N",
+    "aply_tod_updt":            "N",
+    "remove_ap":                "N",
+    "aply_int_zip":             "N",
+    "aply_cond_afv":            "N",
+    "aply_850_nt":              "DO NOT APPLY NOTE",
+    "rem_code_set":             "N",
+    "aply_modifr":              "N",
+    "inel_code":                "",
+    "remv_prov_rate":           "N",
+    "remv_modifr":              "N",
+    "aply_two_ap_cd":           "N",
+    "remv_prcrt_byps":          "N",
+    "amt_858_inq":              "N",
+    "bond_clinic":              "N",
+    "updt_oc_for_700":          "N",
+    "updt_hic":                 "N",
+    "remv_adj_cd":              "N",
+    "aply_631_inel":            "N",
+    "aply_st_typ":              "N/A",
+    "aply_dpsv":                "Y",
+    "chk_inel":                 "N",
+    "chk_per_diem":             "N",
+    "dis_aft_dnl":              "N",
+    "seq_ordr":                 "N",
+    "rem_iu":                   "N",
+    "rem_tu":                   "N",
+    "aply_opi":                 "N",
+    "del_bn":                   "N",
+    "aply_dnl_aft_medcr":       "N",
+    "flip_mod":                 "N",
+    "apply_disc_aft_flip":      "N",
+    "rem_disc_amt_flag":        "N",
+    "faie_adj_inel":            "N",
+    "aply_034_inel":            "N",
+    "dny_s9451":                "Y",
+    "id_hcr":                   "Y",
+    "2nd_inel_001":             "N",
+    "new_ap_cd":                "",
+    "new_prv_cd":               "",
+}
 
 
 # ---------------------------------------------------------------------------
-# Helper: load denial_code_ref.csv
+# Helper: load rule_code_ref CSV
 # ---------------------------------------------------------------------------
-def _load_denial_code_ref(path: str) -> dict:
+def _load_rule_code_ref(path: str) -> dict:
     """
-    Reads denial_code_ref.csv and returns a dict keyed by uppercase rule name.
-    Each value has: denial_code, prv_code, eob_comment, extra_comment.
+    Reads the rule code ref CSV keyed by the 'rule' column (case-insensitive).
+    Each value is a settings dict merged over _SETTING_DEFAULTS so unset cells
+    fall back to the default for that parameter.
     """
-    ref = {}
+    rules = {}
     if not path or not os.path.exists(path):
-        return ref
+        return rules
     with open(path, newline="", encoding="utf-8-sig") as _f:
         for _row in csv.DictReader(_f):
-            rule = (_row.get("Rule") or "").strip().upper()
-            if rule:
-                ref[rule] = {
-                    "denial_code":   (_row.get("Denial code")   or "").strip(),
-                    "prv_code":      (_row.get("PRV code")       or "").strip(),
-                    "eob_comment":   (_row.get("EOB comment")    or "").strip(),
-                    "extra_comment": (_row.get("Extra comment")  or "").strip(),
-                }
-    return ref
+            rule_name = (_row.get("rule") or "").strip().upper()
+            if not rule_name:
+                continue
+            rule_settings = dict(_SETTING_DEFAULTS)
+            for _k, _v in _row.items():
+                if _k == "rule":
+                    continue
+                _val = str(_v).strip() if _v is not None else ""
+                if _val:
+                    rule_settings[_k] = _val
+            rules[rule_name] = rule_settings
+    return rules
 
 
 # ---------------------------------------------------------------------------
@@ -60,97 +140,8 @@ def _load_denial_code_ref(path: str) -> dict:
     tag="Release Pend Macro",
     color="#2e7d32",
     inputs=[
-        # --- source file ---
-        {"name": "dx_code_ref_path",      "type": "str", "default": ""},
-        {"name": "denial_code_ref_path",  "type": "str", "default": ""},
-        # --- CPS506 release screen ---
-        {"name": "rls_code",   "type": "str",                              "default": "10"},
-        {"name": "lst_rls",    "type": "str", "options": ["Y", "N"],       "default": "Y"},
-        {"name": "pnd_rsn",    "type": "str",                              "default": ""},
-        {"name": "pnd_op_id",  "type": "str",                              "default": ""},
-        {"name": "flw_up",     "type": "str",                              "default": ""},
-        {"name": "dist_unit",  "type": "str",                              "default": ""},
-        {"name": "eob",        "type": "str",                              "default": ""},
-        {"name": "ck",         "type": "str",                              "default": ""},
-        {"name": "note",       "type": "str",                              "default": ""},
-        {"name": "payee",      "type": "str", "options": ["0", "1", "2", "3"], "default": "0"},
-        {"name": "eob_note",   "type": "str",                              "default": ""},
-        {"name": "verify",     "type": "str", "options": ["Y", "N"],       "default": "N"},
-        # --- OI / UC ---
-        {"name": "apply_uc",        "type": "str", "options": ["Y", "N"],                        "default": "Y"},
-        {"name": "rem_oi_elig_amt", "type": "str", "options": ["Y", "N"],                        "default": "N"},
-        {"name": "apply_001",       "type": "str", "options": ["N/A", "1 ONLY", "ALL LINES"],    "default": "N/A"},
-        {"name": "deny_clm",        "type": "str", "options": ["Y", "N"],                        "default": "N"},
-        {"name": "add_time",        "type": "str", "options": ["Y", "N"],                        "default": "N"},
-        # --- inel amt/cd ---
-        {"name": "vld_amt_pd",             "type": "str", "options": ["Y", "N"],                                              "default": "N"},
-        {"name": "vld_amt_pd_by_cpt",      "type": "str", "options": ["Y", "N"],                                              "default": "N"},
-        {"name": "remove_prv",             "type": "str", "options": ["Y", "N"],                                              "default": "N"},
-        {"name": "remove_inel_amt_cd",     "type": "str", "options": ["N/A", "INEL/CD1", "INEL/CD2", "INEL/CD ALL", "SPECIFIC"], "default": "N/A"},
-        {"name": "denial_code",            "type": "str",                                                                     "default": ""},
-        {"name": "aply_inel_cd_spcfc_rmval","type": "str", "options": ["Y", "N"],                                             "default": "N"},
-        {"name": "inel_cd_to_rmv",         "type": "str",                                                                     "default": ""},
-        # --- DX / Lab / Rev ---
-        {"name": "apply_dx",        "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "apply_lab",       "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "dx_lab_rev",      "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "apply_bn_t_hold", "type": "str", "options": ["Y", "N"], "default": "N"},
-        # --- BN / Modifier ---
-        {"name": "apply_bn_qty",   "type": "str", "options": ["Y", "N"],            "default": "N"},
-        {"name": "chnge_dx_cd",    "type": "str", "options": ["Y", "N"],            "default": "N"},
-        {"name": "new_oi_elig_pd", "type": "str", "options": ["N/A", "Y", "N"],     "default": "N/A"},
-        {"name": "new_oi_indctr",  "type": "str", "options": ["N/A", "Y", "N"],     "default": "N/A"},
-        {"name": "inel_switch",    "type": "str", "options": ["Y", "N"],            "default": "N"},
-        # --- DX exception / Condition / Grid ---
-        {"name": "aply_dx_excptn", "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "aply_cond_nt",   "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "aply_grid_prc",  "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "updt_frm_to_dt", "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "aply_tod_updt",  "type": "str", "options": ["Y", "N"], "default": "N"},
-        # --- AP code / Int-Zip / Cond-AFV ---
-        {"name": "remove_ap",    "type": "str", "options": ["Y", "N"],                                                    "default": "N"},
-        {"name": "aply_int_zip", "type": "str", "options": ["Y", "N"],                                                    "default": "N"},
-        {"name": "aply_cond_afv","type": "str", "options": ["Y", "N"],                                                    "default": "N"},
-        {"name": "aply_850_nt",  "type": "str", "options": ["DO NOT APPLY NOTE", "APPEND ON CURRENT NOTE", "2ND LINE ONLY"], "default": "DO NOT APPLY NOTE"},
-        {"name": "rem_code_set", "type": "str", "options": ["Y", "N"],                                                    "default": "N"},
-        # --- Modifier / Provider ---
-        {"name": "aply_modifr",    "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "inel_code",      "type": "str",                        "default": ""},
-        {"name": "remv_prov_rate", "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "remv_modifr",    "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "aply_two_ap_cd", "type": "str", "options": ["Y", "N"], "default": "N"},
-        # --- Bypass / 858 / Bond / HIC ---
-        {"name": "remv_prcrt_byps","type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "amt_858_inq",    "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "bond_clinic",    "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "updt_oc_for_700","type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "updt_hic",       "type": "str", "options": ["Y", "N"], "default": "N"},
-        # --- Adj / 631 / State-Type ---
-        {"name": "remv_adj_cd",  "type": "str", "options": ["Y", "N"],            "default": "N"},
-        {"name": "aply_631_inel","type": "str", "options": ["Y", "N"],            "default": "N"},
-        {"name": "aply_st_typ",  "type": "str", "options": ["N/A", "Y", "N"],     "default": "N/A"},
-        {"name": "aply_dpsv",    "type": "str", "options": ["Y", "N"],            "default": "Y"},
-        {"name": "chk_inel",     "type": "str", "options": ["Y", "N"],            "default": "N"},
-        # --- Per-diem / Discount-after-denial ---
-        {"name": "chk_per_diem",  "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "dis_aft_dnl",   "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "seq_ordr",      "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "rem_iu",        "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "rem_tu",        "type": "str", "options": ["Y", "N"], "default": "N"},
-        # --- OPI / BN delete / Medicare denial ---
-        {"name": "aply_opi",           "type": "str", "options": ["N", "Y", "D"], "default": "N"},
-        {"name": "del_bn",             "type": "str", "options": ["Y", "N"],      "default": "N"},
-        {"name": "aply_dnl_aft_medcr", "type": "str", "options": ["Y", "N"],     "default": "N"},
-        # --- Flip-mod / Disc-after-flip ---
-        {"name": "flip_mod",            "type": "str", "options": ["Y", "N"],                    "default": "N"},
-        {"name": "apply_disc_aft_flip", "type": "str", "options": ["Y", "N"],                    "default": "N"},
-        {"name": "rem_disc_amt_flag",   "type": "str", "options": ["N", "Y", "Y-DONT READ OITYPE"], "default": "N"},
-        # --- FAIE / 034 / S9451 / HCR ---
-        {"name": "faie_adj_inel", "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "aply_034_inel", "type": "str", "options": ["Y", "N"], "default": "N"},
-        {"name": "dny_s9451",     "type": "str", "options": ["Y", "N"], "default": "Y"},
-        {"name": "id_hcr",        "type": "str", "options": ["Y", "N"], "default": "Y"},
-        {"name": "2nd_inel_001",  "type": "str", "options": ["Y", "N"], "default": "N"},
+        {"name": "dx_code_ref_path",   "type": "str", "default": ""},
+        {"name": "rule_code_ref_path", "type": "str", "default": ""},
     ],
     outputs=[
         {"name": "success", "type": "bool"},
@@ -159,102 +150,16 @@ def _load_denial_code_ref(path: str) -> dict:
 )
 def release_pend_run_batch(
     dx_code_ref_path: str,
-    denial_code_ref_path: str = "",
-    # CPS506 fields
-    rls_code:   str = "10",
-    lst_rls:    str = "Y",
-    pnd_rsn:    str = "",
-    pnd_op_id:  str = "",
-    flw_up:     str = "",
-    dist_unit:  str = "",
-    eob:        str = "",
-    ck:         str = "",
-    note:       str = "",
-    payee:      str = "0",
-    eob_note:   str = "",
-    verify:     str = "N",
-    # OI / UC
-    apply_uc:        str = "Y",
-    rem_oi_elig_amt: str = "N",
-    apply_001:       str = "N/A",
-    deny_clm:        str = "N",
-    add_time:        str = "N",
-    # inel amt/cd
-    vld_amt_pd:              str = "N",
-    vld_amt_pd_by_cpt:       str = "N",
-    remove_prv:              str = "N",
-    remove_inel_amt_cd:      str = "N/A",
-    denial_code:             str = "",
-    aply_inel_cd_spcfc_rmval:str = "N",
-    inel_cd_to_rmv:          str = "",
-    # DX / Lab / Rev
-    apply_dx:        str = "N",
-    apply_lab:       str = "N",
-    dx_lab_rev:      str = "N",
-    apply_bn_t_hold: str = "N",
-    # BN / Modifier
-    apply_bn_qty:  str = "N",
-    chnge_dx_cd:   str = "N",
-    new_oi_elig_pd:str = "N/A",
-    new_oi_indctr: str = "N/A",
-    inel_switch:   str = "N",
-    # DX exception / Condition / Grid
-    aply_dx_excptn:str = "N",
-    aply_cond_nt:  str = "N",
-    aply_grid_prc: str = "N",
-    updt_frm_to_dt:str = "N",
-    aply_tod_updt: str = "N",
-    # AP code / Int-Zip / Cond-AFV
-    remove_ap:     str = "N",
-    aply_int_zip:  str = "N",
-    aply_cond_afv: str = "N",
-    aply_850_nt:   str = "DO NOT APPLY NOTE",
-    rem_code_set:  str = "N",
-    # Modifier / Provider
-    aply_modifr:    str = "N",
-    inel_code:      str = "",
-    remv_prov_rate: str = "N",
-    remv_modifr:    str = "N",
-    aply_two_ap_cd: str = "N",
-    # Bypass / 858 / Bond / HIC
-    remv_prcrt_byps:str = "N",
-    amt_858_inq:    str = "N",
-    bond_clinic:    str = "N",
-    updt_oc_for_700:str = "N",
-    updt_hic:       str = "N",
-    # Adj / 631 / State-Type
-    remv_adj_cd:   str = "N",
-    aply_631_inel: str = "N",
-    aply_st_typ:   str = "N/A",
-    aply_dpsv:     str = "Y",
-    chk_inel:      str = "N",
-    # Per-diem / Discount-after-denial
-    chk_per_diem:  str = "N",
-    dis_aft_dnl:   str = "N",
-    seq_ordr:      str = "N",
-    rem_iu:        str = "N",
-    rem_tu:        str = "N",
-    # OPI / BN delete / Medicare denial
-    aply_opi:          str = "N",
-    del_bn:            str = "N",
-    aply_dnl_aft_medcr:str = "N",
-    # Flip-mod / Disc-after-flip
-    flip_mod:            str = "N",
-    apply_disc_aft_flip: str = "N",
-    rem_disc_amt_flag:   str = "N",
-    # FAIE / 034 / S9451 / HCR
-    faie_adj_inel: str = "N",
-    aply_034_inel: str = "N",
-    dny_s9451:     str = "Y",
-    id_hcr:        str = "Y",
-    two_nd_inel_001:str = "N",
+    rule_code_ref_path: str = "",
     context=None,
 ):
     """
     Main release/pend batch processor.
-    Iterates the DataFrame from context['df'] and processes each claim row
-    against the mainframe emulator.
-    Returns {"success": True, "result": [{"CLAIM CONTROL #": ..., "MACRO STATUS": ...}]}.
+    Settings are driven entirely by rule_code_ref_path CSV.  Each row in
+    context['df'] must have a RULE column whose value matches the 'rule'
+    column in the CSV.  Falls back to _SETTING_DEFAULTS when no match found.
+    new_ap_cd / new_prv_cd from the CSV are seeded into the claim row so
+    downstream entry functions can read them via row.get('NEW_AP_CD') etc.
     """
     # ── Startup validation ────────────────────────────────────────────────
     print("[release_pend_run_batch] Starting...")
@@ -275,8 +180,9 @@ def release_pend_run_batch(
 
     print(f"[release_pend_run_batch] {len(df)} rows to process. Columns: {list(df.columns)}")
 
-    for _col in ("CLAIM_NO", "DRAFTS", "CLAIM_TYPE"):
-        if _col not in df.columns:
+    _df_cols_upper = [c.upper() for c in df.columns]
+    for _col in ("CLAIM_NO", "DRAFTS", "CLAIM_TYPE", "RULE"):
+        if _col not in _df_cols_upper:
             print(f"[release_pend_run_batch] WARNING: Expected column '{_col}' not found — check your DataFrame")
 
     if dx_code_ref_path:
@@ -287,84 +193,7 @@ def release_pend_run_batch(
     else:
         print("[release_pend_run_batch] WARNING: dx_code_ref_path is empty — code refs will be empty dicts")
 
-    settings = {
-        "rls_code":   rls_code,
-        "lst_rls":    lst_rls,
-        "pnd_rsn":    pnd_rsn,
-        "pnd_op_id":  pnd_op_id,
-        "flw_up":     flw_up,
-        "dist_unit":  dist_unit,
-        "eob":        eob,
-        "ck":         ck,
-        "note":       note,
-        "payee":      payee,
-        "eob_note":   eob_note,
-        "verify":     verify,
-        "apply_uc":          apply_uc,
-        "rem_oi_elig_amt":   rem_oi_elig_amt,
-        "apply_001":         apply_001,
-        "deny_clm":          deny_clm,
-        "add_time":          add_time,
-        "vld_amt_pd":              vld_amt_pd,
-        "vld_amt_pd_by_cpt":       vld_amt_pd_by_cpt,
-        "remove_prv":              remove_prv,
-        "remove_inel_amt_cd":      remove_inel_amt_cd,
-        "denial_code":             denial_code,
-        "aply_inel_cd_spcfc_rmval":aply_inel_cd_spcfc_rmval,
-        "inel_cd_to_rmv":          inel_cd_to_rmv,
-        "apply_dx":       apply_dx,
-        "apply_lab":      apply_lab,
-        "dx_lab_rev":     dx_lab_rev,
-        "apply_bn_t_hold":apply_bn_t_hold,
-        "apply_bn_qty":   apply_bn_qty,
-        "chnge_dx_cd":    chnge_dx_cd,
-        "new_oi_elig_pd": new_oi_elig_pd,
-        "new_oi_indctr":  new_oi_indctr,
-        "inel_switch":    inel_switch,
-        "aply_dx_excptn": aply_dx_excptn,
-        "aply_cond_nt":   aply_cond_nt,
-        "aply_grid_prc":  aply_grid_prc,
-        "updt_frm_to_dt": updt_frm_to_dt,
-        "aply_tod_updt":  aply_tod_updt,
-        "remove_ap":      remove_ap,
-        "aply_int_zip":   aply_int_zip,
-        "aply_cond_afv":  aply_cond_afv,
-        "aply_850_nt":    aply_850_nt,
-        "rem_code_set":   rem_code_set,
-        "aply_modifr":    aply_modifr,
-        "inel_code":      inel_code,
-        "remv_prov_rate": remv_prov_rate,
-        "remv_modifr":    remv_modifr,
-        "aply_two_ap_cd": aply_two_ap_cd,
-        "remv_prcrt_byps":remv_prcrt_byps,
-        "amt_858_inq":    amt_858_inq,
-        "bond_clinic":    bond_clinic,
-        "updt_oc_for_700":updt_oc_for_700,
-        "updt_hic":       updt_hic,
-        "remv_adj_cd":    remv_adj_cd,
-        "aply_631_inel":  aply_631_inel,
-        "aply_st_typ":    aply_st_typ,
-        "aply_dpsv":      aply_dpsv,
-        "chk_inel":       chk_inel,
-        "chk_per_diem":   chk_per_diem,
-        "dis_aft_dnl":    dis_aft_dnl,
-        "seq_ordr":       seq_ordr,
-        "rem_iu":         rem_iu,
-        "rem_tu":         rem_tu,
-        "aply_opi":           aply_opi,
-        "del_bn":             del_bn,
-        "aply_dnl_aft_medcr": aply_dnl_aft_medcr,
-        "flip_mod":            flip_mod,
-        "apply_disc_aft_flip": apply_disc_aft_flip,
-        "rem_disc_amt_flag":   rem_disc_amt_flag,
-        "faie_adj_inel":  faie_adj_inel,
-        "aply_034_inel":  aply_034_inel,
-        "dny_s9451":      dny_s9451,
-        "id_hcr":         id_hcr,
-        "2nd_inel_001":   two_nd_inel_001,
-    }
-
-    # ── Load code references ──────────────────────────────────────────────
+    # ── Load DX code references ───────────────────────────────────────────
     print(f"[release_pend_run_batch] Loading code refs from: {dx_code_ref_path!r}")
     try:
         codes = load_code_refs(dx_code_ref_path) if dx_code_ref_path else {}
@@ -375,16 +204,15 @@ def release_pend_run_batch(
         traceback.print_exc()
         return {"success": False, "result": [], "error": f"load_code_refs failed: {_e}"}
 
-    # ── Load denial code reference (active when rls_code=71, lst_rls=Y, deny_clm=Y) ──
-    denial_ref_mode = (rls_code == "71" and lst_rls == "Y" and deny_clm == "Y")
-    denial_code_ref: dict = {}
-    if denial_ref_mode:
-        if denial_code_ref_path and os.path.exists(denial_code_ref_path):
-            denial_code_ref = _load_denial_code_ref(denial_code_ref_path)
-            print(f"[release_pend_run_batch] Loaded {len(denial_code_ref)} denial code ref entries from {denial_code_ref_path!r}")
-        else:
-            print(f"[release_pend_run_batch] WARNING: denial_ref_mode=True but denial_code_ref_path not provided or not found — "
-                  f"column DENIAL_RULE will be ignored")
+    # ── Load rule code reference ──────────────────────────────────────────
+    print(f"[release_pend_run_batch] Loading rule code ref from: {rule_code_ref_path!r}")
+    try:
+        rule_ref = _load_rule_code_ref(rule_code_ref_path) if rule_code_ref_path else {}
+        print(f"[release_pend_run_batch] Loaded {len(rule_ref)} rules: {list(rule_ref.keys())}")
+    except Exception as _e:
+        print(f"[release_pend_run_batch] ERROR loading rule code ref: {_e}")
+        traceback.print_exc()
+        return {"success": False, "result": [], "error": f"_load_rule_code_ref failed: {_e}"}
 
     # ── Connect to emulator ───────────────────────────────────────────────
     print("[release_pend_run_batch] Connecting to EXTRA.System...")
@@ -426,41 +254,38 @@ def release_pend_run_batch(
         _stage = "init"
         try:
 
-            # ── Per-claim settings: apply denial_code_ref.csv overrides ──────────
-            row_settings = settings.copy()
-            if denial_ref_mode and denial_code_ref:
-                _rule_key = row.get("DENIAL_RULE", "").strip().upper()
-                if _rule_key and _rule_key in denial_code_ref:
-                    _ref     = denial_code_ref[_rule_key]
-                    _csv_dc  = _ref["denial_code"]
-                    _csv_prv = _ref["prv_code"]
-                    _csv_eob = _ref["eob_comment"]
-                    if _csv_dc == "0":
-                        # No denial code needed — release as plain 71Y
-                        row_settings["deny_clm"] = "N"
-                        print(f"[{claim_no}] DenialRef({_rule_key}): denial disabled — plain 71Y release")
-                    elif _csv_dc not in ("#N/A", ""):
-                        row_settings["denial_code"] = f"{int(_csv_dc):03d}"
-                        print(f"[{claim_no}] DenialRef({_rule_key}): denial_code → {row_settings['denial_code']!r}")
-                    if _csv_prv not in ("#N/A", ""):
-                        row["NEW_PRV_CD"] = _csv_prv
-                        print(f"[{claim_no}] DenialRef({_rule_key}): NEW_PRV_CD → {_csv_prv!r}")
-                    if _csv_eob not in ("#N/A", "") and not row.get("EOB_PER_CLM", ""):
-                        row["EOB_PER_CLM"] = _csv_eob
-                        print(f"[{claim_no}] DenialRef({_rule_key}): EOB_PER_CLM → {_csv_eob!r}")
-                elif _rule_key:
-                    print(f"[{claim_no}] DenialRef: rule {_rule_key!r} not found in CSV — using default settings")
+            # ── Resolve settings from rule CSV ────────────────────────────
+            # Case-insensitive column lookup so 'rule', 'RULE', 'Rule' all work
+            rule_val = next((v for k, v in row.items() if k.upper() == "RULE"), "")
+            rule_key = rule_val.strip().upper()
+            if not rule_key:
+                print(f"[{claim_no}] SKIPPED: RULE column is empty")
+                results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED: RULE column is empty"})
+                continue
+            if rule_key not in rule_ref:
+                print(f"[{claim_no}] SKIPPED: RULE {rule_key!r} not found in rule CSV")
+                results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": f"SKIPPED: RULE {rule_key!r} not found in rule CSV"})
+                continue
+            row_settings = rule_ref[rule_key].copy()
+            print(f"[{claim_no}] Loaded settings from rule {rule_key!r}")
+
+            # ── Seed AP/PRV codes from rule CSV into the claim row ────────
+            if row_settings.get("new_ap_cd", "") and not row.get("NEW_AP_CD", ""):
+                row["NEW_AP_CD"] = row_settings["new_ap_cd"]
+                print(f"[{claim_no}] NEW_AP_CD set from rule CSV: {row['NEW_AP_CD']!r}")
+            if row_settings.get("new_prv_cd", "") and not row.get("NEW_PRV_CD", ""):
+                row["NEW_PRV_CD"] = row_settings["new_prv_cd"]
+                print(f"[{claim_no}] NEW_PRV_CD set from rule CSV: {row['NEW_PRV_CD']!r}")
 
             # ── Final decision summary ────────────────────────────────────
-            _deny      = row_settings.get("deny_clm", "N") == "Y"
-            _dc        = row_settings.get("denial_code", "").strip()
-            _prv       = row.get("NEW_PRV_CD", "").strip()
-            _eob       = row.get("EOB_PER_CLM", "").strip()
-            _rls       = row_settings.get("rls_code", "")
+            _deny = row_settings.get("deny_clm", "N") == "Y"
+            _dc   = row_settings.get("denial_code", "").strip()
+            _prv  = row.get("NEW_PRV_CD", "").strip()
+            _eob  = row.get("EOB_PER_CLM", "").strip()
             if _deny:
                 _decision = f"DENY  | code={_dc or '(from settings)'}"
             else:
-                _decision = f"RELEASE 71Y (no denial)"
+                _decision = "RELEASE (no denial)"
             _extras = []
             if _prv:
                 _extras.append(f"PRV={_prv}")
@@ -471,7 +296,7 @@ def release_pend_run_batch(
             print(f"[{claim_no}] >>> DECISION: {_decision}")
 
             # ── Seq-order skip ────────────────────────────────────────────
-            if seq_ordr == "Y":
+            if row_settings.get("seq_ordr", "N") == "Y":
                 if cert_no_skip and cert_no_skip == row.get("CERT_NO", ""):
                     print(f"[{claim_no}] SKIPPED (SEQ ORDER) — cert_no_skip={cert_no_skip!r} matches")
                     results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED (SEQ ORDER)"})
@@ -479,7 +304,7 @@ def release_pend_run_batch(
                     continue
 
             # ── TOD update ────────────────────────────────────────────────
-            if aply_tod_updt == "Y":
+            if row_settings.get("aply_tod_updt", "N") == "Y":
                 _stage = "tod_update"
                 _tod_val = row.get("TOD", "")
                 print(f"[{claim_no}] Running TOD update (TOD={_tod_val!r})...")
@@ -491,7 +316,7 @@ def release_pend_run_batch(
                     continue
                 print(f"[{claim_no}] TOD update OK")
 
-            # ── EntryPoint1: navigate to CPS520.01 ───────────────────────
+            # ── Navigate to CPS520.01 ─────────────────────────────────────
             _stage = "navigate_cps520"
             print(f"[{claim_no}] Navigating to CPS520.01... (current: {get_screen_id(screen)!r})")
             for _attempt in range(15):
@@ -552,7 +377,7 @@ def release_pend_run_batch(
 
                 # Select draft line
                 _stage = f"draft_{i}_select"
-                if lst_rls != "Y":
+                if row_settings.get("lst_rls", "Y") != "Y":
                     if i == 8:
                         j = 1
                         send_pf(screen, 11)
@@ -583,9 +408,10 @@ def release_pend_run_batch(
                     row["CODED_OPI"] = coded_opi
                     print(f"[{claim_no}] Draft {i}: On CPS850 — coded_OPI={coded_opi!r}")
 
-                    if aply_opi in ("Y", "D"):
-                        print(f"[{claim_no}] Draft {i}: Applying OPI mode={aply_opi!r}, NEW_OPI={row.get('NEW_OPI','')!r}")
-                        if aply_opi == "Y":
+                    _opi_mode = row_settings.get("aply_opi", "N")
+                    if _opi_mode in ("Y", "D"):
+                        print(f"[{claim_no}] Draft {i}: Applying OPI mode={_opi_mode!r}, NEW_OPI={row.get('NEW_OPI','')!r}")
+                        if _opi_mode == "Y":
                             place_value(screen, row.get("NEW_OPI", ""), 22, 58)
                         else:
                             remove_value(screen, 22, 58)
@@ -602,16 +428,17 @@ def release_pend_run_batch(
                         row["CODED_OPI"] = (screen.GetString(15, 59, 4) or "").strip()
                         print(f"[{claim_no}] Draft {i}: OPI applied, refreshed OPI={row['CODED_OPI']!r}")
 
-                    if aply_850_nt in ("APPEND ON CURRENT NOTE", "2ND LINE ONLY"):
-                        print(f"[{claim_no}] Draft {i}: Placing CSR note ({aply_850_nt!r})")
-                        place_new_csr_note(screen, row, aply_850_nt)
+                    _850_nt = row_settings.get("aply_850_nt", "DO NOT APPLY NOTE")
+                    if _850_nt in ("APPEND ON CURRENT NOTE", "2ND LINE ONLY"):
+                        print(f"[{claim_no}] Draft {i}: Placing CSR note ({_850_nt!r})")
+                        place_new_csr_note(screen, row, _850_nt)
 
-                    if chnge_dx_cd == "Y":
+                    if row_settings.get("chnge_dx_cd", "N") == "Y":
                         print(f"[{claim_no}] Draft {i}: Changing DX code → {row.get('DX_CD','')!r}")
                         place_value(screen, row.get("DX_CD", ""), 23, 6)
                         place_value(screen, "Y", 23, 14)
 
-                    if aply_int_zip == "Y":
+                    if row_settings.get("aply_int_zip", "N") == "Y":
                         print(f"[{claim_no}] Draft {i}: Applying INT/ZIP (ZIP={row.get('ZIP','')!r}, INT_NO={row.get('INT_NO','')!r})")
                         place_value(screen, "X", 29, 26)
                         send_enter(screen)
@@ -645,7 +472,7 @@ def release_pend_run_batch(
 
                 # ── Condition note ────────────────────────────────────────
                 _stage = f"draft_{i}_cond_note"
-                if aply_cond_nt == "Y":
+                if row_settings.get("aply_cond_nt", "N") == "Y":
                     print(f"[{claim_no}] Draft {i}: Adding condition note (COND_NOTE={row.get('COND_NOTE','')!r})...")
                     if not add_condition_note(screen, row):
                         final_status = row.get("MACRO_STATUS", "ERROR ADDING CONDITION NOTE")
@@ -656,7 +483,7 @@ def release_pend_run_batch(
 
                 # ── Condition AFV ─────────────────────────────────────────
                 _stage = f"draft_{i}_cond_afv"
-                if aply_cond_afv == "Y":
+                if row_settings.get("aply_cond_afv", "N") == "Y":
                     print(f"[{claim_no}] Draft {i}: Updating condition AFV (AFV={row.get('AFV','')!r})...")
                     if not update_condition_afv(screen, row):
                         final_status = row.get("MACRO_STATUS", "ERROR UPDATING CONDITION AFV")
@@ -674,7 +501,7 @@ def release_pend_run_batch(
                 # ── UB branch ─────────────────────────────────────────────
                 _stage = f"draft_{i}_data_entry_{claim_type or 'UNKNOWN'}"
                 if claim_type == "UB":
-                    if updt_frm_to_dt == "Y":
+                    if row_settings.get("updt_frm_to_dt", "N") == "Y":
                         _from = (screen.GetString(2, 63, 6) or "").strip()
                         _thru = (screen.GetString(2, 75, 6) or "").strip()
                         _svc  = (screen.GetString(6, 17, 6) or "").strip()
@@ -689,7 +516,7 @@ def release_pend_run_batch(
                     print(f"[{claim_no}] Draft {i}: apply_ineligibility_codes(UB)...")
                     apply_ineligibility_codes(screen, "UB", row, row_settings, codes.get("dny_by_cpt", {}))
 
-                    if chk_per_diem == "Y":
+                    if row_settings.get("chk_per_diem", "N") == "Y":
                         print(f"[{claim_no}] Draft {i}: Running ub_per_diem_process...")
                         ub_per_diem_process(screen, row, row_settings)
                         cert_no_skip = row.get("CERT_NO", "")
