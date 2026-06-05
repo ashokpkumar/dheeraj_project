@@ -22,96 +22,12 @@ from .utils import (
 
 
 # ---------------------------------------------------------------------------
-# Default values for all rule settings
-# ---------------------------------------------------------------------------
-_SETTING_DEFAULTS = {
-    "rls_code":                 "10",
-    "lst_rls":                  "Y",
-    "pnd_rsn":                  "",
-    "pnd_op_id":                "",
-    "flw_up":                   "",
-    "dist_unit":                "",
-    "eob":                      "",
-    "ck":                       "",
-    "note":                     "",
-    "payee":                    "0",
-    "eob_note":                 "",
-    "verify":                   "N",
-    "apply_uc":                 "Y",
-    "rem_oi_elig_amt":          "N",
-    "apply_001":                "N/A",
-    "deny_clm":                 "N",
-    "add_time":                 "N",
-    "vld_amt_pd":               "N",
-    "vld_amt_pd_by_cpt":        "N",
-    "remove_prv":               "N",
-    "remove_inel_amt_cd":       "N/A",
-    "denial_code":              "",
-    "aply_inel_cd_spcfc_rmval": "N",
-    "inel_cd_to_rmv":           "",
-    "apply_dx":                 "N",
-    "apply_lab":                "N",
-    "dx_lab_rev":               "N",
-    "apply_bn_t_hold":          "N",
-    "apply_bn_qty":             "N",
-    "chnge_dx_cd":              "N",
-    "new_oi_elig_pd":           "N/A",
-    "new_oi_indctr":            "N/A",
-    "inel_switch":              "N",
-    "aply_dx_excptn":           "N",
-    "aply_cond_nt":             "N",
-    "aply_grid_prc":            "N",
-    "updt_frm_to_dt":           "N",
-    "aply_tod_updt":            "N",
-    "remove_ap":                "N",
-    "aply_int_zip":             "N",
-    "aply_cond_afv":            "N",
-    "aply_850_nt":              "DO NOT APPLY NOTE",
-    "rem_code_set":             "N",
-    "aply_modifr":              "N",
-    "inel_code":                "",
-    "remv_prov_rate":           "N",
-    "remv_modifr":              "N",
-    "aply_two_ap_cd":           "N",
-    "remv_prcrt_byps":          "N",
-    "amt_858_inq":              "N",
-    "bond_clinic":              "N",
-    "updt_oc_for_700":          "N",
-    "updt_hic":                 "N",
-    "remv_adj_cd":              "N",
-    "aply_631_inel":            "N",
-    "aply_st_typ":              "N/A",
-    "aply_dpsv":                "Y",
-    "chk_inel":                 "N",
-    "chk_per_diem":             "N",
-    "dis_aft_dnl":              "N",
-    "seq_ordr":                 "N",
-    "rem_iu":                   "N",
-    "rem_tu":                   "N",
-    "aply_opi":                 "N",
-    "del_bn":                   "N",
-    "aply_dnl_aft_medcr":       "N",
-    "flip_mod":                 "N",
-    "apply_disc_aft_flip":      "N",
-    "rem_disc_amt_flag":        "N",
-    "faie_adj_inel":            "N",
-    "aply_034_inel":            "N",
-    "dny_s9451":                "Y",
-    "id_hcr":                   "Y",
-    "2nd_inel_001":             "N",
-    "new_ap_cd":                "",
-    "new_prv_cd":               "",
-}
-
-
-# ---------------------------------------------------------------------------
 # Helper: load rule_code_ref CSV
 # ---------------------------------------------------------------------------
 def _load_rule_code_ref(path: str) -> dict:
     """
     Reads the rule code ref CSV keyed by the 'rule' column (case-insensitive).
-    Each value is a settings dict merged over _SETTING_DEFAULTS so unset cells
-    fall back to the default for that parameter.
+    Each value is a plain dict of the CSV columns for that row.
     """
     rules = {}
     if not path or not os.path.exists(path):
@@ -121,14 +37,11 @@ def _load_rule_code_ref(path: str) -> dict:
             rule_name = (_row.get("rule") or "").strip().upper()
             if not rule_name:
                 continue
-            rule_settings = dict(_SETTING_DEFAULTS)
-            for _k, _v in _row.items():
-                if _k == "rule":
-                    continue
-                _val = str(_v).strip() if _v is not None else ""
-                if _val:
-                    rule_settings[_k] = _val
-            rules[rule_name] = rule_settings
+            rules[rule_name] = {
+                _k: (str(_v).strip() if _v is not None else "")
+                for _k, _v in _row.items()
+                if _k != "rule"
+            }
     return rules
 
 
