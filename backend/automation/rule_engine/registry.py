@@ -154,6 +154,16 @@ def _create_param_group(function_name, params, group_type):
             }
         )
 
+    # remove params that are no longer in the definition
+    current_names = {p["name"] for p in normalized_params}
+    ParamModel.objects.filter(
+        parameter_group_id=group_id,
+    ).exclude(
+        param_name__in=current_names,
+    ).exclude(
+        param_name="__group__",
+    ).delete()
+
     return group_id
 
 
