@@ -28,6 +28,6 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
-*.py
+
 backend/automation/rule_engine/__pycache__/executor.cpython-313.pyc
 /backend/automation/rule_engine/__pycache__
