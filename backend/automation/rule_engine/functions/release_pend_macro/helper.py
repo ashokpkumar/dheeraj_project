@@ -111,4 +111,4 @@ def release_pend_send_status_to_db(context=None):
 
     if results:
         upsert_result = bulk_upsert_claims(results, rule_name, manual, processed.id)
-        print(upsert_result)
+        print(upsert_result)    
