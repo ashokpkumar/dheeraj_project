@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from django.db import models, transaction
@@ -5,11 +6,13 @@ from django.db import models, transaction
 from rule_engine.models import RuleLogic, ParamModel
 
 
+logger = logging.getLogger(__name__)
+
 FUNCTION_REGISTRY = {}
 
 _REGISTRATION_LOCK = threading.Lock()
 
-#TODO this registration function should not be called while loading the app.
+
 class FunctionMeta:
 
     def __init__(self, func, name, inputs=None, outputs=None, tag=None, color=None):
@@ -33,7 +36,10 @@ def register_function(name=None, inputs=None, outputs=None, tag=None, color=None
 
         with _REGISTRATION_LOCK:
 
-            # Register in memory
+            # Register in memory only. DB sync happens later, once the app
+            # registry and database connection are ready (see
+            # rule_engine.registry.sync_registry_to_db), so this stays safe
+            # to run during app loading.
             FUNCTION_REGISTRY[function_name] = FunctionMeta(
                 func=func,
                 name=function_name,
@@ -43,18 +49,34 @@ def register_function(name=None, inputs=None, outputs=None, tag=None, color=None
                 color=color,
             )
 
-            # Register in database #TODO comment and uncomment this for testing without db
-            _register_function_in_db(
-                function_name,
-                input_params,
-                output_params,
-                tag=tag,
-                color=color,
-            )
-
         return func
 
     return decorator
+
+
+def sync_registry_to_db():
+    """Persist all in-memory registered functions to the database.
+
+    Must only be called once the database is reachable (e.g. from
+    RuleEngineConfig.ready(), after app loading has finished). Errors are
+    logged per-function so a single bad function doesn't block the rest or
+    fail silently.
+    """
+
+    for meta in FUNCTION_REGISTRY.values():
+
+        try:
+            _register_function_in_db(
+                meta.name,
+                meta.inputs,
+                meta.outputs,
+                tag=meta.tag,
+                color=meta.color,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to sync function '%s' to the database", meta.name
+            )
 
 
 def _register_function_in_db(function_name, inputs, outputs, tag=None, color=None):

@@ -598,7 +598,7 @@ def delete_job(request, job_id):
     return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)
 
 
-from .registry import FUNCTION_REGISTRY, _register_function_in_db
+from .registry import FUNCTION_REGISTRY, sync_registry_to_db
 
 @api_view(["POST"])
 def refresh_functions(request):
@@ -608,7 +608,6 @@ def refresh_functions(request):
         ParamModel.objects.all().delete()
         RuleLogic.objects.all().delete()
 
-        for function_name, meta in FUNCTION_REGISTRY.items():
-            _register_function_in_db(function_name, meta.inputs, meta.outputs)
+    sync_registry_to_db()
 
     return Response({"message": f"Refreshed {len(FUNCTION_REGISTRY)} function(s)."}, status=status.HTTP_200_OK)
