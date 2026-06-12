@@ -23,6 +23,7 @@ def hcfa_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts
     grid_price   = codes.get("grid_price", {})
     dx_codes     = codes.get("dx_codes", {})
     lab_codes    = codes.get("lab_codes", {})
+    rule_lab_codes = codes.get("lab_cpt_codes_by_rule", {}).get(row.get("RULE_KEY", ""), {})
     mod_codes    = codes.get("mod_codes", {})
     dn_excptn    = codes.get("dnl_inel_exceptions", {})
     disc_after   = codes.get("apply_disc_after_dnl", {})
@@ -274,7 +275,7 @@ def hcfa_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts
                 place_value(screen_obj, new_ap_cd, p + l, 68)
             if settings.get("apply_lab", "N") == "Y":
                 cpt_val = (screen_obj.GetString(p, 41, 5) or "").strip()
-                if new_ap_cd and cpt_val in lab_codes:
+                if new_ap_cd and cpt_val in rule_lab_codes:
                     place_value(screen_obj, new_ap_cd, p + l, 68)
             dx_val = (screen_obj.GetString(p + 1, 70, 7) or "").strip()
             if dx_val and settings.get("apply_dx", "N") == "Y":

@@ -6,7 +6,14 @@ Ports Release_or_Pend_Claim and Get_Claim_Details from Modules_oShared.txt.
 import csv
 import os
 import traceback
-import win32com.client
+
+# Windows-only: requires pywin32. Guarded so importing this module (and thus
+# registering its functions) doesn't fail/hang on environments where pywin32
+# isn't installed or its COM cache can't be built.
+try:
+    import win32com.client  # pywin32
+except Exception:
+    win32com = None
 
 from rule_engine.registry import register_function
 
@@ -180,6 +187,7 @@ def release_pend_run_batch(
                 results.append({"CLAIM CONTROL #": claim_no, "MACRO STATUS": f"SKIPPED: RULE {rule_key!r} not found in rule CSV"})
                 continue
             row_settings = rule_ref[rule_key].copy()
+            row["RULE_KEY"] = rule_key
             print(f"[{claim_no}] Loaded settings from rule {rule_key!r}")
 
             # ── Seed AP/PRV codes from rule CSV into the claim row ────────

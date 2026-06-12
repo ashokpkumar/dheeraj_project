@@ -87,6 +87,7 @@ def ub_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts: 
     """Mirrors UB_Data_Entry VBA function."""
     grid_price   = codes.get("grid_price", {})
     lab_codes    = codes.get("lab_codes", {})
+    rule_lab_codes = codes.get("lab_cpt_codes_by_rule", {}).get(row.get("RULE_KEY", ""), {})
     ub_rev_codes = codes.get("ub_rev_codes", {})
     dx_codes     = codes.get("dx_codes", {})
     mod_codes    = codes.get("mod_codes", {})
@@ -318,7 +319,7 @@ def ub_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts: 
                 screen.PutString(new_ap_cd, 10, 46 + l); wait_ready(screen)
         if settings.get("apply_dx", "N") == "N" and settings.get("apply_lab", "N") == "Y":
             cpt_val = (screen.GetString(p, 8, 5) or "").strip()
-            if new_ap_cd and cpt_val in lab_codes:
+            if new_ap_cd and cpt_val in rule_lab_codes:
                 screen.PutString(new_ap_cd, 10, 46 + l); wait_ready(screen)
 
         ap1 = str(row.get("AP_CD_1ST", "") or "").strip()

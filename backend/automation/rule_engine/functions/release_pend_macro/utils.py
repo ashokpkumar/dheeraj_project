@@ -97,7 +97,32 @@ def load_code_refs(xlsx_path: str) -> dict:
         "rem_disc_amt":       col_dict(19),  # col T – remove discount amt inel codes
         "possible_hcr":       col_dict(21),  # col V – possible HCR CPT codes
         "cpt_codes_full_pd":  col_dict(23),  # col X – CPT codes for full-paid validation
+        "lab_cpt_codes_by_rule": _load_lab_cpt_codes_by_rule(xlsx_path),
     }
+
+
+def _load_lab_cpt_codes_by_rule(xlsx_path: str) -> dict:
+    """
+    Reads the 'lab_cpt_codes' sheet ('rule', 'codes' columns) and returns
+    {RULE_UPPER: {code: code, ...}}. The 'codes' cell holds one CPT code per
+    line.
+    """
+    try:
+        lab_df = pd.read_excel(xlsx_path, sheet_name="lab_cpt_codes", header=0)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+    result = {}
+    for _, row in lab_df.iterrows():
+        rule = str(row.get("rule", "")).strip().upper()
+        if not rule or rule == "NAN":
+            continue
+        codes_cell = row.get("codes", "")
+        codes_str = "" if pd.isna(codes_cell) else str(codes_cell)
+        code_set = {c.strip() for c in codes_str.splitlines() if c.strip()}
+        result[rule] = {c: c for c in code_set}
+
+    return result
 
 
 # ---------------------------------------------------------------------------
