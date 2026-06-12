@@ -94,7 +94,28 @@ def dashboard(request):
             }
             for obj in page
         ]
-        return paginator.get_paginated_response(data)
+        response = paginator.get_paginated_response(data)
+
+        # ---------------- CLAIMS STATUS SUMMARY ----------------
+        claims_qs = ClaimsData.objects.all()
+        if start_date_str:
+            start_date = parse_date(start_date_str)
+            if start_date:
+                claims_qs = claims_qs.filter(processed_date__date__gte=start_date)
+        if end_date_str:
+            end_date = parse_date(end_date_str)
+            if end_date:
+                claims_qs = claims_qs.filter(processed_date__date__lte=end_date)
+
+        total_count = claims_qs.count()
+        processed_count = claims_qs.filter(status__icontains="done").count()
+
+        response.data["claims_summary"] = {
+            "processed": processed_count,
+            "unprocessed": total_count - processed_count,
+            "total": total_count,
+        }
+        return response
 
     # ---------------- AGGREGATE MODE ----------------
     group_by = params.get("group_by")

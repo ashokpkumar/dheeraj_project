@@ -47,6 +47,7 @@ export default function App() {
   const [dashboardMeta, setDashboardMeta] = useState({})
   const [dateDetails, setDateDetails] = useState([])
   const [dateMeta, setDateMeta] = useState({})
+  const [claimsSummary, setClaimsSummary] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
   const [exportingRowId, setExportingRowId] = useState(null)
   const [dashboardExpanded, setDashboardExpanded] = useState(true)
@@ -189,6 +190,7 @@ const handleCancelEdit = () => {
         current_page: data?.current_page || 1,
         total_pages: data?.total_pages || 1,
       })
+      setClaimsSummary(data?.claims_summary || null)
       setSelectedDate(date)
     } catch (error) {
       console.error('Error loading date details:', error)
@@ -568,6 +570,7 @@ console.log(ruleName)
               dashboardMeta={dashboardMeta}
               dateDetails={dateDetails}
               dateMeta={dateMeta}
+              claimsSummary={claimsSummary}
               selectedDate={selectedDate}
               fetchDashboardData={fetchDashboardData}
               fetchDateDetails={fetchDateDetails}
