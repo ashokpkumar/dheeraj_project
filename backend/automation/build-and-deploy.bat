@@ -53,6 +53,13 @@ echo IS_ORCHESTRATOR: %IS_ORCHESTRATOR%
 echo Command: %COMMAND%
 echo.
 
+REM Step 0: Debug build context (catches "unknown file mode" issues early)
+if exist debug-build-context.ps1 (
+  echo Step 0: Checking build context for problem files...
+  powershell -ExecutionPolicy Bypass -File .\debug-build-context.ps1
+  echo.
+)
+
 REM Step 1: Build Docker image
 echo Step 1: Building Docker image...
 docker build ^

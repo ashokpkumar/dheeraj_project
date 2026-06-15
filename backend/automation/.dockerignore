@@ -1,3 +1,6 @@
+myimage/
+*.tar
+
 *.pyc
 __pycache__
 .git
