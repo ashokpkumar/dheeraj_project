@@ -12,7 +12,7 @@ if "!COMMAND!"=="" set COMMAND=build
 set UI_PATH=..\..\UI\my-react-flow-app
 set IMAGE_NAME=automation:ui
 set CONTAINER_NAME=automation_ui
-set PORT=3000
+set PORT=3001
 
 echo.
 echo ========================================

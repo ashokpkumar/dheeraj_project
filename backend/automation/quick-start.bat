@@ -83,16 +83,11 @@ echo Waiting for service to start...
 timeout /t 3 /nobreak
 
 echo.
-echo Testing Windows Automation Service health...
-:health_check_retry
-powershell -Command "try { $response = Invoke-WebRequest -Uri 'http://localhost:5555/health' -ErrorAction Stop; Write-Host 'Service is healthy!' } catch { exit 1 }"
-if %ERRORLEVEL% neq 0 (
-    echo Service not ready yet, retrying...
-    timeout /t 2 /nobreak
-    goto health_check_retry
-)
-
-echo ✓ Windows Automation Service is running at http://localhost:5555
+echo Open a browser and verify the service is running at: http://localhost:5555/health
+echo It should return: {"status": "healthy", "service": "windows_automation"}
+echo.
+pause /PROMPT "Press any key once the service is confirmed running at http://localhost:5555..."
+echo ✓ Windows Automation Service confirmed running at http://localhost:5555
 echo.
 
 echo.
@@ -146,7 +141,7 @@ echo   All Services Started
 echo ========================================
 echo.
 echo Access services at:
-echo   Frontend:   http://localhost:3000
+echo   Frontend:   http://localhost:3001
 echo   API:        http://localhost:8000
 echo   Admin:      http://localhost:8000/admin
 echo   Flower:     http://localhost:5555

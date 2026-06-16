@@ -39,7 +39,7 @@ Write-Host "   All Services Started" -ForegroundColor Green
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Host "Access services at:" -ForegroundColor Cyan
-Write-Host "  Frontend:   http://localhost:3000"
+Write-Host "  Frontend:   http://localhost:3001"
 Write-Host "  API:        http://localhost:8000"
 Write-Host "  Admin:      http://localhost:8000/admin"
 Write-Host "  Flower:     http://localhost:5555"

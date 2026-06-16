@@ -9,7 +9,7 @@ param(
 $UIPath = "..\..\UI\my-react-flow-app"
 $ImageName = "automation:ui"
 $ContainerName = "automation_ui"
-$Port = 3000
+$Port = 3001
 
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "   React UI Build & Deploy" -ForegroundColor Green

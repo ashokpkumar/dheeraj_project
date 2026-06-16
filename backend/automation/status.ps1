@@ -44,7 +44,7 @@ if (docker exec automation_redis redis-cli ping 2>$null) {
 # Service URLs
 Write-Host "`nService URLs:" -ForegroundColor Cyan
 Write-Host "----------------------------------------"
-Write-Host "Frontend:   http://localhost:3000"
+Write-Host "Frontend:   http://localhost:3001"
 Write-Host "API:        http://localhost:8000"
 Write-Host "Admin:      http://localhost:8000/admin"
 Write-Host "Flower:     http://localhost:5555"

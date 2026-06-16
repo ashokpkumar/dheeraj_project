@@ -99,10 +99,15 @@ if "%COMMAND%"=="serve" (
     -v %cd%:/app ^
     %IMAGE_NAME% ^
     serve
-  
+  set DOCKER_RUN_EXIT=!ERRORLEVEL!
+  if !DOCKER_RUN_EXIT! neq 0 (
+    echo Error: Docker run failed with exit code !DOCKER_RUN_EXIT!
+    echo Hint: check --env-file .env exists, automation_network exists, port 8000 is free
+    exit /b 1
+  )
   echo Container started in API server mode
   echo API Available at: http://localhost:8000
-  
+
 ) else if "%COMMAND%"=="worker" (
   docker run -d ^
     --name %CONTAINER_NAME% ^
@@ -114,15 +119,20 @@ if "%COMMAND%"=="serve" (
     -v %cd%:/app ^
     %IMAGE_NAME% ^
     worker
-  
+  set DOCKER_RUN_EXIT=!ERRORLEVEL!
+  if !DOCKER_RUN_EXIT! neq 0 (
+    echo Error: Docker run failed with exit code !DOCKER_RUN_EXIT!
+    echo Hint: check --env-file .env exists and automation_network exists
+    exit /b 1
+  )
   echo Container started in Celery worker mode
-  
+
 ) else if "%COMMAND%"=="beat" (
   if not "%IS_ORCHESTRATOR%"=="True" (
     echo Error: Celery Beat can only run in orchestrator mode
     exit /b 1
   )
-  
+
   docker run -d ^
     --name %CONTAINER_NAME% ^
     --env-file .env ^
@@ -133,9 +143,14 @@ if "%COMMAND%"=="serve" (
     -v %cd%:/app ^
     %IMAGE_NAME% ^
     beat
-  
+  set DOCKER_RUN_EXIT=!ERRORLEVEL!
+  if !DOCKER_RUN_EXIT! neq 0 (
+    echo Error: Docker run failed with exit code !DOCKER_RUN_EXIT!
+    echo Hint: check --env-file .env exists and automation_network exists
+    exit /b 1
+  )
   echo Container started in Celery Beat scheduler mode
-  
+
 ) else if "%COMMAND%"=="flower" (
   docker run -d ^
     --name %CONTAINER_NAME% ^
@@ -148,10 +163,15 @@ if "%COMMAND%"=="serve" (
     -v %cd%:/app ^
     %IMAGE_NAME% ^
     flower
-  
+  set DOCKER_RUN_EXIT=!ERRORLEVEL!
+  if !DOCKER_RUN_EXIT! neq 0 (
+    echo Error: Docker run failed with exit code !DOCKER_RUN_EXIT!
+    echo Hint: check --env-file .env exists, automation_network exists, port 5555 is free
+    exit /b 1
+  )
   echo Container started in Flower monitoring mode
   echo Flower UI Available at: http://localhost:5555
-  
+
 ) else (
   docker run -d ^
     --name %CONTAINER_NAME% ^
@@ -163,13 +183,12 @@ if "%COMMAND%"=="serve" (
     -v %cd%:/app ^
     %IMAGE_NAME% ^
     %COMMAND%
-  
+  set DOCKER_RUN_EXIT=!ERRORLEVEL!
+  if !DOCKER_RUN_EXIT! neq 0 (
+    echo Error: Docker run failed with exit code !DOCKER_RUN_EXIT!
+    exit /b 1
+  )
   echo Container started with command: %COMMAND%
-)
-
-if errorlevel 1 (
-  echo Error: Docker run failed
-  exit /b 1
 )
 
 echo.

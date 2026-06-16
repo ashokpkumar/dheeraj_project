@@ -52,13 +52,13 @@ echo API (8000):    docker exec automation_main python manage.py show_config
 echo Redis (6379):  docker exec automation_redis redis-cli info
 echo Worker:        docker logs automation_worker_w1 --tail 1
 echo Beat:          docker logs automation_beat --tail 1
-echo UI (3000):     docker exec automation_ui ls /usr/share/nginx/html
+echo UI (3001):     docker exec automation_ui ls /usr/share/nginx/html
 echo Flower (5555): docker logs automation_flower --tail 1
 
 echo.
 echo URLs:
 echo ----------------------------------------
-echo Frontend:   http://localhost:3000
+echo Frontend:   http://localhost:3001
 echo API:        http://localhost:8000
 echo Admin:      http://localhost:8000/admin
 echo Flower:     http://localhost:5555
