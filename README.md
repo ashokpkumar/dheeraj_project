@@ -222,14 +222,70 @@ def validate_required_fields(claims: list, required_fields: list) -> list:
 
 **Directory:** [backend/automation/rule_engine/functions/](backend/automation/rule_engine/functions/)
 
-| File | Functions | Purpose |
-|------|-----------|---------|
-| `validation.py` | `validate_required_fields`, `validate_claim_amount_range`, `deduplicate_claims`, `filter_claims_by_status`, `calculate_claim_tax`, `auto_approve_claims`, `merge_claim_lists` | Pure data validation and transformation |
-| `claims.py` | `scrap_claims_from_emulator`, `convert_claims_data_to_csv` | Extract claims from EXTRA emulator; export to CSV |
-| `db_function.py` | `fetch_claim_ids_from_db`, `add_scrapped_values_to_db` | Query `DailyInventory` (external MSSQL); write results to `ClaimsData` + `RuleEngineProcessed` |
-| `helpers.py` | `send_enter`, `send_pf`, `place_value`, `read_cps850_fields`, `read_blx2460_fields` | Low-level Win32 COM automation of EXTRA emulator screens |
+All functions marked with `@register_function` are automatically discoverable by the UI and executable as nodes in a workflow.
 
-**helpers.py** is **Windows-only** and requires `pywin32`. It uses `win32com.client` to control EXTRA terminal emulator sessions.
+---
+
+#### validation.py — [View file](backend/automation/rule_engine/functions/validation.py)
+
+Pure data transformation functions; no DB or network calls. Safe to use anywhere in a workflow.
+
+| Function | Description |
+|----------|-------------|
+| `validate_required_fields(claims, required_fields)` | Checks every claim dict for the presence and non-null value of each field in `required_fields`. Returns two lists: `valid_claims` (all fields present) and `invalid_claims` (with a `_validation_error` key showing which fields are missing). |
+| `validate_claim_amount_range(claims, min_amount, max_amount)` | Filters claims by checking whether their `amount` field falls within `[min_amount, max_amount]`. Claims outside that range are moved to `invalid_claims` with `_validation_error: "Amount out of range"`. |
+| `deduplicate_claims(claims, unique_field)` | Scans the claim list and keeps the first occurrence of each value in `unique_field`; subsequent duplicates go to `duplicate_claims`. Uses a `set` for O(n) deduplication. |
+| `filter_claims_by_status(claims, allowed_status)` | Keeps only claims whose `status` field is in `allowed_status` (a list). All non-matching claims are silently dropped; result returned as `filtered_claims`. |
+| `calculate_claim_tax(claims, tax_rate)` | Multiplies each claim's `amount` by `tax_rate` and stores the result as a `tax` key on the claim dict. Returns the enriched list as `claims_with_tax`. |
+| `auto_approve_claims(claims, approval_threshold)` | Claims at or below `approval_threshold` get `status = "approved"` and go to `approved_claims`; all others get `status = "manual_review"` and go to `manual_review_claims`. |
+| `merge_claim_lists(claims_a, claims_b)` | Concatenates two claim lists with Python `+` and returns the combined result as `merged_claims`. Useful for rejoining branches in a workflow after a split. |
+| `test_dummy_jb()` | Empty placeholder function with no inputs or outputs. Used to verify the `@register_function` decorator and DB registration are working without side effects. |
+
+---
+
+#### claims.py — [View file](backend/automation/rule_engine/functions/claims.py)
+
+Functions that interact with the Windows Automation Service for emulator-based data extraction.
+
+| Function | Description |
+|----------|-------------|
+| `scrap_claims_from_emulator()` | Reads `claim_ids` from the workflow context, forwards them to the Windows Automation Service (Flask API), and receives structured claim field data scraped from EXTRA terminal screens. Raises a clear exception if the Windows service is unreachable, rather than silently returning empty. |
+| `convert_claims_data_to_csv(output_path)` | Reads `scrapped_claims` from the workflow context and writes them to a CSV file at `output_path` using pandas. Returns `{"status": True}` on success or `{"status": False}` on failure, with error details logged. |
+
+---
+
+#### db_function.py — [View file](backend/automation/rule_engine/functions/db_function.py)
+
+Functions that read from the external MSSQL claims inventory and write results back to the automation database.
+
+| Function | Description |
+|----------|-------------|
+| `fetch_claim_ids_from_db(rules)` | Queries `TBL_DAILY_INVENTORY_NEW` (external MSSQL) for `MCRFM_ROLL_CD` values whose `MACRO_RULE` matches any entry in the `rules` list. Returns up to 100 distinct claim IDs as `claim_ids`, which downstream nodes (e.g. `scrap_claims_from_emulator`) consume from context. |
+| `add_scrapped_values_to_db(rule_name)` | Reads `scrapped_claims` from context, creates a `RuleEngineProcessed` record summarising the run (rule name, timestamp, claim count), then bulk-inserts each claim into `ClaimsData` via `bulk_upsert_claims`. This is typically the final node in a processing workflow. |
+
+---
+
+#### helpers.py — [View file](backend/automation/rule_engine/functions/helpers.py)
+
+Low-level Win32 COM helpers for EXTRA emulator automation. **Windows-only** — requires `pywin32`. Not registered as workflow functions; called internally by the Windows Automation Service.
+
+| Function | Description |
+|----------|-------------|
+| `bulk_upsert_claims(data_list, rule_name, manual, rule_engine_id)` | Bulk-inserts a list of scraped claim dicts into `ClaimsData` inside a single DB transaction, batched at 1000 rows. Maps `CLAIM CONTROL #` → `claims_id` and `MACRO STATUS` → `status`. |
+| `wait_for_screen(screen, timeout=15)` | Polls `screen.OIA.Xstatus` every 100 ms until the emulator host signals ready (`Xstatus == 0`) or the timeout is exceeded. Called after every key send to prevent race conditions. |
+| `get_screen_id(screen)` | Reads characters at row 1, col 2 (10 chars) to identify which EXTRA screen is currently displayed (e.g. `"CPS850.01"`). Used by `process_claim` to drive the navigation state machine. |
+| `send_enter(screen)` | Sends the `<ENTER>` key to the emulator and waits for the host to settle. Wrapper used throughout to ensure reliable navigation. |
+| `send_pf(screen, n)` | Sends program-function key `<PFn>` (e.g. PF9 to enter claim lookup mode) and waits for the screen to be ready. |
+| `send_erase_eof(screen)` | Clears the field from the cursor to end-of-field with `<EraseEOF>`, then waits for the host. Called before typing new values to avoid appending to existing content. |
+| `place_value(screen, val, r, c)` | Moves cursor to `(row, col)`, clears to end-of-field, and types `val`. No-ops silently if `val` is `None` or empty, keeping callers clean. |
+| `clean_name(nm)` | Normalises whitespace in a name string by splitting on spaces and rejoining with a single space. Used to tidy member names scraped from the terminal. |
+| `rtn_patient_seq_no(screen, seq_no)` | Searches the patient listing screen for a matching sequence number, paging forward with PF11 until found or the screen wraps back to the start. Returns the row number if found, or `0` if not. |
+| `read_cps850_fields(screen)` | Reads ~45 labelled fields from the CPS850.01 enrollment/member screen (employee name, SSN, cert, plan, effective dates, provider address, etc.) and returns them as a flat dict. |
+| `read_blx2460_fields(screen)` | Extracts 3 fields (`UB/HCFA AFV FIELD`, `UB/HCFA CONDITION NOTE`, `UB TOB`) from the BLX2460.01 UB claim screen. |
+| `read_cps450_fields(screen)` | Reads 5 fields including HCFA approval code and CFV field from the CPS450.01 claim adjudication screen. |
+| `read_cps310_fields(screen)` | Reads provider name, address, city, state, and ZIP from the CPS310.01 provider record screen. |
+| `process_claim(screen, claim_id, method, cert_date_mmddyy, seq_no, dental_flag)` | Drives a full multi-screen navigation workflow for a single claim ID through CPS520, CPS850, BLX2460, CPS450, CPS310, and others. Returns a dict of all captured fields plus a `MACRO STATUS` (e.g. `"DONE.Released"`). This is the core screen-scraping orchestrator. |
+| `attach_emulator_sessions(n=4)` | Connects to up to `n` already-open EXTRA emulator sessions using Win32 COM (`EXTRA.System`) and returns them as a list. Initialises COM for the calling thread via `pythoncom.CoInitialize()`. |
 
 ---
 
