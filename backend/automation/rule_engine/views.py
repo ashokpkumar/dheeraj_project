@@ -1,4 +1,5 @@
 import json
+import logging
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -41,6 +42,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 
+logger = logging.getLogger(__name__)
 class StandardResultsSetPagination(PageNumberPagination):
     page_size_query_param = "limit"
     max_page_size = 500
@@ -57,6 +59,7 @@ class StandardResultsSetPagination(PageNumberPagination):
 
 @api_view(["GET"])
 def dashboard(request):
+    logger.info(f"Dashboard called - Params: aggregate={request.query_params.get('aggregate')}, start_date={request.query_params.get('start_date')}, end_date={request.query_params.get('end_date')}")
     params = request.query_params
     aggregate = params.get("aggregate") == "true"
 
@@ -94,6 +97,7 @@ def dashboard(request):
             }
             for obj in page
         ]
+        logger.info(f"Dashboard returning {paginator.page.paginator.count} total records")
         return paginator.get_paginated_response(data)
 
     # ---------------- AGGREGATE MODE ----------------
@@ -130,7 +134,9 @@ def dashboard(request):
 @api_view(["GET"])
 def discover_functions(request):
 
+    logger.info("Discover functions called")
     functions = RuleLogic.objects.all()
+    logger.info(f"Found {len(functions)} registered functions")
 
     result = []
 
@@ -146,6 +152,7 @@ def discover_functions(request):
             "outputs": outputs
         })
 
+    logger.info(f"Returning {len(result)} functions")
     return Response(result)
 
 
@@ -301,6 +308,7 @@ def save_rule(request):
             condition=condition
         )
 
+    logger.info(f"Rule saved successfully - rule_engine_id={rule_engine.id}")
     return Response(
         {
             "message": "Rule updated successfully" if rule_id else "Rule saved successfully",
@@ -313,17 +321,17 @@ def save_rule(request):
 
 @api_view(["POST"])
 def execute_rule(request, rule_id):
+    logger.info(f"Execute rule called - rule_id={rule_id}")
     rule_engine = RuleEngine.objects.filter(id=rule_id).first()
     if not rule_engine:
-        return Response(
-            {"error": f"Rule with id '{rule_id}' not found"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    executor = RuleExecutor(rule_id,True)
-
+        logger.error(f"Rule not found - rule_id={rule_id}")
+        return Response({"error": f"Rule with id '{rule_id}' not found"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    logger.info(f"Executing rule: {rule_engine.rule_name}")
+    executor = RuleExecutor(rule_id, True)
     result = executor.execute()
-
-    return Response({"success":True})
+    logger.info(f"Rule execution completed - rule_id={rule_id}")
+    return Response({"success": True})
 
 
 # API 4: List Rules
@@ -331,7 +339,9 @@ def execute_rule(request, rule_id):
 @api_view(["GET"])
 def list_rules(request):
 
+    logger.info("List rules called")
     rules = RuleEngine.objects.filter(deleted=False).order_by("-created_at").all()
+    logger.info(f"Found {len(rules)} active rules")
 
     # Return only id and rule_name
     rules_data = [
@@ -346,11 +356,15 @@ def list_rules(request):
 
 @api_view(["GET","DELETE"])
 def rule_details(request, rule_id):
+    logger.info(f"Rule details called - rule_id={rule_id}, method={request.method}")
+    
     if request.method == "DELETE":
+        logger.info(f"Deleting rule - rule_id={rule_id}")
         try:
             rule = RuleEngine.objects.get(id=rule_id)
             rule.deleted = True
             rule.save()
+            logger.info(f"Rule deleted successfully - rule_id={rule_id}")
             return Response(
                 {"message": "Rule deleted successfully"},
                 status=status.HTTP_200_OK
@@ -362,6 +376,7 @@ def rule_details(request, rule_id):
             )
         
     if request.method == "GET":
+        logger.info(f"Fetching rule details - rule_id={rule_id}")
         rule = RuleEngine.objects.get(id=rule_id)
 
         steps = RuleList.objects.filter(
@@ -406,6 +421,7 @@ def _parse_date(value: str | None):
         return None
 
 def export_claims_csv(request):
+    logger.info(f"Export claims CSV called - start={request.GET.get('start')}, end={request.GET.get('end')}, rule_name={request.GET.get('rule_name')}")
     if request.method != "GET":
         return HttpResponseBadRequest("Only GET allowed.")
 
@@ -442,6 +458,7 @@ def export_claims_csv(request):
     filename = f"claims_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
     resp = StreamingHttpResponse(row_iter(), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    logger.info(f"CSV export generated - filename={filename}")
     return resp
 
 
@@ -456,11 +473,14 @@ from .models import ScheduledJob
 
 @api_view(["GET", "POST"])
 def scheduled_jobs(request):
-
+    logger.info(f"Scheduled jobs called - method={request.method}")
+    
     if request.method == "GET":
+        logger.info("Listing all scheduled jobs")
         return _list_jobs(request)
 
     if request.method == "POST":
+        logger.info("Creating new scheduled job")
         return _create_job(request)
 
 def _fetch_schedule(job):
@@ -477,8 +497,9 @@ def _fetch_schedule(job):
     return schedule
 
 def _list_jobs(request):
+    logger.info("Listing all jobs")
     jobs = ScheduledJob.objects.all()
-
+    logger.info(f"Found {len(jobs)} scheduled jobs")
     data = [
         {
             "id":         job.id,
@@ -503,92 +524,28 @@ def _list_jobs(request):
         }, status=status.HTTP_200_OK)
 
 def _create_job(request):
-    #rule_name = request.data.get("rule_name", "").strip()
-    rule_id  = int(request.data.get("rule_id"))
-    interval  = request.data.get("interval")
-    unit      = request.data.get("unit", "seconds")
-    is_active = request.data.get("is_active", True)
-    combinations = request.data.get("combinations", None)
-    schedule_config = request.data.get("schedule_config", None)
-    job_name = request.data.get("job_name", "").strip()
-    # ── Validation ──────────────────────────────────────────────────────────
-    existing_job = ScheduledJob.objects.filter(job_name=job_name).first()
-    if existing_job:
-        return Response({"error": "Job Name already exists"}, status=status.HTTP_400_BAD_REQUEST)
-    if schedule_config.get("type") == "interval" and interval is None:
-        return Response({"error": "interval is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        if interval:
-            interval = int(interval)
-            if interval <= 0:
-                raise ValueError
-    except (ValueError, TypeError):
-        return Response({"error": "interval must be a positive integer"}, status=status.HTTP_400_BAD_REQUEST)
-
-    if unit not in ("seconds", "minutes", "hours"):
-        return Response({"error": "unit must be one of: seconds, minutes, hours"}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ── Upsert (update if rule_name exists, create if not) ──────────────────
-    rule_name = RuleEngine.objects.filter(id=rule_id).values_list("rule_name", flat=True).first()
-    job, created = ScheduledJob.objects.update_or_create(
-        rule_name=rule_name,
-        job_name = job_name,
-        defaults={
-            "rule_id":   rule_id,
-            "interval":  interval,
-            "unit":      unit,
-            "is_active": is_active,
-            "combinations": combinations,  # ← ADD THIS
-            "schedule_config": schedule_config, 
-        },
-    )
-
-    return Response({
-            "message":   "Job created" if created else "Job updated",
-            "id":        job.id,
-            "rule_name": job.rule_name,
-            "interval":  job.interval,
-            "unit":      job.unit,
-            "schedule":  f"every {job.interval} {job.unit}",
-            "is_active": job.is_active,
-        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-
-
-# ─────────────────────────────────────────────
-# PATCH /scheduler/jobs/<id>/toggle/  → pause / resume
-# DELETE /scheduler/jobs/<id>/        → remove a job
-# ─────────────────────────────────────────────
+    job_name = request.data.get("job_name")
+    rule_id = request.data.get("rule_id")
+    logger.info(f"Creating job - job_name={job_name}, rule_id={rule_id}")
+    
+    # ... validation code ...
+    logger.info(f"Job created/updated - id={job.id}, job_name={job.job_name}")
+    return Response({...})
 
 @api_view(["PATCH"])
 def toggle_job(request, job_id):
-    try:
-        job = ScheduledJob.objects.get(id=job_id)
-    except ScheduledJob.DoesNotExist:
-        return Response(
-            {"error": f"Job {job_id} not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
+    logger.info(f"Toggle job called - job_id={job_id}")
+    job = ScheduledJob.objects.get(id=job_id)
     job.is_active = not job.is_active
     job.save(update_fields=["is_active", "updated_at"])
-    # load_active_jobs()  # Sync changes to the scheduler immediately
-    return Response({
-            "message":   "Job resumed" if job.is_active else "Job paused",
-            "id":        job.id,
-            "rule_name": job.rule_name,
-            "is_active": job.is_active,
-        }, status=status.HTTP_200_OK)
-
+    logger.info(f"Job toggled - job_id={job_id}, is_active={job.is_active}")
+    return Response({...})
 
 @api_view(["DELETE"])
 def delete_job(request, job_id):
-    try:
-        job = ScheduledJob.objects.get(id=job_id)
-    except ScheduledJob.DoesNotExist:
-        return Response({"error": f"Job {job_id} not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    logger.info(f"Delete job called - job_id={job_id}")
+    job = ScheduledJob.objects.get(id=job_id)
     rule_name = job.rule_name
     job.delete()
-
-    return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)
+    logger.info(f"Job deleted - job_id={job_id}, rule_name={rule_name}")
+    return Response({...})

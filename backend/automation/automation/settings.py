@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
      "rule_engine.apps.RuleEngineConfig",
      'corsheaders',
+     'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -87,21 +89,35 @@ WSGI_APPLICATION = 'automation.wsgi.application'
 #         },
 #     }
 # }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'mssql',
+#         'NAME': 'master',
+#         # 'HOST': 'localhost\\SQLEXPRESS',
+#         "HOST": "host.docker.internal",
+#         'PORT': '',
+#         'OPTIONS': {
+#             'driver': 'ODBC Driver 18 for SQL Server',
+#             'trusted_connection': 'yes',
+#             'extra_params': 'Encrypt=no;TrustServerCertificate=yes;',
+#         },
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': 'master',
-        'HOST': 'localhost\\SQLEXPRESS',
-        'PORT': '',
+        'HOST': 'host.docker.internal',
+        'PORT': '1433',
+        'USER': 'root',
+        'PASSWORD': 'admin',
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
-            'trusted_connection': 'yes',
             'extra_params': 'Encrypt=no;TrustServerCertificate=yes;',
         },
     }
 }
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -143,8 +159,37 @@ STATIC_URL = 'static/'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+
+# ─────────────────────────────────────────────────────────────
+# Orchestrator Mode Configuration
+# ─────────────────────────────────────────────────────────────
+IS_ORCHESTRATOR = os.getenv('IS_ORCHESTRATOR', 'False').lower() in ('true', '1', 'yes')
+
+
+# ─────────────────────────────────────────────────────────────
+# Celery Configuration
+# ─────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_IMPORTS = ['rule_engine.tasks']
+
+
+# ─────────────────────────────────────────────────────────────
+# Logging Configuration
+# ─────────────────────────────────────────────────────────────
+from automation.logging_config import LOGGING

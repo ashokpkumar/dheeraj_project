@@ -21,7 +21,7 @@ export async function saveGraph(ruleName, nodes, edges, ruleId = null) {
     payload.rule_id = ruleId
   }
 
-  const response = await fetch("http://127.0.0.1:8000/rule_engine/rules/save/", {
+  const response = await fetch("/rule_engine/rules/save/", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
