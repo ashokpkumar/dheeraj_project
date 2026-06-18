@@ -289,6 +289,107 @@ Low-level Win32 COM helpers for EXTRA emulator automation. **Windows-only** — 
 
 ---
 
+#### OI_YES_NO/ — [View folder](backend/automation/rule_engine/functions/OI_YES_NO/)
+
+Automates the OI (Other Insurance) Yes/No update macro on EXTRA terminal screens. Ported from the `OI_YES_NO_Macro_VBA_Code` VBA script. Tagged `"OI Yes NO"` in the UI (shown in blue).
+
+**helper.py — registered data helper functions**
+
+| Function | Description |
+|----------|-------------|
+| `oi_yes_fetch_cert_id_seq_from_db(rules)` | Queries `TBL_DAILY_INVENTORY_NEW` for CERT numbers and individual sequence numbers whose `MACRO_RULE` matches any value in the `rules` list. Returns a pandas DataFrame with `MCRFM_ROLL_CD`, `INDIV_SEQ_NBR`, and `ENRL_CERT_NBR` columns (capped at 10 distinct rows). |
+| `oi_yes_fetch_File_from_folder(location)` | Reads an Excel workbook from the given file path using pandas and returns it as a DataFrame in `context['df']`. Use this instead of the DB fetch when the input data comes from a local spreadsheet. |
+| `oi_yes_send_status_to_db()` | Reads `result`, `rule_name`, and `rule_engine_id` from context, creates a `RuleEngineProcessed` record for the run, then calls `bulk_upsert_claims` to persist per-row OI update statuses into `ClaimsData`. |
+
+**script.py — main batch registered function**
+
+| Function | Description |
+|----------|-------------|
+| `oi_yes_run_batch(search_by, action, oi_status, bg_sv_dt, ...)` | Iterates over `context['df']` rows and navigates EXTRA screens (CPS520 → CPS215 → CPS220 → CPS228 → CPS226) to update the OI field or Plan ID for each member. Supports searching by CERT or CLAIM number, setting OI to YES or NO, and paging through multi-page OI tables. Returns `{"success": True, "result": [...]}` with one status dict per row. |
+
+**Key settings for `oi_yes_run_batch`:**
+
+| Parameter | Values | Effect |
+|-----------|--------|--------|
+| `search_by` | `"CERT"` / `"CLAIM"` | Whether to look up the member by certificate number or claim number |
+| `action` | `"UPDATE_OI"` / `"UPDATE_PLAN_ID"` | Whether to update the OI yes/no flag or just the Plan ID field |
+| `oi_status` | `"YES"` / `"NO"` | Target OI status; NO clears all existing OI sublines |
+| `level_mode` | `"FAMILY"` / other | In FAMILY mode, leaves `"OP"` type untouched on non-target members |
+| `default_tp` | e.g. `"UK"` | Type code applied to non-target members when OI is YES |
+
+---
+
+#### release_pend_macro/ — [View folder](backend/automation/rule_engine/functions/release_pend_macro/)
+
+Automates the Release/Pend claim macro on EXTRA terminal screens. Ported from `Modules_oShared`, `Modules_oHCFA`, `Modules_0UB`, and `Modules_oTOD` VBA scripts. Tagged `"Release Pend Macro"` in the UI (shown in green).
+
+**helper.py — registered data helper functions**
+
+| Function | Description |
+|----------|-------------|
+| `release_pend_fetch_from_file(location)` | Reads a claim workbook (`.xlsx` or `.csv`) from the given path and returns it as a string-typed DataFrame with all columns the macro expects (CLAIM_NO, CLAIM_TYPE, PEND_CD, RULE, DRAFTS, NEW_AP_CD, etc.). Use this when the input comes from a pre-built spreadsheet. |
+| `release_pend_fetch_from_db(rules)` | Queries `TBL_DAILY_INVENTORY_NEW` for claims matching the given MACRO_RULE values and returns a DataFrame with CLAIM_NO, CLAIM_TYPE, PEND_CD, DRAFTS, and CERT_NO. Use this for fully automated (no spreadsheet) runs. |
+| `release_pend_send_status_to_db()` | Reads `result`, `rule_name`, `rule_engine_id`, and `manual` from context, creates a `RuleEngineProcessed` aggregate record, then bulk-inserts each per-claim status dict into `ClaimsData`. Always the last node in a release/pend workflow. |
+
+**script.py — main registered batch functions**
+
+| Function | Description |
+|----------|-------------|
+| `release_pend_run_batch(dx_code_ref_path, rule_code_ref_path)` | Main batch processor — port of `Release_or_Pend_Claim` VBA. For each row in `context['df']`, resolves settings from the rule code ref CSV, optionally runs a TOD update, navigates to CPS520, then dispatches to `ub_data_entry` or `hcfa_data_entry` depending on `CLAIM_TYPE`. Handles multi-draft claims, CSR notes, condition AFVs, OPI updates, and all CPS506 release/pend prompts. Returns `{"success": True, "result": [...]}` with `MACRO STATUS` per claim. |
+| `release_pend_get_claim_details(dx_code_ref_path, aply_grid_prc)` | Port of `Get_Claim_Details + GridPriceCheck` VBA. For each row in `context['df']`, navigates to the claim and reads: pending code, total draft count (paging through if needed), claim type (UB/HCFA from screen), old provider code (CPS408), and optionally grid price mismatches per CPT code. Returns enriched rows ready for `release_pend_run_batch`. |
+
+**hcfa.py — internal HCFA data entry helpers (not registered)**
+
+| Function | Description |
+|----------|-------------|
+| `hcfa_data_entry(screen, row, settings, codes, status_parts)` | Port of `HCFA_Data_Entry` VBA. Applies all configured transformations on CPS450.01 (ineligibility codes, AP codes, OI indicators, modifiers, denials, grid price, time units, DX changes) then navigates to CPS506.01 and calls `data_entry_in_cps506`. Returns `1` on success or `0` to skip the row. |
+| `hcfa_tos_entry(screen, new_tos, edit_msg, row)` | Handles a TOS/POS edit error on HCFA claims by updating the affected service line's TOS field with `new_tos` and fixing the ineligibility code from `row['OLD_INEL_CD']` → `row['NEW_INEL_CD']`. |
+
+**ub.py — internal UB data entry helpers (not registered)**
+
+| Function | Description |
+|----------|-------------|
+| `ub_data_entry(screen, row, settings, codes, status_parts)` | Port of `UB_Data_Entry` VBA. Applies all configured transformations on BLX2460.01 (ineligibility codes, AP codes, OI indicators, denials, FAIE adjustments, SP amounts, state type) then navigates CPS506.01 for release/pend. Returns `1` on success or `0` to skip. |
+| `ub_per_diem_process(screen, row, settings)` | Handles per-diem line creation on UB claims by navigating through CPS445, CPS450, and BLX2460 screens to add the per-diem code, bill code, and discount fields, then releases via CPS506. |
+| `ub_tos_entry(screen, new_tos, old_tos, edit_msg, row)` | Handles a TOS edit error on UB claims by placing `new_tos` on the affected service row and updating ineligibility codes where the old TOS appears. |
+
+**tod.py — TOD (Time of Diagnosis) update helpers (not registered)**
+
+| Function | Description |
+|----------|-------------|
+| `tod_update(screen, row, settings)` | Port of `TOD_Update` VBA. Navigates to the condition listing screen via CPS850 (`X` on row 29 col 9) and replaces all conditions with TOD `'99'` or `'00'` with the value from `row['TOD']` via the CPS910.01 prompt. Returns `True` on success, `False` on failure (sets `row['MACRO_STATUS']`). |
+| `check_tod(row)` | Validates that `row['TOD']` is a 1–2 digit numeric string before the update is attempted. Returns `False` and lets the caller write `"CHECK TOD VALUE"` as the status if the value is invalid. |
+
+**utils.py — shared screen primitives (not registered)**
+
+These are the lowest-level building blocks used by all the macro modules above.
+
+| Function | Description |
+|----------|-------------|
+| `wait_ready(screen)` | Spin-polls `OIA.XStatus` until the emulator host signals idle. Every key send calls this before returning. |
+| `get_screen_id(screen)` | Reads 11 characters at row 1, col 2 to identify the current EXTRA screen (e.g. `"CPS520.01"`). |
+| `place_value(screen, val, r, c)` | Moves cursor to (r, c), erases to end-of-field, and types `val`. Silent no-op if `val` is `None` or empty. |
+| `remove_value(screen, r, c)` | Moves cursor to (r, c) and sends `<EraseEOF>` to clear the field. |
+| `send_enter(screen)` | Sends `<Enter>` and waits for the host to settle. |
+| `send_pf(screen, n)` | Sends PF key `n` (e.g. `send_pf(screen, 9)` → `<PF9>`) and waits for host. |
+| `pf9_to_cps520(screen, max_tries=15)` | Repeatedly sends PF9 until CPS520.01 is the current screen or `max_tries` is reached. Used to return to the claim search entry point. |
+| `load_code_refs(xlsx_path)` | Reads the code-reference Excel workbook and returns a dict of named code sets: `dx_codes`, `lab_codes`, `ub_rev_codes`, `grid_price` (CPT → allowed amount), `rejected_inel`, `mod_codes`, `dny_by_cpt`, `dnl_inel_exceptions`, `apply_disc_after_dnl`, `rem_disc_amt`, `possible_hcr`, `cpt_codes_full_pd`, and `lab_cpt_codes_by_rule`. |
+| `data_entry_in_cps506(screen, row, settings)` | Fills the CPS506.01 release/pend screen with release code, pend reason, follow-up days, EOB notes (word-wrapped across rows 16+), payee code, and optional payee address (payee 2) or split EE/PR amounts (payee 3). |
+| `apply_ineligibility_codes(screen, claim_type, row, settings, dny_by_cpt)` | Checks each service line's CPT code against the `dny_by_cpt` deny list; if matched, copies the charge into the ineligibility amount and sets the configured inel code. Submits and navigates back to the entry screen. |
+| `apply_631_inel(screen, claim_type, code)` | Overwrites every non-empty ineligibility code slot on the inel rows (12–15 for UB, 14–17 for HCFA) with `code` (typically `"631"` or `"034"`). Used before a duplicate bypass. |
+| `check_inel_code(screen, ck_inel)` | Navigates to CPS408 and scans all inel code columns across all pages for any code in `ck_inel`. Returns `(found: bool, pipe-separated matches: str)`. |
+| `plan_id_update(screen, row)` | Updates the Plan ID field for a specific sequence number via the CPS850 OI table (CPS226 screen). Returns the confirmation message from the screen or `"NO MATCHING SEQ NO."`. |
+| `is_fully_paid(screen, by_what, rejected_inel, cpt_codes_full_pd)` | Reads CPS408 to verify charge == discount + paid for each line. Can validate by inel codes (`"InelCodes"`) or CPT codes (`"CPTCodes"`). Returns `(True, "")` if fully paid, `(False, reason)` otherwise. |
+| `total_amt_858(screen)` | Navigates CPS408 and sums all amounts under inel codes `858` and `700`. Returns the total as a formatted string (e.g. `"125.50"`). |
+| `bypass_duplicate(screen, claim_type, settings)` | After a 631/034 inel change triggers a duplicate warning on CPS506, navigates back to the claim entry screen (CPS450 for HCFA or CPS460 for UB), re-applies the inel codes, and accepts the duplicate bypass checkbox. |
+| `collect_inel_700(screen)` | Reads CPS408 looking for inel code `700` on any line and returns a dict mapping the line's index to `"0"`. Used before `updt_oc_for_700` logic in HCFA entry. |
+| `add_condition_note(screen, row)` | Navigates to CPS910.01 and enters `row['COND_NOTE']` in the condition note field. Returns `True` on success, `False` if the screen stays on CPS910 (edit error). |
+| `update_condition_afv(screen, row)` | Navigates to CPS910.01 and sets the AFV (Adjudication Flag Value) field to `row['AFV']`. Returns `True` on success. |
+| `place_new_csr_note(screen, row, opt)` | Navigates to BLX120.01 and places `row['NOTE_850']` as a CSR note, either appending to the existing note or writing to the second line only depending on `opt`. Word-wraps at 60 characters. |
+| `apply_discount_after_switch(screen, ln_no)` | After a modifier flip (`_switch_mod`), reads CPS408 to find the `908` inel discount amount for `ln_no`. Returns the amount string so the caller can write it back to the inel slot. |
+
+---
+
 ### Celery Task Queue
 
 **Files:**
