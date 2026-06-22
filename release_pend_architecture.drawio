@@ -1,738 +1,303 @@
-<mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3500" pageHeight="3200" math="0" shadow="0">
-  <root>
-    <mxCell id="0"/>
-    <mxCell id="1" parent="0"/>
+<mxfile host="app.diagrams.net">
+  <diagram id="rp-functional" name="Functional Flow">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="2500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
 
-    <!-- ======================================================= -->
-    <!--  TITLE                                                   -->
-    <!-- ======================================================= -->
-    <mxCell id="title" value="Release Pend Macro — Complete Architecture Diagram" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
-      <mxGeometry x="200" y="15" width="2600" height="40" as="geometry"/>
-    </mxCell>
+        <!-- TITLE -->
+        <mxCell id="title" parent="1" value="release_pend_run_batch — Functional Flow (What it does in the emulator)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1">
+          <mxGeometry x="100" y="12" width="1500" height="40" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  LEGEND                                                  -->
-    <!-- ======================================================= -->
-    <mxCell id="leg_bg" value="" style="rounded=0;fillColor=#f5f5f5;strokeColor=#999999;" vertex="1" parent="1">
-      <mxGeometry x="50" y="65" width="360" height="180" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_title" value="LEGEND" style="text;html=1;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="170" y="68" width="120" height="20" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_script" value="script.py" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="60" y="93" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_utils" value="utils.py" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="160" y="93" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_hcfa" value="hcfa.py" style="rounded=1;fillColor=#e65100;strokeColor=#bf360c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="260" y="93" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_ub" value="ub.py" style="rounded=1;fillColor=#6a1b9a;strokeColor=#4a148c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="60" y="130" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_tod" value="tod.py" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="160" y="130" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_helper" value="helper.py" style="rounded=1;fillColor=#ad1457;strokeColor=#880e4f;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="260" y="130" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_screen" value="Mainframe Screen" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="60" y="168" width="120" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_decision" value="Decision" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#212121;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="195" y="163" width="100" height="38" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_error" value="Error/Skip" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="60" y="207" width="90" height="28" as="geometry"/>
-    </mxCell>
-    <mxCell id="leg_ok" value="Success/Continue" style="rounded=1;fillColor=#43a047;strokeColor=#2e7d32;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="160" y="207" width="120" height="28" as="geometry"/>
-    </mxCell>
+        <!-- LEGEND -->
+        <mxCell id="leg_bg" parent="1" value="" style="rounded=0;fillColor=#f5f5f5;strokeColor=#aaaaaa;" vertex="1">
+          <mxGeometry x="100" y="60" width="540" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_screen" parent="1" value="Mainframe Screen" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1">
+          <mxGeometry x="110" y="65" width="130" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_proc" parent="1" value="Process / Action" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1">
+          <mxGeometry x="250" y="65" width="120" height="22" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_dec" parent="1" value="Decision / Flag" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=9;" vertex="1">
+          <mxGeometry x="380" y="59" width="110" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_err" parent="1" value="Skip / Fail" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1">
+          <mxGeometry x="500" y="65" width="130" height="22" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION A: HELPER PIPELINE                             -->
-    <!-- ======================================================= -->
-    <mxCell id="A_bg" value="A. HELPER PIPELINE  (helper.py)" style="swimlane;startSize=28;fillColor=#fce4ec;strokeColor=#ad1457;fontColor=#880e4f;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="65" width="2140" height="110" as="geometry"/>
-    </mxCell>
-    <mxCell id="A1" value="release_pend_fetch_from_file(location)&#xa;Reads xlsx/csv → pd.DataFrame" style="rounded=1;fillColor=#ad1457;strokeColor=#880e4f;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="103" width="210" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="A_or" value="OR" style="text;html=1;fontStyle=1;align=center;" vertex="1" parent="1">
-      <mxGeometry x="678" y="122" width="32" height="20" as="geometry"/>
-    </mxCell>
-    <mxCell id="A2" value="release_pend_fetch_from_db(rules)&#xa;Queries DailyInventory → DataFrame" style="rounded=1;fillColor=#ad1457;strokeColor=#880e4f;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="715" y="103" width="220" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="A3" value="context[&#39;df&#39;] = DataFrame&#xa;(CLAIM_NO, DRAFTS, CLAIM_TYPE,&#xa;CERT_NO, TOD, NEW_POS, …)" style="rounded=1;fillColor=#f8bbd0;strokeColor=#ad1457;fontColor=#880e4f;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="985" y="98" width="220" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="A4" value="release_pend_run_batch(76+ params, context)&#xa;tag=Release Pend Macro, color=#2e7d32&#xa;Returns {success, result: [list]}" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1260" y="100" width="260" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="A5" value="release_pend_send_status_to_db()&#xa;RuleEngineProcessed + bulk_upsert_claims" style="rounded=1;fillColor=#ad1457;strokeColor=#880e4f;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1580" y="103" width="230" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="eA1A3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="A1" target="A3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eA2A3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="A2" target="A3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eA3A4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="A3" target="A4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eA4A5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="A4" target="A5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <!-- ═══════════════ SETUP ═══════════════ -->
+        <mxCell id="hdr_setup" parent="1" value="SETUP" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#0d47a1;" vertex="1">
+          <mxGeometry x="100" y="108" width="1500" height="24" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION B: INITIALIZATION                              -->
-    <!-- ======================================================= -->
-    <mxCell id="B_bg" value="B. INITIALIZATION" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="190" width="2140" height="135" as="geometry"/>
-    </mxCell>
-    <mxCell id="B1" value="load_code_refs(dx_code_ref_path)&#xa;pd.read_excel → 13 reference dicts" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="227" width="210" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="B2" value="dx_codes (col A)&#xa;lab_codes (col B)&#xa;ub_rev_codes (col C)" style="rounded=1;fillColor=#bbdefb;strokeColor=#1565c0;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="695" y="220" width="135" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="B3" value="grid_price (col E/F)&#xa;rejected_inel (col H)&#xa;mod_codes (col J)" style="rounded=1;fillColor=#bbdefb;strokeColor=#1565c0;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="840" y="220" width="135" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="B4" value="dny_by_cpt (col K)&#xa;dnl_inel_exceptions (col N)&#xa;ck_inel (col P)" style="rounded=1;fillColor=#bbdefb;strokeColor=#1565c0;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="985" y="220" width="140" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="B5" value="apply_disc_after_dnl (col R)&#xa;rem_disc_amt (col T)&#xa;possible_hcr (col V)&#xa;cpt_codes_full_pd (col X)" style="rounded=1;fillColor=#bbdefb;strokeColor=#1565c0;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1135" y="215" width="150" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="B6" value="win32com.client.Dispatch(&#39;EXTRA.System&#39;)&#xa;system.ActiveSession → screen" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1310" y="227" width="240" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="B7" value="_build_settings(**kwargs) → settings dict&#xa;76+ params: rls_code, lst_rls, apply_uc,&#xa;aply_opi, chk_per_diem, deny_clm, …" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1580" y="220" width="260" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="eB1B2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="B1" target="B2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eB1B3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="B1" target="B3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eB1B4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="B1" target="B4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eB1B5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="B1" target="B5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="start" parent="1" value="START" style="ellipse;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1">
+          <mxGeometry x="680" y="142" width="120" height="40" as="geometry" />
+        </mxCell>
 
-    <!-- A4 → B sections flow arrow -->
-    <mxCell id="eA4B" value="start" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="A4" target="B1" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="s_load" parent="1" value="Load DX code refs (dx_code_ref_path CSV)&#xa;Load rule settings (rule_code_ref_path CSV — keyed by RULE value)" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="555" y="202" width="370" height="46" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION C: PER-ROW LOOP                               -->
-    <!-- ======================================================= -->
-    <mxCell id="C_bg" value="C. PER-ROW LOOP  (for _, row in df.iterrows())" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="340" width="2140" height="200" as="geometry"/>
-    </mxCell>
-    <mxCell id="C1" value="row = {k: str(v).strip()}&#xa;claim_no = row[CLAIM_NO]&#xa;total_drafts = int(row[DRAFTS])" style="rounded=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="378" width="185" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="C2" value="seq_ordr&#xa;== Y ?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="660" y="385" width="110" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="C2e" value="cert_no_skip&#xa;== CERT_NO ?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="660" y="460" width="120" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="C2_skip" value="SKIPPED (SEQ ORDER)&#xa;send_pf(9) → next row" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="800" y="463" width="170" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="C3" value="aply_tod_updt&#xa;== Y ?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="800" y="383" width="120" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="C3a" value="tod_update(screen, row, settings)&#xa;check_tod() → CPS520.01 → draft 01&#xa;Condition rows 4-18: place TOD 99/00&#xa;→ CPS910.01 prompt" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="800" y="455" width="240" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="C3e" value="TOD FAILED&#xa;→ next row" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1055" y="463" width="120" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="C4" value="Navigate CPS520.01&#xa;pf9 (up to 15x) until CPS520.01&#xa;place_value(claim_no, r8,c15)&#xa;remove_value(r9,c15) remove_value(r12,c15)&#xa;send_enter()" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1060" y="375" width="230" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="C5" value="Still on&#xa;CPS520.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1305" y="385" width="115" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="C5e" value="Append r31 msg&#xa;pf9 → next row" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1305" y="463" width="145" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="C6" value="DRAFT LOOP  j=1, i=1..total_drafts&#xa;pf9 → place claim_no → send_enter&#xa;lst_rls==Y: find first non-66 draft row&#xa;lst_rls==N: place {j:02d} r3c26&#xa;  i==8: j=1, send_pf(11)  i&gt;8: send_pf(11)&#xa;send_enter() → enter draft" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1470" y="368" width="270" height="100" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC1C2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C1" target="C2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC2C2e" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C2" target="C2e" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC2eSkip" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C2e" target="C2_skip" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC2C3" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C2" target="C3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC3C3a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C3" target="C3a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC3aFail" value="False" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C3a" target="C3e" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC3C4" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C3" target="C4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC4C5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C4" target="C5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC5Fail" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C5" target="C5e" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eC5C6" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C5" target="C6" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="s_connect" parent="1" value="Connect to Emulator&#xa;win32com.client.Dispatch(&quot;EXTRA.System&quot;) → ActiveSession → Screen" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="555" y="268" width="370" height="46" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION D: CPS850 SCREEN                              -->
-    <!-- ======================================================= -->
-    <mxCell id="D_bg" value="D. CPS850.01 — OPI / CSR Note / DX Change / INT-ZIP" style="swimlane;startSize=28;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#0d47a1;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="555" width="2140" height="195" as="geometry"/>
-    </mxCell>
-    <mxCell id="D0" value="Screen == CPS850.01&#xa;coded_OPI = r15,c59,len4" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="590" width="185" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="D1" value="aply_opi in&#xa;(Y / D)?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="665" y="595" width="110" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="D1a" value="Y: place NEW_OPI r22c58&#xa;D: remove_value r22c58&#xa;place x r23c52 → send_enter&#xa;if still 850: error, break&#xa;else: pf8→850→re-read OPI" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="665" y="663" width="220" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="D2" value="aply_850_nt ==&#xa;APPEND or&#xa;2ND LINE?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="905" y="593" width="120" height="58" as="geometry"/>
-    </mxCell>
-    <mxCell id="D2a" value="place_new_csr_note(screen, row, opt)&#xa;place x r29c21 → send_enter&#xa;→ BLX120.01 screen&#xa;APPEND: read r6+r7, concat NOTE_850&#xa;2ND LINE: write r7 only&#xa;Word-wrap 60 chars → send_enter&#xa;pf8 → back to 850" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="905" y="660" width="230" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="D3" value="chnge_dx_cd&#xa;== Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1150" y="595" width="105" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="D3a" value="place DX_CD r23c6&#xa;place Y r23c14" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1150" y="665" width="150" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="D4" value="aply_int_zip&#xa;== Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1315" y="595" width="110" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="D4a" value="place X r29c26 → send_enter&#xa;if CPS325.01:&#xa;  place ZIP r5c69&#xa;  place INT_NO r7c30&#xa;  send_enter()" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1315" y="660" width="200" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="D_end" value="send_enter()&#xa;→ next step" style="rounded=1;fillColor=#43a047;strokeColor=#2e7d32;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1540" y="600" width="100" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD0D1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D0" target="D1" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD1D1a" value="Y/D" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D1" target="D1a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD1D2" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D1" target="D2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD2D2a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D2" target="D2a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD2D3" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D2" target="D3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD3D3a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D3" target="D3a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD3D4" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D3" target="D4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD4D4a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D4" target="D4a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD4Dend" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D4" target="D_end" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <!-- C6 → D0 -->
-    <mxCell id="eC6D0" value="CPS850 entered" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="C6" target="D0" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <!-- ═══════════════ PER-CLAIM ═══════════════ -->
+        <mxCell id="hdr_claim" parent="1" value="FOR EACH CLAIM (CLAIM_NO) IN DATAFRAME" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;" vertex="1">
+          <mxGeometry x="100" y="334" width="1500" height="24" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION E: POST-850                                    -->
-    <!-- ======================================================= -->
-    <mxCell id="E_bg" value="E. POST-850 — TOD Prompt / Condition Note / Condition AFV" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="765" width="2140" height="175" as="geometry"/>
-    </mxCell>
-    <mxCell id="E1" value="Screen ==&#xa;CPS910.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="805" width="115" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="E1a" value="place TOD.zfill(2) r5c60&#xa;send_enter()&#xa;if still CPS910.01:&#xa;  error, break draft loop" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="878" width="190" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="E2" value="aply_cond_nt&#xa;== Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="600" y="805" width="115" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="E2a" value="add_condition_note(screen, row)&#xa;pf8 → 910 r2c37 → send_enter&#xa;place COND_NOTE r7c6 → send_enter&#xa;if still CPS910.01: error, break" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="600" y="873" width="230" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="E3" value="aply_cond_afv&#xa;== Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="760" y="805" width="115" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="E3a" value="update_condition_afv(screen, row)&#xa;pf8 → 910 r2c37 → send_enter&#xa;place AFV r5c68 → send_enter&#xa;if still CPS910.01: error, break" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="760" y="873" width="225" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="E4" value="claim_type =&#xa;row[CLAIM_TYPE].upper()" style="rounded=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1010" y="808" width="190" height="50" as="geometry"/>
-    </mxCell>
-    <mxCell id="eD_endE1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="D_end" target="E1" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE1E1a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E1" target="E1a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE1E2" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E1" target="E2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE2E2a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E2" target="E2a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE2E3" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E2" target="E3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE3E3a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E3" target="E3a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE3E4" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E3" target="E4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="d_rule" parent="1" value="RULE column value&#xa;found in rule CSV?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="640" y="374" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="skip_rule" parent="1" value="SKIP: 'RULE not found in rule CSV'" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1060" y="392" width="260" height="34" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION F: CLAIM TYPE SPLIT                           -->
-    <!-- ======================================================= -->
-    <mxCell id="F_split" value="CLAIM_TYPE ?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="750" y="965" width="160" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="F_invalid" value="INVALID CLAIM TYPE&#xa;row_done=False, break" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="750" y="1055" width="160" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="eE4Split" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="E4" target="F_split" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eFsplit_inv" value="other" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="F_split" target="F_invalid" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="d_seqord" parent="1" value="seq_ordr=Y  AND&#xa;cert_no = last skipped cert_no?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="625" y="470" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="skip_seq" parent="1" value="PF9 → SKIP: 'SKIPPED (SEQ ORDER)'" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1060" y="488" width="260" height="34" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION G: HCFA BRANCH                                -->
-    <!-- ======================================================= -->
-    <mxCell id="G_bg" value="G. HCFA BRANCH  (hcfa.py)" style="swimlane;startSize=28;fillColor=#fff3e0;strokeColor=#e65100;fontColor=#bf360c;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="1020" width="870" height="1280" as="geometry"/>
-    </mxCell>
-    <!-- apply_inel -->
-    <mxCell id="G1" value="apply_ineligibility_codes(screen,HCFA,row,settings,dny_by_cpt)&#xa;Lines 5,7,9,11: if CPT in dny_by_cpt → place inel_code&#xa;→ send_enter → pf8 → place 450 r2c37 → send_enter" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1060" width="340" height="65" as="geometry"/>
-    </mxCell>
-    <!-- hcfa_data_entry header -->
-    <mxCell id="G2_hdr" value="hcfa_data_entry(screen, row, settings, codes, status_parts)&#xa;Returns 1 = success / 0 = skip row" style="rounded=1;fillColor=#e65100;strokeColor=#bf360c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1142" width="340" height="50" as="geometry"/>
-    </mxCell>
-    <!-- CPS450 setup -->
-    <mxCell id="G3" value="CPS450.01 Setup:&#xa;NEW_POS → r2c6&#xa;apply_uc=Y: put X r29c69&#xa;NEW_OV_AJ → r26c37&#xa;rem_oi_elig_amt: clear r20-23 c4/16/28" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1208" width="220" height="90" as="geometry"/>
-    </mxCell>
-    <!-- Per-line loop HCFA -->
-    <mxCell id="G4" value="PER-LINE LOOP  p = 5, 7, 9, 11&#xa;(skip if line empty)&#xa;&#xa;• faie_adj_inel: 908→new FAIE code&#xa;• rem_disc_amt_flag (Y / Y-DONT READ OITYPE)&#xa;• del_bn: remove BN r(p+l) c31/36&#xa;• inel_switch: 908→INEL_SWITCH_VAL r14c14&#xa;• bond_clinic: _apply_bond_clinic()&#xa;• flip_mod: _switch_mod() (swap P3/P4/P5)&#xa;• apply_001 (1 ONLY / ALL LINES / N/A guard)&#xa;• 2nd_inel_001: place NEW_INEL_CD slot 2&#xa;• remove_inel_amt_cd (CD1/CD2/ALL/SPECIFIC)&#xa;• deny_clm + dis_aft_dnl discount logic&#xa;• aply_dnl_aft_medcr: OI→denial slot&#xa;• remove_ap: clear AP code&#xa;• rem_code_set: clear code set&#xa;• chnge_dx_cd: place DX_CD r(p+1)c70&#xa;• apply_bn_qty: place BN_CODE/BN_QTY&#xa;• aply_two_ap_cd (1st): place AP_CD_1ST&#xa;• aply_modifr / apply_lab / apply_dx AP code&#xa;• remv_prov_rate: clear prov rate rows 14-17&#xa;• remv_modifr: clear matching modifiers&#xa;• dx_lab_rev: rev+dx match → # AP code&#xa;• _apply_new_oi_elig_pd() (ALL/1ST-4TH LINE)&#xa;• _apply_new_oi_indicator() (ALL/1ST-4TH LINE)&#xa;• aply_grid_prc: charge &gt; grid_price → 997 inel&#xa;• dny_s9451: S9451 CPT → 947 inel code&#xa;• id_hcr: possible_hcr CPT + bad inel → return 0&#xa;• rem_tu: clear time units&#xa;• add_time: add TIME_UNITS to existing" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1308" width="340" height="490" as="geometry"/>
-    </mxCell>
-    <!-- Post-loop HCFA -->
-    <mxCell id="G5" value="Post-loop:&#xa;aply_631_inel: apply_631_inel(HCFA,631)&#xa;aply_034_inel: apply_631_inel(HCFA,034)&#xa;remove_prv: clear r26c9&#xa;new_prv: place NEW_PRV_CD r26c9&#xa;send_enter()" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1810" width="230" height="100" as="geometry"/>
-    </mxCell>
-    <!-- Edit error HCFA -->
-    <mxCell id="G6" value="EDIT ERROR checks:&#xa;MPIN r24/r22: clear field&#xa;CPS445.01 duplicate:&#xa;  aply_dpsv≠N: enter + x r29c76&#xa;  else: POSSIBLE DUP return 0&#xa;1432-CALC CHRG:&#xa;  aply_dnl_aft_medcr: OI adj fix&#xa;  else: place 30 + UC → enter&#xa;_handle_bn_edits_hcfa(): FOR BN loop&#xa;_apply_dx_exception_hcfa(): INVALID DX loop&#xa;1235/SAD: hcfa_tos_entry()&#xa;SURP BILL: } fix on provider&#xa;SAF: place SAF r5c31" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="1920" width="260" height="200" as="geometry"/>
-    </mxCell>
-    <!-- CPS506 HCFA -->
-    <mxCell id="G7" value="CPS506.01 checks:&#xa;payee==1 guard (return 0)&#xa;updt_oc_for_700: collect_inel_700()→fix OC&#xa;vld_amt_pd: is_fully_paid(InelCodes) → return 0&#xa;vld_amt_pd_by_cpt: is_fully_paid(CPTCodes) → return 0&#xa;amt_858_inq: total_amt_858() → return 1&#xa;aply_two_ap_cd: _hcfa_ap_code_entry()&#xa;updt_hic: plan_id_update()&#xa;aply_631/034_inel: bypass_duplicate(HCFA)&#xa;chk_inel: check_inel_code() → return 0&#xa;data_entry_in_cps506(screen, row, settings)&#xa;send_enter()&#xa;SAF / CRL37 / CRL36 / CRL95 auto-fix" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="2130" width="320" height="195" as="geometry"/>
-    </mxCell>
-    <!-- Final HCFA -->
-    <mxCell id="G8" value="Screen 112 → Released. return 1&#xa;Screen 115 → error msg return 0&#xa;Screen 114 → Duplicate Claim return 0&#xa;else → Not Released. return 0" style="rounded=1;fillColor=#e65100;strokeColor=#bf360c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="2337" width="310" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="eGsplit_G1" value="HCFA" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="F_split" target="G1" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG1G2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G1" target="G2_hdr" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG2G3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G2_hdr" target="G3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG3G4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G3" target="G4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG4G5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G4" target="G5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG5G6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G5" target="G6" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG6G7" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G6" target="G7" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eG7G8" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="G7" target="G8" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="d_tod" parent="1" value="aply_tod_updt = Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="568" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tod_box" parent="1" value="tod_update(screen, row, settings)&#xa;fail → PF9, SKIP with error msg" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1060" y="581" width="260" height="34" as="geometry" />
+        </mxCell>
 
-    <!-- HCFA sub-function boxes -->
-    <mxCell id="Gh_tos" value="hcfa_tos_entry(screen, new_tos, edit_msg, row)&#xa;Map SAD 01-04 → primary row (5/7/9/11)&#xa;Place new_tos; zero-charge lines also updated&#xa;Old/new inel cd swap rows 14-17&#xa;place x r29c69 → send_enter" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="1920" width="240" height="90" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_bn" value="_handle_bn_edits_hcfa(screen,row,settings,edit_msg)&#xa;While FOR BN in edit_msg:&#xa;  Map SAD→line_row/inel_row&#xa;  Place BN s_bn + BN_QTY&#xa;  apply_bn_thold: chrg−inel calc&#xa;  send_enter, check resolved" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2025" width="240" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_dx" value="_apply_dx_exception_hcfa(screen, edit_msg)&#xa;While INVALID DX FOR SERVICE in msg:&#xa;  Map SAD 01-04 → r6/8/10/12&#xa;  place E at c78 → send_enter" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2130" width="240" height="75" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_oi_elig" value="_apply_new_oi_elig_pd(screen,row,p,l,setting)&#xa;ALL LINES: update elig/pd per service line&#xa;1ST-4TH LINE: rows 20-23, cols 4+16" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2215" width="240" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_oi_ind" value="_apply_new_oi_indicator(screen,row,p,l,setting)&#xa;ALL LINES: update OI indicator per line&#xa;1ST-4TH LINE: rows 20-23, col 28" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2290" width="240" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_switchmod" value="_switch_mod(screen, p, q, row, settings)&#xa;Find P3/P4/P5 modifier in cols 47-59&#xa;Swap with col 47&#xa;apply_disc_aft_flip: send_enter&#xa;→ apply_discount_after_switch()&#xa;Place ds_amt, 908, half-OI, 930" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2360" width="240" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_bond" value="_apply_bond_clinic(screen, row, p, q)&#xa;Read chrg, inel_amt&#xa;chrg &gt; 10: amt997 = |chrg−inel−10|&#xa;Place amt997, 997 in inel-slot-2" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2465" width="240" height="70" as="geometry"/>
-    </mxCell>
-    <mxCell id="Gh_ap" value="_hcfa_ap_code_entry(screen, row)&#xa;if on 506.01: pf8→450→enter&#xa;Per line 5,7,9,11: place AP_CD_2ND&#xa;place x r29c69 → wait → send_enter" style="rounded=1;fillColor=#ffccbc;strokeColor=#e65100;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="820" y="2545" width="240" height="70" as="geometry"/>
-    </mxCell>
+        <!-- CPS520.01 — initial entry -->
+        <mxCell id="scr520_hdr" parent="1" value="SCREEN: CPS520.01   (Claim Search / List)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="555" y="652" width="370" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr520_body" parent="1" value="Place claim_no @ (row 8, col 15)&#xa;Clear field  @ (row 9, col 15)&#xa;Clear field  @ (row 12, col 15)&#xa;→ ENTER" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="555" y="676" width="370" height="60" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION H: UB BRANCH                                   -->
-    <!-- ======================================================= -->
-    <mxCell id="H_bg" value="H. UB BRANCH  (ub.py)" style="swimlane;startSize=28;fillColor=#f3e5f5;strokeColor=#6a1b9a;fontColor=#4a148c;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="1340" y="1020" width="1240" height="1280" as="geometry"/>
-    </mxCell>
-    <!-- UB date sync -->
-    <mxCell id="H1" value="updt_frm_to_dt == Y?&#xa;Read serv_dt r2c63&#xa;If FROM != serv_dt: update r2c63&#xa;If THRU != serv_dt: update r2c75" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1060" width="260" height="70" as="geometry"/>
-    </mxCell>
-    <!-- UB apply inel -->
-    <mxCell id="H2" value="apply_ineligibility_codes(screen,UB,row,settings,dny_by_cpt)&#xa;Lines 6-9: if CPT in dny_by_cpt → place inel_code&#xa;→ send_enter → pf8 → place 460 r2c37 → send_enter" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1145" width="360" height="60" as="geometry"/>
-    </mxCell>
-    <!-- chk_per_diem -->
-    <mxCell id="H3" value="chk_per_diem&#xa;== Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1223" width="120" height="55" as="geometry"/>
-    </mxCell>
-    <!-- ub_per_diem_process -->
-    <mxCell id="H3a" value="ub_per_diem_process(screen, row, settings)&#xa;Apply new_oi_indicator per line&#xa;send_enter → remv_prcrt_byps check&#xa;Place pend 60/N/O99/CF10/001/PER DIEM&#xa;Loop: CPS445→CPS450→BLX2460→CPS506&#xa;BLX2460: place POS,TOS,0001,T_BILL,T_DISC,INEL&#xa;CPS506: place release data + payee&#xa;cert_no_skip=CERT_NO, row_done=False, break" style="rounded=1;fillColor=#6a1b9a;strokeColor=#4a148c;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1500" y="1210" width="330" height="120" as="geometry"/>
-    </mxCell>
-    <!-- ub_data_entry -->
-    <mxCell id="H4_hdr" value="ub_data_entry(screen, row, settings, codes, status_parts)&#xa;Returns 1 = success / 0 = skip row" style="rounded=1;fillColor=#6a1b9a;strokeColor=#4a148c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1295" width="360" height="50" as="geometry"/>
-    </mxCell>
-    <!-- UB screen setup -->
-    <mxCell id="H5" value="BLX2460.01 Setup:&#xa;NEW_POS → r1c26&#xa;apply_uc=Y: put X r29c71&#xa;NEW_OV_AJ → r27c62&#xa;OI amt removal rows 18-21&#xa;remv_adj_cd: clear adj code" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1358" width="220" height="100" as="geometry"/>
-    </mxCell>
-    <!-- UB per-line loop -->
-    <mxCell id="H6" value="PER-LINE LOOP  p = 6, 7, 8, 9&#xa;(skip if line empty)&#xa;&#xa;• faie_adj_inel: 908→new FAIE code&#xa;• rem_disc_amt_flag (Y / Y-DONT READ OITYPE)&#xa;• inel_switch: 908→INEL_SWITCH_VAL r12c14&#xa;• rem_iu: clear r_p c36&#xa;• apply_001 (1 ONLY / ALL LINES / N/A guard)&#xa;• remove_inel_amt_cd (CD1/CD2/ALL/SPECIFIC)&#xa;• deny_clm + dis_aft_dnl discount logic&#xa;• aply_dnl_aft_medcr: OI→denial slot&#xa;• remove_ap / rem_code_set / chnge_dx_cd&#xa;• AP code entry (apply_dx/apply_lab)&#xa;• aply_two_ap_cd (1st): place AP_CD_1ST&#xa;• remv_prov_rate: clear rows 12-15 c50&#xa;• remv_modifr: clear matching modifiers&#xa;• dx_lab_rev (rev+dx match → # AP code)&#xa;• _apply_ub_oi_elig_pd() per line&#xa;• _apply_new_oi_indicator_ub() per line&#xa;• del_bn: clear BN cols&#xa;• dny_s9451: S9451 CPT → 947 inel&#xa;• id_hcr: possible_hcr CPT + bad inel → return 0&#xa;• 2nd_inel_001: NEW_INEL_CD slot 2" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1470" width="340" height="430" as="geometry"/>
-    </mxCell>
-    <!-- UB post-loop -->
-    <mxCell id="H7" value="Post-loop:&#xa;aply_631_inel: apply_631_inel(UB,631)&#xa;aply_034_inel: apply_631_inel(UB,034)&#xa;remove_prv / new_prv → r22c6&#xa;apply_bn_qty: rows 12-15 BN cols&#xa;send_enter()" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="1912" width="260" height="100" as="geometry"/>
-    </mxCell>
-    <!-- UB edit errors -->
-    <mxCell id="H8" value="EDIT ERROR checks:&#xa;fieldattr 4c35/4c63==201: clear&#xa;MPIN r24/r22: clear&#xa;CPS445 dup: enter+x r29c78 or DUP return 0&#xa;1432 CALC CHRG: aply_dnl_aft_medcr fix&#xa;FOR BN: place BN_CODE rows 12-15&#xa;8803/8806/8807 loop: set RP, clear PC#&#xa;1237-SP REQUIRED: calc sp_amt&#xa;PRVD OPI P&amp;P: inel 0.00/908&#xa;aply_dx_excptn: E exception loop&#xa;POS/TOS: ub_tos_entry()&#xa;remv_prcrt_byps: RP bypass&#xa;aply_st_typ: BY SAD ERR or ALL LINES&#xa;SURP BILL: } fix&#xa;MULTIPLE PRE-CERTS: place PRE_CERT_NO" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="2025" width="310" height="240" as="geometry"/>
-    </mxCell>
-    <!-- UB CPS506 checks -->
-    <mxCell id="H9" value="CPS506.01 checks:&#xa;payee==1 guard (return 0)&#xa;vld_amt_pd: is_fully_paid(InelCodes) → return 0&#xa;vld_amt_pd_by_cpt: is_fully_paid(CPTCodes) → return 0&#xa;amt_858_inq: total_amt_858() → return 1&#xa;aply_two_ap_cd: _ub_ap_code_entry()&#xa;updt_hic: plan_id_update()&#xa;aply_631/034_inel: bypass_duplicate(UB)&#xa;chk_inel: check_inel_code() → return 0&#xa;data_entry_in_cps506(screen, row, settings)&#xa;send_enter()&#xa;SAF / CRL37 / CRL36 / CRL95 auto-fix" style="rounded=1;fillColor=#e1bee7;strokeColor=#6a1b9a;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="2277" width="330" height="195" as="geometry"/>
-    </mxCell>
-    <!-- UB final -->
-    <mxCell id="H10" value="Screen 112 → Released. return 1&#xa;Screen 115 → error msg return 0&#xa;Screen 114 → Duplicate Claim return 0&#xa;else → Not Released. return 0" style="rounded=1;fillColor=#6a1b9a;strokeColor=#4a148c;fontColor=#ffffff;fontStyle=1;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1360" y="2485" width="310" height="60" as="geometry"/>
-    </mxCell>
-    <!-- UB sub-helpers -->
-    <mxCell id="Hh_tos" value="ub_tos_entry(screen,new_tos,old_tos,edit_msg,row)&#xa;Map SAD 1-4 → primary row (6-9)&#xa;Place new_tos; zero-charge lines updated&#xa;Inel code rows 12-15: replace old_tos&#xa;place x r29c71 → send_enter" style="rounded=1;fillColor=#d1c4e9;strokeColor=#6a1b9a;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1720" y="2025" width="240" height="85" as="geometry"/>
-    </mxCell>
-    <mxCell id="Hh_oi_elig" value="_apply_ub_oi_elig_pd(screen,row,p,setting)&#xa;ALL LINES: update elig/pd at p+12&#xa;1ST-4TH LINE: rows 18-21, cols 2+14" style="rounded=1;fillColor=#d1c4e9;strokeColor=#6a1b9a;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1720" y="2120" width="240" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="Hh_oi_ind" value="_apply_new_oi_indicator_ub(screen,row,p,setting)&#xa;ALL LINES: remove+place NEW_OI_IND p+12 c26&#xa;1ST-4TH LINE: rows 18-21 c26" style="rounded=1;fillColor=#d1c4e9;strokeColor=#6a1b9a;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1720" y="2196" width="240" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="Hh_ap" value="_ub_ap_code_entry(screen, row)&#xa;if on 506.01: pf8→460→enter&#xa;Per line 6-9: place AP_CD_2ND at 10,46+l&#xa;place x r29c71 → send_enter" style="rounded=1;fillColor=#d1c4e9;strokeColor=#6a1b9a;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1720" y="2267" width="240" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="eHsplit_H1" value="UB" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="F_split" target="H1" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH1H2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H1" target="H2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH2H3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H2" target="H3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH3H3a" value="Y" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H3" target="H3a" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH3H4" value="N" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H3" target="H4_hdr" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH4H5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H4_hdr" target="H5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH5H6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H5" target="H6" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH6H7" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H6" target="H7" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH7H8" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H7" target="H8" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH8H9" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H8" target="H9" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eH9H10" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="H9" target="H10" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <mxCell id="d_still520" parent="1" value="Still on CPS520.01&#xa;after ENTER?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="758" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="err_520" parent="1" value="Read error msg @ (31,2,70)&#xa;PF9 → SKIP claim" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1060" y="771" width="260" height="34" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION I: SHARED UTILITIES                           -->
-    <!-- ======================================================= -->
-    <mxCell id="I_bg" value="I. SHARED UTILITIES  (utils.py)" style="swimlane;startSize=28;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#0d47a1;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="2410" width="2140" height="220" as="geometry"/>
-    </mxCell>
-    <mxCell id="I1" value="wait_ready(screen)&#xa;Loop until OIA.XStatus==0" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="455" y="2450" width="145" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I2" value="get_screen_id(screen)&#xa;GetString(1,2,11).strip()" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="610" y="2450" width="150" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I3" value="place_value(screen,val,r,c)&#xa;MoveTo→EraseEOF→PutString" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="770" y="2450" width="155" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I4" value="remove_value(screen,r,c)&#xa;MoveTo→EraseEOF" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="935" y="2450" width="145" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I5" value="send_enter(screen)&#xa;SendKeys(&lt;Enter&gt;)+wait_ready" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1090" y="2450" width="155" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I6" value="send_pf(screen, n)&#xa;SendKeys(&lt;PFn&gt;)+wait_ready" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1255" y="2450" width="145" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I7" value="pf9_to_cps520(screen, max=15)&#xa;Loop pf9 until CPS520.01" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1410" y="2450" width="155" height="45" as="geometry"/>
-    </mxCell>
-    <mxCell id="I8" value="data_entry_in_cps506(screen,row,settings)&#xa;rls_code/lst_rls/pnd_rsn/op_id/flw_up&#xa;eob/ck/note/payee(0=std/2=addr/3=split)&#xa;_place_eob_notes(): word-wrap 44 chars" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="455" y="2510" width="230" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I9" value="bypass_duplicate(screen,claim_type,settings)&#xa;CPS506→pf8→450/460&#xa;aply_631/034_inel → apply_631_inel()&#xa;place x r29c78/76 → send_enter" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="695" y="2510" width="235" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I10" value="is_fully_paid(screen,by_what,rej_inel,cpt_full_pd)&#xa;pf8→408: read charge/paid/inel lines&#xa;InelCodes: reject check + discount calc&#xa;CPTCodes: cpt_full_pd + discount&#xa;Returns (bool, msg)" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="940" y="2510" width="240" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I11" value="total_amt_858(screen)&#xa;pf8→408: sum 858+700 inel amts&#xa;Across all pages → return str" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1190" y="2510" width="175" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I12" value="plan_id_update(screen, row)&#xa;pf8→850→x r29c48→x r29c17&#xa;Find SEQ_NO row → place NEW_PLAN_ID&#xa;→ send_enter → read msg" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1375" y="2510" width="190" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I13" value="collect_inel_700(screen)&#xa;pf8→408: find INEL rows&#xa;700 code → {idx: 0}&#xa;pf8→450 → return dict" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1575" y="2510" width="165" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I14" value="check_inel_code(screen, ck_inel)&#xa;pf8→408: read all inel codes&#xa;Match against ck_inel dict&#xa;goto_506() → return (found, codes)" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1750" y="2450" width="185" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I15" value="apply_631_inel(screen, claim_type, code)&#xa;UB: rows 12-15, cols 14+30&#xa;HCFA: rows 14-17, cols 14+30" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1750" y="2525" width="195" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="I16" value="apply_discount_after_switch(screen, ln_no)&#xa;pf8→408: find line ln_no&#xa;Look for 908 inel code → read amt&#xa;pf8→450 → return amt string" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1955" y="2450" width="200" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="I17" value="goto_506(screen)&#xa;pf8→506→enter" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="1955" y="2525" width="120" height="45" as="geometry"/>
-    </mxCell>
+        <!-- ═══════════════ DRAFT LOOP ═══════════════ -->
+        <mxCell id="hdr_draft" parent="1" value="FOR EACH DRAFT  (1 .. DRAFTS)   — navigates back to CPS520.01 at the start of every iteration" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#f3e5f5;strokeColor=#6a1b9a;fontColor=#4a148c;" vertex="1">
+          <mxGeometry x="100" y="842" width="1500" height="24" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  SECTION J: GET CLAIM DETAILS                          -->
-    <!-- ======================================================= -->
-    <mxCell id="J_bg" value="J. release_pend_get_claim_details  (script.py)  — mirrors Get_Claim_Details + GridPriceCheck" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="440" y="2650" width="2140" height="155" as="geometry"/>
-    </mxCell>
-    <mxCell id="J1" value="Navigate CPS520.01&#xa;place claim_no → send_enter" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="460" y="2688" width="175" height="55" as="geometry"/>
-    </mxCell>
-    <mxCell id="J2" value="Read PEND_CD r6c6&#xa;Count DRAFTS:&#xa;  rows 6-18 step2, MORE DATA→pf11&#xa;row[DRAFTS] = t_draft" style="rounded=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="650" y="2683" width="195" height="68" as="geometry"/>
-    </mxCell>
-    <mxCell id="J3" value="GridPriceCheck: per page, per draft line&#xa;place draft# → send_enter → send_enter&#xa;CPS450.01: CLAIM_TYPE=HCFA, read OLD_POS r2c6&#xa;  aply_grid_prc=Y: chg vs grid_price → PRICE MISMATCH&#xa;BLX2460.01: CLAIM_TYPE=UB, OLD_POS r1c26" style="rounded=1;fillColor=#c8e6c9;strokeColor=#2e7d32;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="860" y="2680" width="340" height="75" as="geometry"/>
-    </mxCell>
-    <mxCell id="J4" value="pf8→408 screen&#xa;row[OLD_PRV_CD] = r3c48&#xa;pf9 → results.append(row)" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1215" y="2690" width="200" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="J5" value="Returns {success:True, result:[{&#xa;  CLAIM_NO, PEND_CD, DRAFTS,&#xa;  CLAIM_TYPE, OLD_POS, OLD_PRV_CD,&#xa;  MACRO_STATUS (price mismatch info)&#xa;}]}" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="1430" y="2685" width="255" height="75" as="geometry"/>
-    </mxCell>
-    <mxCell id="eJ1J2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="J1" target="J2" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eJ2J3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="J2" target="J3" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eJ3J4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="J3" target="J4" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
-    <mxCell id="eJ4J5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="J4" target="J5" parent="1">
-      <mxGeometry relative="1" as="geometry"/>
-    </mxCell>
+        <!-- Navigate to CPS520 per draft -->
+        <mxCell id="scr520_nav" parent="1" value="SCREEN: CPS520.01   (navigate back — PF9 loop × 10 until on CPS520)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="555" y="876" width="370" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr520_nav_body" parent="1" value="Place claim_no @ (8,15);  clear (9,15) (12,15)  →  ENTER" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="555" y="900" width="370" height="28" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  RIGHT COLUMN: SCREENS REFERENCE                       -->
-    <!-- ======================================================= -->
-    <mxCell id="R_scr_bg" value="MAINFRAME SCREENS REFERENCED" style="swimlane;startSize=28;fillColor=#eceff1;strokeColor=#37474f;fontColor=#263238;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="2620" y="65" width="830" height="540" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr1" value="CPS520.01  Claim Search&#xa;r8c15: claim_no input&#xa;r6c6: pending code&#xa;r6-18 step2: draft lines&#xa;r6c6 col2: status (66=done)" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="105" width="170" height="90" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr2" value="CPS850.01  Claim Edit&#xa;r15c59: coded OPI&#xa;r22c58: OPI value&#xa;r23c52: OPI update flag&#xa;r23c6: DX code&#xa;r29c26: INT/ZIP flag" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2815" y="105" width="165" height="90" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr3" value="CPS450.01  HCFA Lines&#xa;r2c6: POS code&#xa;r5-11 step2: service lines&#xa;r14-17: inel code rows&#xa;r20-23: OI rows&#xa;r26c9: provider type&#xa;r29c69: UC flag" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2990" y="105" width="160" height="110" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr4" value="BLX2460.01  UB Lines&#xa;r1c26: POS code&#xa;r6-9: service lines&#xa;r3c4: rev code col&#xa;r12-15: inel code rows&#xa;r18-21: OI rows&#xa;r22c6: provider type&#xa;r29c71: UC flag" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3160" y="105" width="160" height="115" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr5" value="CPS506.01  Release Screen&#xa;r3c13: rls_code&#xa;r3c39: lst_rls&#xa;r3c53: pnd_rsn&#xa;r7c8: payee (0/2/3)&#xa;r16+: EOB notes&#xa;r1c74: result (112=ok,115=err,114=dup)" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="210" width="175" height="110" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr6" value="CPS445.01  Duplicate Svc&#xa;r17c66: payment amount&#xa;r29c76: HCFA bypass flag&#xa;r29c78: UB bypass flag" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2820" y="210" width="160" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr7" value="CPS910.01  Condition/TOD&#xa;r5c60: TOD value input&#xa;r5c68: AFV value input&#xa;r7c6: condition note input" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2990" y="230" width="155" height="75" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr8" value="CPS408.01  Line Item Detail&#xa;r3c2: page header&#xa;r5/r19: charge rows&#xa;r3c48: provider code&#xa;inel positions: r+1,r+2,r+3" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3155" y="235" width="160" height="85" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr9" value="CPS325.01  Provider Addr&#xa;r5c69: ZIP code&#xa;r7c30: INT_NO" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="335" width="145" height="60" as="geometry"/>
-    </mxCell>
-    <mxCell id="Scr10" value="BLX120.01  CSR Note&#xa;r6c11: note line 1 (60 chars)&#xa;r7c11: note line 2 (60 chars)&#xa;Word-wrapped from NOTE_850" style="rounded=1;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2790" y="305" width="170" height="75" as="geometry"/>
-    </mxCell>
+        <!-- Draft selector -->
+        <mxCell id="d_lstrls" parent="1" value="lst_rls = Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="952" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lstrls_y" parent="1" value="LIST-RELEASE MODE&#xa;Scan rows 6,8,10,12,14,16,18&#xa;Find first where status col ≠ &quot;66&quot;&#xa;Place that row# @ (3,26)  →  ENTER" style="rounded=1;fillColor=#fff9c4;strokeColor=#f9a825;fontColor=#212121;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="150" y="942" width="290" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="lstrls_n" parent="1" value="SEQUENTIAL MODE&#xa;Place selector j @ (3,26)&#xa;j starts at 1, increments each draft&#xa;Resets to 1 at draft 8+  →  ENTER" style="rounded=1;fillColor=#fff9c4;strokeColor=#f9a825;fontColor=#212121;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="1060" y="942" width="290" height="70" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  RIGHT COLUMN: SETTINGS PARAMS                         -->
-    <!-- ======================================================= -->
-    <mxCell id="R_prm_bg" value="76+ SETTINGS PARAMETERS (grouped)" style="swimlane;startSize=28;fillColor=#e8eaf6;strokeColor=#3949ab;fontColor=#283593;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="2620" y="625" width="830" height="760" as="geometry"/>
-    </mxCell>
-    <mxCell id="P1" value="CPS506 RELEASE&#xa;rls_code (def:10)&#xa;lst_rls (Y/N, def:Y)&#xa;pnd_rsn, pnd_op_id&#xa;flw_up, dist_unit&#xa;eob, ck, note&#xa;payee (0/1/2/3)&#xa;eob_note, verify" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2630" y="665" width="150" height="130" as="geometry"/>
-    </mxCell>
-    <mxCell id="P2" value="OI / UC&#xa;apply_uc (def:Y)&#xa;rem_oi_elig_amt&#xa;apply_001 (N/A/1ONLY/ALL)&#xa;deny_clm&#xa;add_time" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2790" y="665" width="140" height="100" as="geometry"/>
-    </mxCell>
-    <mxCell id="P3" value="INEL AMT/CD&#xa;vld_amt_pd&#xa;vld_amt_pd_by_cpt&#xa;remove_prv&#xa;remove_inel_amt_cd&#xa;denial_code&#xa;aply_inel_cd_spcfc_rmval&#xa;inel_cd_to_rmv" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2940" y="665" width="145" height="130" as="geometry"/>
-    </mxCell>
-    <mxCell id="P4" value="DX / LAB / REV&#xa;apply_dx&#xa;apply_lab&#xa;dx_lab_rev&#xa;apply_bn_t_hold" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3095" y="665" width="130" height="80" as="geometry"/>
-    </mxCell>
-    <mxCell id="P5" value="BN / MODIFIER&#xa;apply_bn_qty&#xa;chnge_dx_cd&#xa;new_oi_elig_pd&#xa;new_oi_indctr&#xa;inel_switch" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3235" y="665" width="130" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P6" value="DX EXCPTN / GRID&#xa;aply_dx_excptn&#xa;aply_cond_nt&#xa;aply_grid_prc&#xa;updt_frm_to_dt&#xa;aply_tod_updt" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2630" y="810" width="130" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P7" value="AP / INT-ZIP / AFV&#xa;remove_ap&#xa;aply_int_zip&#xa;aply_cond_afv&#xa;aply_850_nt&#xa;rem_code_set" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2770" y="810" width="135" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P8" value="MODIFIER / PRV&#xa;aply_modifr&#xa;inel_code&#xa;remv_prov_rate&#xa;remv_modifr&#xa;aply_two_ap_cd" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2915" y="810" width="130" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P9" value="BYPASS/858/BOND&#xa;remv_prcrt_byps&#xa;amt_858_inq&#xa;bond_clinic&#xa;updt_oc_for_700&#xa;updt_hic" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3055" y="810" width="130" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P10" value="ADJ / 631 / STATE&#xa;remv_adj_cd&#xa;aply_631_inel&#xa;aply_st_typ&#xa;aply_dpsv (def:Y)&#xa;chk_inel" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3195" y="810" width="130" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P11" value="PER-DIEM / DISC&#xa;chk_per_diem&#xa;dis_aft_dnl&#xa;seq_ordr&#xa;rem_iu, rem_tu" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2630" y="920" width="130" height="85" as="geometry"/>
-    </mxCell>
-    <mxCell id="P12" value="OPI / BN / MEDICARE&#xa;aply_opi (N/Y/D)&#xa;del_bn&#xa;aply_dnl_aft_medcr" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2770" y="920" width="140" height="75" as="geometry"/>
-    </mxCell>
-    <mxCell id="P13" value="FLIP-MOD / DISC&#xa;flip_mod&#xa;apply_disc_aft_flip&#xa;rem_disc_amt_flag&#xa;(N/Y/Y-DONT READ)" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="2920" y="920" width="135" height="85" as="geometry"/>
-    </mxCell>
-    <mxCell id="P14" value="FAIE/034/S9451/HCR&#xa;faie_adj_inel&#xa;aply_034_inel&#xa;dny_s9451 (def:Y)&#xa;id_hcr (def:Y)&#xa;2nd_inel_001" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3065" y="920" width="135" height="95" as="geometry"/>
-    </mxCell>
-    <mxCell id="P15" value="dx_code_ref_path&#xa;(path to xlsx file)" style="rounded=1;fillColor=#c5cae9;strokeColor=#3949ab;fontSize=8;" vertex="1" parent="1">
-      <mxGeometry x="3210" y="920" width="130" height="50" as="geometry"/>
-    </mxCell>
+        <!-- CPS850.01 block -->
+        <mxCell id="d_is850" parent="1" value="Screen =&#xa;CPS850.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="1046" width="190" height="60" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  RIGHT COLUMN: TOD MODULE                              -->
-    <!-- ======================================================= -->
-    <mxCell id="R_tod_bg" value="TOD MODULE  (tod.py)" style="swimlane;startSize=28;fillColor=#e0f2f1;strokeColor=#00695c;fontColor=#004d40;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="2620" y="1405" width="830" height="280" as="geometry"/>
-    </mxCell>
-    <mxCell id="Tod1" value="check_tod(row)&#xa;my_tod = row[TOD].strip()&#xa;❶ not empty&#xa;❷ isdigit()&#xa;❸ len(my_tod) ≤ 2&#xa;Returns bool" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="1445" width="185" height="110" as="geometry"/>
-    </mxCell>
-    <mxCell id="Tod2" value="tod_update(screen, row, settings)&#xa;① call check_tod(row)&#xa;  → fail: row[MACRO_STATUS]=CHECK TOD VALUE, return False&#xa;② Navigate CPS520.01 (pf9 loop)&#xa;③ Enter claim_no → go to draft 01&#xa;④ send_enter → condition select screen (CPS520.01)&#xa;⑤ Loop condition rows 4-18 step 2:&#xa;   For my_tod in (&#39;99&#39;, &#39;00&#39;):&#xa;     place_value(my_tod, row, col)&#xa;     send_enter() → screen == CPS910.01&#xa;     enter TOD → if still CPS910.01: error&#xa;⑥ Returns True on success" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="2835" y="1440" width="340" height="210" as="geometry"/>
-    </mxCell>
+        <mxCell id="scr850_hdr" parent="1" value="SCREEN: CPS850.01   (Claim Header — optional fields)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="455" y="1130" width="570" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr850_body" parent="1" value="aply_opi = Y   →  place NEW_OPI @ (22,58);  &quot;x&quot; @ (23,52);  ENTER;  if still 850 → FAIL;  PF8 → &quot;850&quot; @ (2,37) → ENTER (refresh OPI)&#xa;aply_opi = D   →  clear (22,58);  &quot;x&quot; @ (23,52);  ENTER&#xa;aply_850_nt = APPEND / 2ND LINE   →  place_new_csr_note(screen, row)&#xa;chnge_dx_cd = Y   →  DX_CD @ (23,6);  &quot;Y&quot; @ (23,14)&#xa;aply_int_zip = Y   →  &quot;X&quot; @ (29,26) → ENTER → CPS325.01:  ZIP @ (5,69),  INT_NO @ (7,30)  → ENTER&#xa;→ ENTER  (exit CPS850)" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="455" y="1154" width="570" height="112" as="geometry" />
+        </mxCell>
 
-    <!-- ======================================================= -->
-    <!--  RIGHT COLUMN: RESULT COLLECTION                       -->
-    <!-- ======================================================= -->
-    <mxCell id="R_res_bg" value="RESULT COLLECTION  (per-row output)" style="swimlane;startSize=28;fillColor=#f1f8e9;strokeColor=#558b2f;fontColor=#33691e;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="2620" y="1705" width="830" height="210" as="geometry"/>
-    </mxCell>
-    <mxCell id="Res1" value="Draft loop done:&#xa;row_done=True → DONE.&#xa;row_done=False → final_status msg" style="rounded=1;fillColor=#c8e6c9;strokeColor=#558b2f;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="1745" width="230" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="Res2" value="results.append({&#xa;  CLAIM CONTROL #: claim_no,&#xa;  MACRO STATUS: macro_status&#xa;})" style="rounded=1;fillColor=#c8e6c9;strokeColor=#558b2f;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="2875" y="1745" width="210" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="Res3" value="Exception handling:&#xa;Catches any exception per row&#xa;MACRO STATUS = EXCEPTION: type: msg&#xa;finally: always send_pf(9)" style="rounded=1;fillColor=#ffe0b2;strokeColor=#e65100;fontSize=9;" vertex="1" parent="1">
-      <mxGeometry x="3095" y="1745" width="240" height="65" as="geometry"/>
-    </mxCell>
-    <mxCell id="Res4" value="return {&#34;success&#34;: True, &#34;result&#34;: results}" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="2635" y="1830" width="700" height="60" as="geometry"/>
-    </mxCell>
+        <!-- CPS910.01 -->
+        <mxCell id="d_is910" parent="1" value="Screen =&#xa;CPS910.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="1294" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="scr910_hdr" parent="1" value="SCREEN: CPS910.01   (TOD Prompt)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="555" y="1376" width="370" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr910_body" parent="1" value="Place TOD value (zero-padded to 2 digits) @ (5,60)&#xa;→ ENTER;   if still on CPS910 → FAIL draft" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="555" y="1400" width="370" height="38" as="geometry" />
+        </mxCell>
 
-  </root>
-</mxGraphModel>
+        <!-- Condition note / AFV -->
+        <mxCell id="s_cond" parent="1" value="aply_cond_nt  = Y   →  add_condition_note(screen, row)      fail → FAIL draft&#xa;aply_cond_afv = Y   →  update_condition_afv(screen, row)    fail → FAIL draft" style="rounded=1;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="455" y="1462" width="570" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- CLAIM_TYPE split -->
+        <mxCell id="d_clmtype" parent="1" value="CLAIM_TYPE?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=11;fontStyle=1;" vertex="1">
+          <mxGeometry x="645" y="1532" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- UB branch -->
+        <mxCell id="ub_hdr" parent="1" value="UB  →  SCREEN: BLX2460.01" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="80" y="1632" width="320" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="ub_body" parent="1" value="updt_frm_to_dt = Y:&#xa;  Read FROM @ (2,63), THRU @ (2,75), SERV @ (6,17)&#xa;  FROM ≠ SERV  →  clear (2,63), place SERV @ (2,63)&#xa;  THRU ≠ SERV  →  clear (2,75), place SERV @ (2,75)&#xa;&#xa;apply_ineligibility_codes(&quot;UB&quot;, dny_by_cpt ref)&#xa;&#xa;chk_per_diem = Y:&#xa;  ub_per_diem_process()&#xa;  STOP all remaining drafts&#xa;  status → &quot;PER DIEM PROCESSED&quot;&#xa;&#xa;ub_data_entry(screen, row, settings, codes)&#xa;  res = 0  →  FAIL (stop drafts)&#xa;  res = 1  →  draft OK, continue" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="80" y="1656" width="320" height="218" as="geometry" />
+        </mxCell>
+
+        <!-- HCFA branch -->
+        <mxCell id="hcfa_hdr" parent="1" value="HCFA  →  SCREEN: CPS450.01" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="1080" y="1632" width="320" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="hcfa_body" parent="1" value="apply_ineligibility_codes(&quot;HCFA&quot;, dny_by_cpt ref)&#xa;&#xa;hcfa_data_entry(screen, row, settings, codes)&#xa;  res = 0  →  FAIL (stop drafts)&#xa;  res = 1  →  draft OK, continue" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="1080" y="1656" width="320" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Invalid claim type -->
+        <mxCell id="err_clmtype" parent="1" value="Other  →  INVALID CLAIM TYPE  →  FAIL draft" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="555" y="1632" width="370" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- Draft result / loop back -->
+        <mxCell id="draft_loop" parent="1" value="Draft OK  →  loop back to next draft (↑ CPS520.01 nav)&#xa;Draft FAILED  →  record error status,  PF9,  stop remaining drafts for this claim" style="rounded=1;fillColor=#546e7a;strokeColor=#37474f;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="455" y="1910" width="570" height="44" as="geometry" />
+        </mxCell>
+
+        <!-- Claim result -->
+        <mxCell id="s_result" parent="1" value="All drafts OK  →  append { CLAIM CONTROL #, MACRO STATUS: &quot;DONE.&quot; }&#xa;Any draft failed  →  append { CLAIM CONTROL #, MACRO STATUS: &lt;error msg&gt; }&#xa;PF9  →  proceed to next claim" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="455" y="1976" width="570" height="54" as="geometry" />
+        </mxCell>
+
+        <!-- END -->
+        <mxCell id="end" parent="1" value="DONE&#xa;Return { success: true, result: [ list of dicts ] }" style="ellipse;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1">
+          <mxGeometry x="590" y="2054" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ EDGES ═══════════════ -->
+        <mxCell id="e1" edge="1" parent="1" source="start" target="s_load" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="s_load" target="s_connect" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="s_connect" target="d_rule" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="d_rule" target="skip_rule" style="edgeStyle=orthogonalEdgeStyle;" value="No" exitX="1" exitY="0.5" exitObject="d_rule">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="d_rule" target="d_seqord" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="d_seqord" target="skip_seq" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="d_seqord" target="d_tod" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="d_tod" target="tod_box" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="d_tod" target="scr520_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="tod_box" target="scr520_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="OK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="scr520_body" target="d_still520" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="d_still520" target="err_520" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="d_still520" target="scr520_nav" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="scr520_nav_body" target="d_lstrls" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="d_lstrls" target="lstrls_y" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="d_lstrls" target="lstrls_n" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="lstrls_y" target="d_is850" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="lstrls_n" target="d_is850" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="d_is850" target="scr850_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="d_is850" target="d_is910" style="edgeStyle=orthogonalEdgeStyle;" value="No (skip 850)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="scr850_body" target="d_is910" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="d_is910" target="scr910_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="d_is910" target="s_cond" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="scr910_body" target="s_cond" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="s_cond" target="d_clmtype" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="1" source="d_clmtype" target="ub_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="UB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="d_clmtype" target="hcfa_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="HCFA">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="d_clmtype" target="err_clmtype" style="edgeStyle=orthogonalEdgeStyle;" value="Other">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="ub_body" target="draft_loop" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="hcfa_body" target="draft_loop" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="err_clmtype" target="draft_loop" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" edge="1" parent="1" source="draft_loop" target="s_result" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" edge="1" parent="1" source="s_result" target="end" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- loop-back edge: draft OK → back to CPS520 nav -->
+        <mxCell id="e34" edge="1" parent="1" source="draft_loop" target="scr520_nav" style="edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#6a1b9a;strokeWidth=2;dashed=1;" value="next draft">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="1932" />
+              <mxPoint x="380" y="888" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <!-- loop-back edge: next claim → d_rule -->
+        <mxCell id="e35" edge="1" parent="1" source="s_result" target="d_rule" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#2e7d32;strokeWidth=2;dashed=1;" value="next claim">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1350" y="2003" />
+              <mxPoint x="1350" y="409" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

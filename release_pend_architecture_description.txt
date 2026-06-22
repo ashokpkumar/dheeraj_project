@@ -1,0 +1,22 @@
+Top-to-bottom flow:
+
+Setup — load rule CSV + DX code refs, connect to EXTRA.System emulator
+
+Per-claim gates — three sequential decisions before touching the emulator:
+
+RULE found in CSV? (No → SKIP)
+seq_ordr=Y + cert_no repeats? (Yes → SKIP SEQ ORDER)
+aply_tod_updt=Y? (Yes → run TOD update, fail → SKIP)
+CPS520.01 — places claim_no at (8,15), clears (9,15) and (12,15), ENTERs; if still on 520 → reads error at (31,2) and skips
+
+Draft loop (purple dashed back-arrow):
+
+Re-navigates to CPS520.01; selects draft by lst_rls mode (Y = find non-"66" row, N = sequential j counter)
+CPS850.01 (if reached): OPI, CSR note, DX code, INT/ZIP → CPS325.01 — all conditional on flags
+CPS910.01 (if reached): enters zero-padded TOD at (5,60)
+Condition note + AFV (if flags set)
+CLAIM_TYPE split:
+
+UB → BLX2460.01: sync dates, ineligibility codes, per-diem check (stops drafts), ub_data_entry
+HCFA → CPS450.01: ineligibility codes, hcfa_data_entry
+Result — DONE or error status appended per claim; green loop-back arrow shows the next-claim iteration
