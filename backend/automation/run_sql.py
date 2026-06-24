@@ -1,10 +1,10 @@
 import pyodbc
 import sys
 
-SERVER = "your_server"
-DATABASE = "your_database"
-USERNAME = "your_username"
-PASSWORD = "your_password"
+SERVER   = "wp000047650"
+DATABASE = "your_database"   # replace with your database name
+USERNAME = "umr_macro_2026"
+PASSWORD = "your_password"   # replace with your password
 
 QUERY = "SELECT TOP 10 * FROM INFORMATION_SCHEMA.TABLES"
 
@@ -16,7 +16,9 @@ def main():
         f"DATABASE={DATABASE};"
         f"UID={USERNAME};"
         f"PWD={PASSWORD};"
+        "Encrypt=yes;"
         "TrustServerCertificate=yes;"
+        "Connection Timeout=30;"
     )
 
     try:
