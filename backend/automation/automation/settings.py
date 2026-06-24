@@ -87,16 +87,47 @@ WSGI_APPLICATION = 'automation.wsgi.application'
 #         },
 #     }
 # }
+
+# Database
+# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+DATABASE_ROUTERS = ["automation.dbrouters.MSSQLRouter"]
+
+def _escape_pwd(pwd):
+    return "{" + pwd.replace("}", "}}") + "}"
+
+# DB credentials
+DEFAULT_DB_USER = "your_localdb_username"
+DEFAULT_DB_PASS = "your_localdb_password"
+MSSQL_DB_USER   = "umr_macro_2026"
+MSSQL_DB_PASS   = "your_password"
+
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'master',
-        'HOST': 'localhost\\SQLEXPRESS',
-        'PORT': '',
+        'NAME': 'automation',
+        'HOST': '(localdb)\\MSSQLLocalDB',
+        'USER': DEFAULT_DB_USER,
         'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
-            'trusted_connection': 'yes',
-            'extra_params': 'Encrypt=no;TrustServerCertificate=yes;',
+            'driver': 'ODBC Driver 17 for SQL Server',
+            'extra_params': (
+                f"PWD={_escape_pwd(DEFAULT_DB_PASS)};"
+                "Encrypt=yes;"
+                "TrustServerCertificate=yes;"
+            ),
+        },
+    },
+    "mssql": {
+        "ENGINE": "mssql",
+        "NAME": "MACRO_IT_PROJECT",
+        "HOST": "wp000047650",
+        "USER": MSSQL_DB_USER,
+        "OPTIONS": {
+            "driver": "ODBC Driver 17 for SQL Server",
+            "extra_params": (
+                f"PWD={_escape_pwd(MSSQL_DB_PASS)};"
+                "Encrypt=yes;"
+                "TrustServerCertificate=yes;"
+            ),
         },
     }
 }

@@ -10,12 +10,13 @@ QUERY = "SELECT TOP 10 * FROM INFORMATION_SCHEMA.TABLES"
 
 
 def main():
+    safe_password = "{" + PASSWORD.replace("}", "}}") + "}"
     connection_string = (
         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={SERVER};"
         f"DATABASE={DATABASE};"
         f"UID={USERNAME};"
-        f"PWD={PASSWORD};"
+        f"PWD={safe_password};"
         "Encrypt=yes;"
         "TrustServerCertificate=yes;"
         "Connection Timeout=30;"
