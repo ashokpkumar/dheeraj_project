@@ -1,4 +1,4 @@
-import subprocess
+import os
 from rule_engine.registry import register_function
 
 
@@ -9,23 +9,39 @@ from rule_engine.registry import register_function
     ],
     outputs=[
         {"name": "success", "type": "boolean"},
+        {"name": "launched", "type": "array"},
         {"name": "message", "type": "string"},
     ]
 )
 def open_emulator(location, context=None):
-    try:
-        subprocess.Popen([location], shell=False)
-        return {
-            "success": True,
-            "message": f"Launched executable: {location}",
-        }
-    except FileNotFoundError:
+    if not os.path.isdir(location):
         return {
             "success": False,
-            "message": f"Executable not found: {location}",
+            "launched": [],
+            "message": f"Directory not found: {location}",
         }
-    except Exception as e:
+
+    rd3x_files = [f for f in os.listdir(location) if f.endswith(".rd3x")]
+
+    if not rd3x_files:
         return {
             "success": False,
-            "message": str(e),
+            "launched": [],
+            "message": f"No .rd3x files found in: {location}",
         }
+
+    launched = []
+    errors = []
+    for filename in rd3x_files:
+        filepath = os.path.join(location, filename)
+        try:
+            os.startfile(filepath)
+            launched.append(filename)
+        except Exception as e:
+            errors.append(f"{filename}: {e}")
+
+    return {
+        "success": len(errors) == 0,
+        "launched": launched,
+        "message": f"Launched {len(launched)} file(s)." + (f" Errors: {'; '.join(errors)}" if errors else ""),
+    }
