@@ -5,6 +5,7 @@ import pythoncom
 from rule_engine.registry import register_function
 from .helpers import (
     attach_emulator_sessions,
+    get_screen_id,
     wait_for_screen,
     send_enter,
     place_value,
@@ -34,6 +35,31 @@ def _wait_for_text(screen, row, col, length, keyword, timeout=20):
             return True
         time.sleep(1)
     return False
+
+
+# ---------------------------------------------------------------------------
+# Screen detection
+# ---------------------------------------------------------------------------
+
+def _detect_screen(screen) -> str:
+    """
+    Returns one of:
+      'done'     — already on CPS515.01 or CPS520.01, no action needed
+      'tpx_menu' — stuck on TPX MENU
+      'login'    — stuck on login/Userid screen
+      'entry'    — stuck on entry screen (UHC0010)
+      'unknown'  — unrecognised screen, fall back to full login flow
+    """
+    sid = get_screen_id(screen)  # reads (1, 2, 10)
+    if sid in ("CPS515.01", "CPS520.01"):
+        return "done"
+    if "TPX MENU" in _read(screen, 1, 25, 8).upper():
+        return "tpx_menu"
+    if "USERID" in _read(screen, 16, 5, 6).upper():
+        return "login"
+    if "UHC0010" in _read(screen, 2, 1, 27).upper():
+        return "entry"
+    return "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +101,17 @@ def _step_tpx_menu(screen):
 
 
 def _automate_session(screen, name):
-    for step_fn in (_step_entry_screen, _step_login_screen, _step_tpx_menu):
+    state = _detect_screen(screen)
+
+    if state == "done":
+        return {"name": name, "success": True, "message": "Already on claim screen — no action needed."}
+
+    steps = {
+        "tpx_menu": [_step_tpx_menu],
+        "login":    [_step_login_screen, _step_tpx_menu],
+    }.get(state, [_step_entry_screen, _step_login_screen, _step_tpx_menu])  # entry / unknown
+
+    for step_fn in steps:
         ok, msg = step_fn(screen)
         if not ok:
             return {"name": name, "success": False, "message": msg}
