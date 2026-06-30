@@ -1,5 +1,7 @@
 import os
 import time
+import win32com.client
+import pythoncom
 from rule_engine.registry import register_function
 from .helpers import (
     attach_emulator_sessions,
@@ -7,6 +9,18 @@ from .helpers import (
     send_enter,
     place_value,
 )
+
+TARGET_SESSIONS = 4
+
+
+def _count_open_sessions() -> int:
+    """Return the number of currently open EXTRA sessions, 0 if EXTRA is not running."""
+    try:
+        pythoncom.CoInitialize()
+        system = win32com.client.Dispatch("EXTRA.System")
+        return system.Sessions.Count
+    except Exception:
+        return 0
 
 
 def _read(screen, row, col, length):
@@ -91,16 +105,22 @@ def open_emulator(location, context=None):
     if not rd3x_files:
         return {"success": False, "sessions": [], "message": f"No .rd3x files found in: {location}"}
 
-    # Launch every session file
-    for filename in rd3x_files:
-        os.startfile(os.path.join(location, filename))
+    # Check how many sessions are already open and only launch what is missing
+    already_open = _count_open_sessions()
+    needed = max(0, TARGET_SESSIONS - already_open)
 
-    # Wait for emulators to fully open before attaching
-    time.sleep(5)
+    if needed == 0:
+        msg = f"All {TARGET_SESSIONS} emulator sessions are already open — skipping launch."
+    else:
+        files_to_open = rd3x_files[:needed]
+        for filename in files_to_open:
+            os.startfile(os.path.join(location, filename))
+        msg = f"Opened {len(files_to_open)} session(s) ({already_open} were already running)."
+        time.sleep(5)
 
-    # Attach to the opened sessions via EXTRA COM (from helpers)
+    # Attach to all TARGET_SESSIONS sessions via EXTRA COM (from helpers)
     try:
-        emulator_sessions = attach_emulator_sessions(len(rd3x_files))
+        emulator_sessions = attach_emulator_sessions(TARGET_SESSIONS)
     except RuntimeError as e:
         return {"success": False, "sessions": [], "message": str(e)}
 
@@ -124,5 +144,5 @@ def open_emulator(location, context=None):
     return {
         "success": all_ok,
         "sessions": results,
-        "message": f"Processed {len(results)} session(s). {sum(r['success'] for r in results)} succeeded.",
+        "message": f"{msg} Processed {len(results)} session(s). {sum(r['success'] for r in results)} succeeded.",
     }
