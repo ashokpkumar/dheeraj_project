@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 import win32com.client
 import pythoncom
 from rule_engine.registry import register_function
@@ -12,6 +13,7 @@ from .helpers import (
 )
 
 TARGET_SESSIONS = 4
+log = logging.getLogger(__name__)
 
 
 def _is_visible_session(session) -> bool:
@@ -20,6 +22,17 @@ def _is_visible_session(session) -> bool:
         return bool(session.Visible)
     except Exception:
         return False
+
+
+def _wait_for_new_session(before: int, retries: int = 10, interval: int = 5) -> bool:
+    """Poll until visible session count exceeds `before`. Returns False if it never does."""
+    for attempt in range(1, retries + 1):
+        time.sleep(interval)
+        current = _count_open_sessions()
+        log.info("  Waiting for session to open — attempt %d/%d, visible sessions: %d", attempt, retries, current)
+        if current > before:
+            return True
+    return False
 
 
 def _count_open_sessions() -> int:
@@ -115,6 +128,7 @@ def _step_tpx_menu(screen):
 
 def _automate_session(screen, name):
     state = _detect_screen(screen)
+    log.info("  [%s] Detected screen state: '%s'", name, state)
 
     if state == "done":
         return {"name": name, "success": True, "message": "Already on claim screen — no action needed."}
@@ -125,9 +139,12 @@ def _automate_session(screen, name):
     }.get(state, [_step_entry_screen, _step_login_screen, _step_tpx_menu])  # entry / unknown
 
     for step_fn in steps:
+        log.info("  [%s] Running step: %s", name, step_fn.__name__)
         ok, msg = step_fn(screen)
         if not ok:
+            log.error("  [%s] Step '%s' failed: %s", name, step_fn.__name__, msg)
             return {"name": name, "success": False, "message": msg}
+        log.info("  [%s] Step '%s' OK", name, step_fn.__name__)
     return {"name": name, "success": True, "message": "Reached Claim main screen (CPS515.01)"}
 
 
@@ -157,24 +174,41 @@ def open_emulator(location, context=None):
     # Check how many sessions are already open and only launch what is missing
     already_open = _count_open_sessions()
     needed = max(0, TARGET_SESSIONS - already_open)
+    log.info("Session check — visible: %d, target: %d, need to open: %d", already_open, TARGET_SESSIONS, needed)
 
     if needed == 0:
         msg = f"All {TARGET_SESSIONS} emulator sessions are already open — skipping launch."
+        log.info(msg)
     else:
         files_to_open = rd3x_files[:needed]
+        launched = 0
         for filename in files_to_open:
+            before = _count_open_sessions()
+            log.info("[%d/%d] Opening '%s' (visible sessions before: %d) ...", launched + 1, needed, filename, before)
             os.startfile(os.path.join(location, filename))
-        msg = f"Opened {len(files_to_open)} session(s) ({already_open} were already running)."
-        time.sleep(30)
+            if not _wait_for_new_session(before):
+                log.error("Timed out waiting for '%s' to open after 10 attempts.", filename)
+                return {
+                    "success": False,
+                    "sessions": [],
+                    "message": f"Timed out waiting for '{filename}' to open (checked 10 times, 5 s apart).",
+                }
+            launched += 1
+            log.info("  '%s' opened successfully. Visible sessions now: %d", filename, _count_open_sessions())
+        msg = f"Opened {launched} session(s) ({already_open} were already running)."
+        log.info(msg)
 
     # Attach to all TARGET_SESSIONS sessions via EXTRA COM (from helpers)
+    log.info("Attaching to emulator sessions via COM ...")
     try:
         emulator_sessions = attach_emulator_sessions(TARGET_SESSIONS)
     except RuntimeError as e:
+        log.error("Failed to attach sessions: %s", e)
         return {"success": False, "sessions": [], "message": str(e)}
 
     # Drop background/hidden sessions — only keep ones with a visible window
     visible_sessions = [s for s in emulator_sessions if _is_visible_session(s)]
+    log.info("Attached %d session(s), %d visible after filtering background processes.", len(emulator_sessions), len(visible_sessions))
 
     # Pair visible sessions with filenames by open order, build name -> screen map
     session_names = [os.path.splitext(f)[0] for f in rd3x_files[:TARGET_SESSIONS]]
@@ -187,9 +221,12 @@ def open_emulator(location, context=None):
     results = []
     for name in session_names:
         if name not in named_sessions:
+            log.warning("Session '%s' not available — skipping.", name)
             results.append({"name": name, "success": False, "message": "Session not available"})
             continue
+        log.info("Automating session '%s' ...", name)
         result = _automate_session(named_sessions[name], name)
+        log.info("  '%s' result: %s", name, result["message"])
         results.append(result)
 
     all_ok = all(r["success"] for r in results)
