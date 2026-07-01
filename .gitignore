@@ -3,7 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
-backend\automation\rule_engine\__pycache__\
 # Django
 *.log
 db.sqlite3
@@ -28,6 +27,3 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
-*.py
-backend/automation/rule_engine/__pycache__/executor.cpython-313.pyc
-/backend/automation/rule_engine/__pycache__

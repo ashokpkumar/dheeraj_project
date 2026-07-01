@@ -1,0 +1,27 @@
+Rule,Denial code,PRV code,EOB comment,Extra comment
+RULE681,110,#N/A,#N/A,#N/A
+RULE383,221,#N/A,#N/A,#N/A
+RULE196,312,#N/A,#N/A,#N/A
+RULE17,0,#N/A,#N/A,"No need to use denial code, just do 71Y"
+RULE295,947,#N/A,#N/A,#N/A
+RULE334,947,#N/A,#N/A,#N/A
+RULE16,997,Z,Billed in Error,#N/A
+RULE65,997,#N/A,Please submit to the correct medical carrier.,#N/A
+RULE268,457,#N/A,INCLUDED IN GLOBAL MATERNITY BENEFIT,#N/A
+RULE117,034,#N/A,#N/A,#N/A
+RULE62,947,#N/A,#N/A,#N/A
+RULE915,947,#N/A,#N/A,#N/A
+RULE875,559,Z,#N/A,#N/A
+Rule477,947,#N/A,#N/A,#N/A
+RULE11,534,#N/A,#N/A,#N/A
+RUle395,947,#N/A,#N/A,#N/A
+Rule1122,0,#N/A,#N/A,"No need to use any denial code, just do 71Y"
+Rule548,581,#N/A,#N/A,#N/A
+Rule776,0,#N/A,#N/A,"AP code E, No need to use denial code, just do 71Y"
+Rule1183,947,#N/A,#N/A,#N/A
+Rule57,115,#N/A,#N/A,if any error out with invalid POS/TOS change POS to 04 and remove OI allowed & pd
+Rule597,947,#N/A,Breast Pumps not covered under medical plan,#N/A
+Rule1235,512,#N/A,#N/A,#N/A
+Rule1345,704,#N/A,#N/A,#N/A
+Rule53,109,#N/A,#N/A,Use Remove OI ELIG/AMT as Y (K7)
+Rule1378,997,#N/A,"Based on Oklahoma state statue 57-627E, services from this provider are not covered.",#N/A

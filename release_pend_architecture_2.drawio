@@ -1,0 +1,327 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="rp-functional-v2" name="Functional Flow + File Map">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="3400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITLE -->
+        <mxCell id="title" parent="1" value="release_pend_run_batch — Functional Flow with File Map" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1">
+          <mxGeometry x="100" y="12" width="1600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- FILE LEGEND -->
+        <mxCell id="leg_bg" parent="1" value="" style="rounded=0;fillColor=#f5f5f5;strokeColor=#aaaaaa;" vertex="1">
+          <mxGeometry x="100" y="60" width="1600" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" value="FILE LEGEND:" style="text;html=1;fontStyle=1;fontSize=10;" vertex="1">
+          <mxGeometry x="108" y="70" width="90" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_script" parent="1" value="script.py  (orchestrator)" style="rounded=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontSize=9;fontStyle=1;" vertex="1">
+          <mxGeometry x="205" y="67" width="180" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_utils" parent="1" value="utils.py  (screen primitives + helpers)" style="rounded=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=9;fontStyle=1;" vertex="1">
+          <mxGeometry x="395" y="67" width="230" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_tod" parent="1" value="tod.py  (TOD update)" style="rounded=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=9;fontStyle=1;" vertex="1">
+          <mxGeometry x="635" y="67" width="170" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_hcfa" parent="1" value="hcfa.py  (HCFA data entry)" style="rounded=1;fillColor=#e65100;strokeColor=#bf360c;fontColor=#ffffff;fontSize=9;fontStyle=1;" vertex="1">
+          <mxGeometry x="815" y="67" width="195" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_ub" parent="1" value="ub.py  (UB data entry)" style="rounded=1;fillColor=#6a1b9a;strokeColor=#4a148c;fontColor=#ffffff;fontSize=9;fontStyle=1;" vertex="1">
+          <mxGeometry x="1020" y="67" width="180" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_scr" parent="1" value="Mainframe Screen" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=9;" vertex="1">
+          <mxGeometry x="1210" y="67" width="140" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_dec" parent="1" value="Decision / Flag" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=9;" vertex="1">
+          <mxGeometry x="1360" y="60" width="130" height="38" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_err" parent="1" value="Skip / Fail" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=9;" vertex="1">
+          <mxGeometry x="1500" y="67" width="90" height="24" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ SETUP ═══════════════ -->
+        <mxCell id="hdr_setup" parent="1" value="SETUP" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#0d47a1;" vertex="1">
+          <mxGeometry x="100" y="108" width="1600" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" parent="1" value="START" style="ellipse;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=12;" vertex="1">
+          <mxGeometry x="720" y="143" width="120" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_load" parent="1" value="&lt;b&gt;Load Code References&lt;/b&gt;&lt;br/&gt;utils.py: load_code_refs(dx_code_ref_path)  →  reads Excel, builds dicts:&lt;br/&gt;dx_codes, lab_codes, ub_rev_codes, grid_price, dny_by_cpt, mod_codes, …&lt;br/&gt;script.py: _load_rule_code_ref(rule_code_ref_path)  →  reads CSV, keyed by RULE" style="rounded=1;html=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="480" y="205" width="600" height="62" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_connect" parent="1" value="&lt;b&gt;Connect to Emulator&lt;/b&gt;&lt;br/&gt;win32com.client.Dispatch(&quot;EXTRA.System&quot;) → ActiveSession → Screen&lt;br/&gt;&lt;i&gt;(script.py inline — all subsequent screen ops use utils.py primitives)&lt;/i&gt;" style="rounded=1;html=1;fillColor=#1565c0;strokeColor=#0d47a1;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="480" y="285" width="600" height="52" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ PER-CLAIM ═══════════════ -->
+        <mxCell id="hdr_claim" parent="1" value="FOR EACH CLAIM (CLAIM_NO) IN DATAFRAME  —  script.py orchestrates; utils.py handles all screen I/O" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;" vertex="1">
+          <mxGeometry x="100" y="358" width="1600" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d_rule" parent="1" value="RULE column value&#xa;found in rule CSV?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="690" y="400" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="skip_rule" parent="1" value="SKIP: 'RULE not found in rule CSV'" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1110" y="418" width="250" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d_seqord" parent="1" value="seq_ordr=Y  AND&#xa;cert_no = last skipped cert_no?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="675" y="500" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="skip_seq" parent="1" value="send_pf(9) → SKIP: 'SKIPPED (SEQ ORDER)'&#xa;utils.py: send_pf(screen, 9)" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1110" y="518" width="250" height="34" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d_tod" parent="1" value="aply_tod_updt = Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="690" y="600" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="tod_box" parent="1" value="&lt;b&gt;tod.py: tod_update(screen, row, settings)&lt;/b&gt;&lt;br/&gt;  1. CPS520.01 → place claim_no → ENTER&lt;br/&gt;  2. Select draft 01 → &quot;X&quot; @ (29,9) → condition list&lt;br/&gt;  3. For each condition where TOD=&apos;99&apos; or &apos;00&apos;:&lt;br/&gt;     CPS910.01 → place TOD @ (5,60) → ENTER&lt;br/&gt;  fail → set row[MACRO_STATUS], return False → SKIP" style="rounded=1;html=1;fillColor=#00695c;strokeColor=#004d40;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="1110" y="582" width="370" height="96" as="geometry" />
+        </mxCell>
+
+        <!-- CPS520.01 — initial entry -->
+        <mxCell id="scr520_hdr" parent="1" value="SCREEN: CPS520.01   (Claim Search / List)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="580" y="690" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr520_body" parent="1" value="utils.py: place_value(claim_no, 8, 15)&lt;br/&gt;utils.py: remove_value(9, 15)&lt;br/&gt;utils.py: remove_value(12, 15)&lt;br/&gt;utils.py: send_enter(screen)" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="580" y="714" width="400" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d_still520" parent="1" value="Still on CPS520.01&#xa;after ENTER?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="695" y="802" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="err_520" parent="1" value="screen.GetString(31,2,70) → read error msg&#xa;send_pf(9) → SKIP claim" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="1110" y="815" width="250" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ DRAFT LOOP ═══════════════ -->
+        <mxCell id="hdr_draft" parent="1" value="FOR EACH DRAFT  (1..DRAFTS)   — loop back to here after each draft   |   all screen nav via utils.py primitives" style="text;html=1;align=left;fontStyle=1;fontSize=11;fillColor=#f3e5f5;strokeColor=#6a1b9a;fontColor=#4a148c;" vertex="1">
+          <mxGeometry x="100" y="892" width="1600" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="scr520_nav" parent="1" value="SCREEN: CPS520.01   (navigate back — send_pf(9) loop × 10 until on CPS520)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="580" y="926" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr520_nav_body" parent="1" value="place_value(claim_no, 8,15)  •  remove_value(9,15)  •  remove_value(12,15)  •  send_enter()" style="rounded=0;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="580" y="950" width="400" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d_lstrls" parent="1" value="lst_rls = Y?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="695" y="1006" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lstrls_y" parent="1" value="LIST-RELEASE MODE (script.py)&#xa;Scan rows 6,8,10,12,14,16,18&#xa;Find first where screen.GetString(row,6,2) ≠ &quot;66&quot;&#xa;place_value(that_row#, 3, 26)  →  send_enter()" style="rounded=1;fillColor=#fff9c4;strokeColor=#f9a825;fontColor=#212121;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="170" y="996" width="320" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="lstrls_n" parent="1" value="SEQUENTIAL MODE (script.py)&#xa;place_value(j, 3, 26)  [j starts at 1, +1 each draft]&#xa;At draft 8: j=1, send_pf(11) first&#xa;→  send_enter()" style="rounded=1;fillColor=#fff9c4;strokeColor=#f9a825;fontColor=#212121;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="1110" y="996" width="310" height="78" as="geometry" />
+        </mxCell>
+
+        <!-- CPS850.01 block -->
+        <mxCell id="d_is850" parent="1" value="Screen =&#xa;CPS850.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="695" y="1110" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="scr850_hdr" parent="1" value="SCREEN: CPS850.01   (Claim Header — optional field updates before data entry)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="420" y="1196" width="720" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr850_body" parent="1" value="&lt;b&gt;aply_opi=Y&lt;/b&gt;  →  place_value(NEW_OPI, 22,58);  place_value(&apos;x&apos;, 23,52);  send_enter();  if still 850 → FAIL;  send_pf(8) → place_value(&apos;850&apos;,2,37) → send_enter() (refresh OPI)&lt;br/&gt;&lt;b&gt;aply_opi=D&lt;/b&gt;  →  remove_value(22,58);  place_value(&apos;x&apos;, 23,52);  send_enter()&lt;br/&gt;&lt;b&gt;aply_850_nt = APPEND / 2ND LINE&lt;/b&gt;  →  &lt;font color=&quot;#90caf9&quot;&gt;utils.py: place_new_csr_note(screen, row, opt)&lt;/font&gt;  — navigates to BLX120.01, word-wraps NOTE_850 text&lt;br/&gt;&lt;b&gt;chnge_dx_cd=Y&lt;/b&gt;  →  place_value(DX_CD, 23,6);  place_value(&apos;Y&apos;, 23,14)&lt;br/&gt;&lt;b&gt;aply_int_zip=Y&lt;/b&gt;  →  place_value(&apos;X&apos;, 29,26) → send_enter() → CPS325.01:  place_value(ZIP, 5,69);  place_value(INT_NO, 7,30) → send_enter()&lt;br/&gt;→ send_enter()  (exit CPS850)&lt;br/&gt;&lt;i&gt;All field ops: utils.py place_value / remove_value / send_enter / send_pf&lt;/i&gt;" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="420" y="1220" width="720" height="138" as="geometry" />
+        </mxCell>
+
+        <!-- CPS910.01 -->
+        <mxCell id="d_is910" parent="1" value="Screen =&#xa;CPS910.01?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="695" y="1384" width="190" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="scr910_hdr" parent="1" value="SCREEN: CPS910.01   (TOD Prompt)" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="580" y="1466" width="400" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="scr910_body" parent="1" value="utils.py: place_value(TOD.zfill(2), 5, 60)  →  send_enter()&lt;br/&gt;if still on CPS910.01 → FAIL draft" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="580" y="1490" width="400" height="36" as="geometry" />
+        </mxCell>
+
+        <!-- Condition note / AFV -->
+        <mxCell id="s_cond" parent="1" value="&lt;b&gt;utils.py: add_condition_note(screen, row)&lt;/b&gt;  if aply_cond_nt=Y&lt;br/&gt;  send_pf(8) → place_value(&apos;910&apos;,2,37) → send_enter() → place_value(COND_NOTE, 7,6) → send_enter();  fail → FAIL draft&lt;br/&gt;&lt;b&gt;utils.py: update_condition_afv(screen, row)&lt;/b&gt;  if aply_cond_afv=Y&lt;br/&gt;  send_pf(8) → place_value(&apos;910&apos;,2,37) → send_enter() → place_value(AFV, 5,68) → send_enter();  fail → FAIL draft" style="rounded=1;html=1;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#1b5e20;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="420" y="1552" width="720" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- CLAIM_TYPE split -->
+        <mxCell id="d_clmtype" parent="1" value="CLAIM_TYPE?" style="rhombus;fillColor=#ffd600;strokeColor=#f9a825;fontColor=#000000;fontSize=11;fontStyle=1;" vertex="1">
+          <mxGeometry x="695" y="1650" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- UB branch -->
+        <mxCell id="ub_hdr" parent="1" value="UB  →  SCREEN: BLX2460.01" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="60" y="1754" width="380" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="ub_body" parent="1" value="&lt;b&gt;updt_frm_to_dt=Y&lt;/b&gt;  (script.py)&lt;br/&gt;  Read FROM@(2,63), THRU@(2,75), SERV@(6,17)&lt;br/&gt;  FROM≠SERV → remove_value(2,63); place_value(SERV,2,63)&lt;br/&gt;  THRU≠SERV → remove_value(2,75); place_value(SERV,2,75)&lt;br/&gt;&lt;br/&gt;&lt;b&gt;utils.py: apply_ineligibility_codes(&apos;UB&apos;, dny_by_cpt)&lt;/b&gt;&lt;br/&gt;  For rows 6-9: if CPT in dny_by_cpt → place inel_code @ ineligibility rows&lt;br/&gt;  → send_enter(); send_pf(8); place_value(&apos;460&apos;,2,37); send_enter()&lt;br/&gt;&lt;br/&gt;&lt;b&gt;chk_per_diem=Y:&lt;/b&gt;&lt;br/&gt;  &lt;font color=&quot;#ce93d8&quot;&gt;ub.py: ub_per_diem_process(screen, row, settings)&lt;/font&gt;&lt;br/&gt;  Fills CPS506: rls_code=60, pnd_rsn=O99, pnd_opid=CF10, note=PER DIEM LINE&lt;br/&gt;  STOP all remaining drafts → status: &apos;PER DIEM PROCESSED&apos;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;ub.py: ub_data_entry(screen, row, settings, codes, status_parts)&lt;/b&gt;&lt;br/&gt;  For rows 6-9: inel codes, AP codes, denial codes, modifier ops, BN codes…&lt;br/&gt;  Handles edit errors: 8803/8806, SP REQUIRED, duplicate inel, TOS edits&lt;br/&gt;  ub_tos_entry(), bypass_duplicate(), check_inel_code(), is_fully_paid()&lt;br/&gt;  res=0 → FAIL draft;  res=1 → continue" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="60" y="1778" width="380" height="290" as="geometry" />
+        </mxCell>
+
+        <!-- HCFA branch -->
+        <mxCell id="hcfa_hdr" parent="1" value="HCFA  →  SCREEN: CPS450.01" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="1120" y="1754" width="380" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="hcfa_body" parent="1" value="&lt;b&gt;utils.py: apply_ineligibility_codes(&apos;HCFA&apos;, dny_by_cpt)&lt;/b&gt;&lt;br/&gt;  For rows 5,7,9,11: if CPT in dny_by_cpt → place inel_code @ ineligibility rows&lt;br/&gt;  → send_enter(); send_pf(8); place_value(&apos;450&apos;,2,37); send_enter()&lt;br/&gt;&lt;br/&gt;&lt;b&gt;hcfa.py: hcfa_data_entry(screen, row, settings, codes, status_parts)&lt;/b&gt;&lt;br/&gt;  NEW_POS @ (2,6);  apply_uc=Y → &apos;X&apos; @ (29,69)&lt;br/&gt;  For service lines (rows 5,7,9,11):&lt;br/&gt;    inel codes, AP codes, denial codes, modifiers, BN codes&lt;br/&gt;    grid price check, DX codes, OI elig/pd, bond clinic…&lt;br/&gt;  After ENTER:&lt;br/&gt;    CPS445 dup screen → enter &amp; bypass or FAIL&lt;br/&gt;    Handles: BN edits, DX exceptions, TOS/POS errors&lt;br/&gt;    hcfa_tos_entry(), bypass_duplicate(), check_inel_code()&lt;br/&gt;    is_fully_paid(), total_amt_858(), plan_id_update()&lt;br/&gt;  res=0 → FAIL draft;  res=1 → continue" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="1120" y="1778" width="380" height="290" as="geometry" />
+        </mxCell>
+
+        <!-- Invalid claim type -->
+        <mxCell id="err_clmtype" parent="1" value="Other → INVALID CLAIM TYPE → FAIL draft" style="rounded=1;fillColor=#c62828;strokeColor=#b71c1c;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="630" y="1754" width="300" height="34" as="geometry" />
+        </mxCell>
+
+        <!-- CPS506 shared outcome -->
+        <mxCell id="cps506_hdr" parent="1" value="SCREEN: CPS506.01   (Release / Pend decision screen)   —   called from both ub_data_entry and hcfa_data_entry" style="rounded=0;fillColor=#37474f;strokeColor=#263238;fontColor=#ffffff;fontSize=10;fontStyle=1;" vertex="1">
+          <mxGeometry x="420" y="2110" width="720" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="cps506_body" parent="1" value="&lt;b&gt;utils.py: data_entry_in_cps506(screen, row, settings)&lt;/b&gt;&lt;br/&gt;&lt;table border=&quot;0&quot; cellpadding=&quot;2&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;b&gt;Field&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Position&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Source&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;rls_code&lt;/td&gt;&lt;td&gt;(3,13)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;lst_rls&lt;/td&gt;&lt;td&gt;(3,39)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;pnd_rsn&lt;/td&gt;&lt;td&gt;(3,53)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;pnd_opid&lt;/td&gt;&lt;td&gt;(4,13)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;flwup_days&lt;/td&gt;&lt;td&gt;(4,38)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;note&lt;/td&gt;&lt;td&gt;(4,50)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;eob&lt;/td&gt;&lt;td&gt;(5,24)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;payee&lt;/td&gt;&lt;td&gt;(7,8)&lt;/td&gt;&lt;td&gt;settings&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;EOB_PER_CLM notes&lt;/td&gt;&lt;td&gt;(16+, 36) word-wrapped&lt;/td&gt;&lt;td&gt;row (overrides settings.eob_note)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;PROV_NAME (payee=2)&lt;/td&gt;&lt;td&gt;(10,18)&lt;/td&gt;&lt;td&gt;row&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;PROV_ADD (payee=2)&lt;/td&gt;&lt;td&gt;(11-12,18)&lt;/td&gt;&lt;td&gt;row&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;SPLIT_EE / SPLIT_PR (payee=3)&lt;/td&gt;&lt;td&gt;(9,22) / (9,41)&lt;/td&gt;&lt;td&gt;row&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;→ send_enter() → check screen_code @ (1,74,3):  &apos;112&apos; = Released  |  &apos;115&apos; = Error  |  &apos;114&apos; = Duplicate" style="rounded=0;html=1;fillColor=#455a64;strokeColor=#263238;fontColor=#ffffff;fontSize=10;align=left;" vertex="1">
+          <mxGeometry x="420" y="2134" width="720" height="254" as="geometry" />
+        </mxCell>
+
+        <!-- Draft result / loop back -->
+        <mxCell id="draft_loop" parent="1" value="Draft OK  →  loop back to next draft (↑ CPS520.01 nav)&lt;br/&gt;Draft FAILED  →  record error status,  send_pf(9),  stop remaining drafts for this claim" style="rounded=1;html=1;fillColor=#546e7a;strokeColor=#37474f;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="480" y="2428" width="600" height="42" as="geometry" />
+        </mxCell>
+
+        <!-- Claim result -->
+        <mxCell id="s_result" parent="1" value="All drafts OK  →  append { CLAIM CONTROL #, MACRO STATUS: &quot;DONE.&quot; }  |  finally: send_pf(9)&lt;br/&gt;Any draft failed  →  append { CLAIM CONTROL #, MACRO STATUS: &lt;error msg&gt; }  |  finally: send_pf(9)&lt;br/&gt;(script.py inline — PF9 in finally block always resets to CPS520.01)" style="rounded=1;html=1;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontSize=10;" vertex="1">
+          <mxGeometry x="480" y="2492" width="600" height="54" as="geometry" />
+        </mxCell>
+
+        <!-- END -->
+        <mxCell id="end" parent="1" value="DONE&#xa;Return { success: true, result: [ list of claim dicts ] }" style="ellipse;fillColor=#2e7d32;strokeColor=#1b5e20;fontColor=#ffffff;fontStyle=1;fontSize=11;" vertex="1">
+          <mxGeometry x="630" y="2572" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════ EDGES ═══════════════ -->
+        <mxCell id="e1" edge="1" parent="1" source="start" target="s_load" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="s_load" target="s_connect" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="s_connect" target="d_rule" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="d_rule" target="skip_rule" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="d_rule" target="d_seqord" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="d_seqord" target="skip_seq" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="d_seqord" target="d_tod" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="d_tod" target="tod_box" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="d_tod" target="scr520_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="tod_box" target="scr520_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="OK →">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="scr520_body" target="d_still520" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="d_still520" target="err_520" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="d_still520" target="scr520_nav" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="scr520_nav_body" target="d_lstrls" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="d_lstrls" target="lstrls_y" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="d_lstrls" target="lstrls_n" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="lstrls_y" target="d_is850" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="lstrls_n" target="d_is850" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="d_is850" target="scr850_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="d_is850" target="d_is910" style="edgeStyle=orthogonalEdgeStyle;" value="No (skip)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="scr850_body" target="d_is910" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="d_is910" target="scr910_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="d_is910" target="s_cond" style="edgeStyle=orthogonalEdgeStyle;" value="No">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="scr910_body" target="s_cond" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="s_cond" target="d_clmtype" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="1" source="d_clmtype" target="ub_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="UB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="d_clmtype" target="hcfa_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="HCFA">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="d_clmtype" target="err_clmtype" style="edgeStyle=orthogonalEdgeStyle;" value="Other">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="ub_body" target="cps506_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="→ CPS506">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="hcfa_body" target="cps506_hdr" style="edgeStyle=orthogonalEdgeStyle;" value="→ CPS506">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="err_clmtype" target="draft_loop" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e32" edge="1" parent="1" source="cps506_body" target="draft_loop" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e33" edge="1" parent="1" source="draft_loop" target="s_result" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e34" edge="1" parent="1" source="s_result" target="end" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- loop-back: next draft -->
+        <mxCell id="e35" edge="1" parent="1" source="draft_loop" target="scr520_nav" style="edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#6a1b9a;strokeWidth=2;dashed=1;" value="next draft">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="2449" />
+              <mxPoint x="390" y="938" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <!-- loop-back: next claim -->
+        <mxCell id="e36" edge="1" parent="1" source="s_result" target="d_rule" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#2e7d32;strokeWidth=2;dashed=1;" value="next claim">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1470" y="2519" />
+              <mxPoint x="1470" y="435" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

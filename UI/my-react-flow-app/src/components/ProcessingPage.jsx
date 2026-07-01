@@ -6,6 +6,7 @@ export default function ProcessingPage({
   dashboardMeta = {},   // ✅ SAFE DEFAULT
   dateDetails = [],
   dateMeta = {},        // ✅ SAFE DEFAULT
+  claimsSummary = null,
   fetchDashboardData,
   fetchDateDetails,
   handleExportRowCsv,
@@ -106,6 +107,23 @@ export default function ProcessingPage({
               <div style={styles.selectedDate}>
                 Showing: <b>{selectedDate}</b>
               </div>
+
+              {claimsSummary && (
+                <div style={styles.summaryRow}>
+                  <div style={{ ...styles.summaryCard, ...styles.summaryProcessed }}>
+                    <div style={styles.summaryLabel}>Processed</div>
+                    <div style={styles.summaryValue}>{claimsSummary.processed}</div>
+                  </div>
+                  <div style={{ ...styles.summaryCard, ...styles.summaryUnprocessed }}>
+                    <div style={styles.summaryLabel}>Unprocessed</div>
+                    <div style={styles.summaryValue}>{claimsSummary.unprocessed}</div>
+                  </div>
+                  <div style={{ ...styles.summaryCard, ...styles.summaryTotal }}>
+                    <div style={styles.summaryLabel}>Total</div>
+                    <div style={styles.summaryValue}>{claimsSummary.total}</div>
+                  </div>
+                </div>
+              )}
 
               <table style={styles.table}>
                 <thead>
@@ -272,6 +290,22 @@ const styles = {
   empty: { textAlign: 'center', padding: 10, color: '#6b7280' },
   placeholder: { color: '#6b7280', padding: 10 },
   selectedDate: { marginBottom: 8, color: '#1f4e92' },
+  summaryRow: {
+    display: 'flex',
+    gap: 12,
+    marginBottom: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    borderRadius: 6,
+    padding: '10px 12px',
+    textAlign: 'center',
+  },
+  summaryProcessed: { background: '#e6f4ea', color: '#16a34a' },
+  summaryUnprocessed: { background: '#fdecec', color: '#dc2626' },
+  summaryTotal: { background: '#eef2f6', color: '#1f4e92' },
+  summaryLabel: { fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryValue: { fontSize: 22, fontWeight: 700, marginTop: 4 },
   csvBtn: {
     background: '#16a34a',
     color: 'white',

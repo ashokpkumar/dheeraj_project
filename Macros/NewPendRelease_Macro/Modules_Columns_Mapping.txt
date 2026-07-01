@@ -1,0 +1,148 @@
+'added 2023.07.14
+Public Const s1cell_sessPath = "B4"
+Public Const s1cell_start = "C11"
+Public Const s1cell_end = "E11"
+Public Const s1cell_curRow = "G11"
+'--------------------------------
+Public Const s1cell_rlsCode = "D6"
+Public Const s1cell_lstRls = "D7"
+Public Const s1cell_pndRsn = "D8"
+Public Const s1cell_pndOpId = "D9"
+'--------------------------------
+Public Const s1cell_flwUp = "F6"
+Public Const s1cell_distUnit = "F7"
+Public Const s1cell_eob = "F8"
+Public Const s1cell_ck = "F9"
+'--------------------------------
+Public Const s1cell_note = "H6"
+Public Const s1cell_payee = "H7"
+Public Const s1cell_eobNote = "H8"
+Public Const s1cell_verify = "H9"
+'--------------------------------
+Public Const s1cell_aplyUC = "K6"
+Public Const s1cell_remOiEligAmt = "K7"
+Public Const s1cell_apply001 = "K8"
+Public Const s1cell_denyClm = "K9"
+Public Const s1cell_addTime = "K10"
+'--------------------------------
+Public Const s1cell_vldteAmtPd = "M6"
+Public Const s1cell_removePrv = "M7"
+Public Const s1cell_removeInelAmtInelCd = "M8"
+Public Const s1cell_denialCode = "M9"
+Public Const s1cell_aplyInelCdSpcfcRmval = "M10"
+'--------------------------------
+Public Const s1cell_aplyDx = "O6"
+Public Const s1cell_aplyLab = "O7"
+Public Const s1cell_dxLabRev = "O8"
+Public Const s1cell_applyBnTHold = "O9"
+Public Const s1cell_inelCdToRmv = "O10"
+'--------------------------------
+Public Const s1cell_aplyBnQty = "Q6"
+Public Const s1cell_chngeDxCd = "Q7"
+Public Const s1cell_newOiEligPd = "Q8"
+Public Const s1cell_newOiIndctr = "Q9"
+Public Const s1cell_inelSwitch = "Q10" 'ADDED 2024.01.04
+'--------------------------------
+Public Const s1cell_aplyDxExcptn = "S6"
+Public Const s1cell_aplyCondNt = "S7"
+Public Const s1cell_aplyGridPrc = "S8"
+Public Const s1cell_updtFrmToDt = "S9"
+Public Const s1cell_aplyTodUpdt = "S10"
+'--------------------------------
+Public Const s1cell_removeAp = "U6"
+Public Const s1cell_aplyIntZip = "U7"
+Public Const s1cell_aplyCondAfv = "U8"
+Public Const s1cell_aply850Nt = "U9"
+Public Const s1cell_remCodeSet = "U10" 'ADDED 2024.01.17
+'--------------------------------
+Public Const s1cell_aplyModifr = "W6"
+Public Const s1cell_inelCode = "W7"
+Public Const s1cell_remvProvRate = "W8"
+Public Const s1cell_remvModifr = "W9"
+Public Const s1cell_aplyTwoApCd = "W10"
+'--------------------------------
+Public Const s1cell_remvPrcrtByps = "Y6"
+Public Const s1cell_858AmtInq = "Y7"
+Public Const s1cell_bondClnic = "Y8"
+Public Const s1cell_updtOcFor700 = "Y9"
+Public Const s1cell_updtHic = "Y10"
+'--------------------------------
+Public Const s1cell_remvAdjCd = "AA6"
+Public Const s1cell_aply631Inel = "AA7"
+Public Const s1cell_aplyStTyp = "AA8"
+Public Const s1cell_aplyDPSV = "AA9" 'Added 2024.02.21
+Public Const s1cell_ChkInel = "AA10" 'Added 2024.02.21
+Public Const s1cell_ChkPerDiem = "AC6" 'Added 2024.03.13
+Public Const s1cell_DisAftDnl = "AC7" 'ADDED 2024.04.03
+Public Const s1cell_SeqOrdr = "AC8" 'ADDED 2024.05.23
+Public Const slcell_RemIU = "AC9" 'ADDED 2024.07.24
+Public Const slcell_RemTU = "AC10" 'ADDED 2024.10.14
+Public Const slcell_AplyOPI = "AE6" 'ADDED 2024.12.11
+Public Const slcell_DelBN = "AE7" 'ADDED 2025.02.10
+Public Const slcell_aplyDnlAftMedcr = "AE8" 'ADDED 2025.02.25
+Public Const slcell_flipMod = "AE9" 'ADDED 2025.03.05
+Public Const slcell_ApplyDiscAftFlip = "AE10" 'ADDED 2025.03.05
+Public Const slcell_RemDiscAmt = "AG6" 'ADDED 2025.03.10
+Public Const slcell_FaieAdjInel = "AG7" 'ADDED 2025.08.26
+Public Const s1cell_aply034Inel = "AG8" 'ADDED 2025.12.09
+Public Const s1cell_dnyS9451 = "AG9" 'ADDED 2025.12.15
+Public Const s1cell_idHCR = "AG10" 'ADDED 2025.12.15
+Public Const s1cell_2ndInel_001 = "AI6" 'ADDED 2026.03.25
+
+Public Const s1col_clamNo = "A"
+Public Const s1col_statEdit = "B"
+Public Const s1col_clamTyp = "C"
+Public Const s1col_pndCd = "D"
+Public Const s1col_rel = "E"
+Public Const s1col_drafts = "F"
+Public Const s1col_newOvAj = "G"
+Public Const s1col_newOiInd = "H"
+Public Const s1col_newApCd = "I"
+Public Const s1col_oldPrvCd = "J" 'ADDED 2024.03.21
+Public Const s1col_newPrvCd = "K"
+Public Const s1col_oldPos = "L"
+Public Const s1col_newPos = "M"
+Public Const s1col_oldTos = "N"
+Public Const s1col_newTos = "O"
+Public Const s1col_oldInelCd = "P"
+Public Const s1col_newInelCd = "Q"
+Public Const s1col_bnCode = "R"
+Public Const s1col_bnQty = "S"
+Public Const s1col_dxCd = "T"
+Public Const s1col_newOiElig = "U"
+Public Const s1col_newOiPd = "V"
+Public Const s1col_condNt = "W"
+Public Const s1col_tod = "X"
+Public Const s1col_tmeUnit = "Y"
+Public Const s1col_tmeUntStat = "Z"
+Public Const s1col_intNo = "AA"
+Public Const s1col_zip = "AB"
+Public Const s1col_afv = "AC"
+Public Const s1col_850note = "AD"
+Public Const s1col_1stApCd = "AE"
+Public Const s1col_2ndApCd = "AF"
+Public Const s1col_858amt = "AG"
+Public Const s1col_remvSpcfcInel = "AH"
+Public Const s1col_seqNo = "AI"
+Public Const s1col_newPlanId = "AJ"
+Public Const s1col_hicStat = "AK"
+Public Const s1col_provName = "AL"
+Public Const s1col_provAdd = "AM"
+Public Const s1col_city = "AN"
+Public Const s1col_state = "AO"
+Public Const s1col_zip2 = "AP"
+Public Const s1col_irs = "AQ"
+Public Const s1col_splitEe = "AR"
+Public Const s1col_splitPr = "AS"
+Public Const s1col_EobPerClm = "AT" 'ADDED 2023.12.20
+Public Const s1col_inelSwitch = "AU" 'ADDED 2024.01.04
+Public Const s1col_stateType = "AV" 'ADDED 2024.02.01
+Public Const s1col_tBill = "AW" 'ADDED 2024.03.13
+Public Const slcol_CertNo = "AY" 'ADDED 2024.05.23
+Public Const s1col_tDisc = "AX" 'ADDED 2024.04.03
+Public Const slcol_NewOpi = "AZ" 'ADDED 2024.12.11
+Public Const slcol_CodedOpi = "BA" 'ADDED 2024.12.11
+Public Const slcol_FaieInelCd = "BB" 'ADDED 2025.08.26
+Public Const slcol_PreCertNo = "BC" 'ADDED 2026.03.17
+Public Const s1cell_vldteAmtPdByCpt = "AI7" 'ADDED 2026.03.31
+Public Const slcol_DenialRule = "BD" 'ADDED 2026.06.01 - Rule name for denial_code_ref.csv lookup

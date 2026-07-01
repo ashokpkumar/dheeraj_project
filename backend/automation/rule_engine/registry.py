@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from django.db import models, transaction
@@ -5,22 +6,26 @@ from django.db import models, transaction
 from rule_engine.models import RuleLogic, ParamModel
 
 
+logger = logging.getLogger(__name__)
+
 FUNCTION_REGISTRY = {}
 
 _REGISTRATION_LOCK = threading.Lock()
 
-#TODO this registration function should not be called while loading the app.
+
 class FunctionMeta:
 
-    def __init__(self, func, name, inputs=None, outputs=None):
+    def __init__(self, func, name, inputs=None, outputs=None, tag=None, color=None):
 
         self.func = func
         self.name = name
         self.inputs = inputs or []
         self.outputs = outputs or []
+        self.tag = tag
+        self.color = color
 
 
-def register_function(name=None, inputs=None, outputs=None):
+def register_function(name=None, inputs=None, outputs=None, tag=None, color=None):
 
     def decorator(func):
 
@@ -31,19 +36,17 @@ def register_function(name=None, inputs=None, outputs=None):
 
         with _REGISTRATION_LOCK:
 
-            # Register in memory
+            # Register in memory only. DB sync happens later, once the app
+            # registry and database connection are ready (see
+            # rule_engine.registry.sync_registry_to_db), so this stays safe
+            # to run during app loading.
             FUNCTION_REGISTRY[function_name] = FunctionMeta(
                 func=func,
                 name=function_name,
                 inputs=input_params,
-                outputs=output_params
-            )
-
-            # Register in database #TODO comment and uncomment this for testing without db
-            _register_function_in_db(
-                function_name,
-                input_params,
-                output_params
+                outputs=output_params,
+                tag=tag,
+                color=color,
             )
 
         return func
@@ -51,7 +54,32 @@ def register_function(name=None, inputs=None, outputs=None):
     return decorator
 
 
-def _register_function_in_db(function_name, inputs, outputs):
+def sync_registry_to_db():
+    """Persist all in-memory registered functions to the database.
+
+    Must only be called once the database is reachable (e.g. from
+    RuleEngineConfig.ready(), after app loading has finished). Errors are
+    logged per-function so a single bad function doesn't block the rest or
+    fail silently.
+    """
+
+    for meta in FUNCTION_REGISTRY.values():
+
+        try:
+            _register_function_in_db(
+                meta.name,
+                meta.inputs,
+                meta.outputs,
+                tag=meta.tag,
+                color=meta.color,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to sync function '%s' to the database", meta.name
+            )
+
+
+def _register_function_in_db(function_name, inputs, outputs, tag=None, color=None):
 
     with transaction.atomic():
 
@@ -67,12 +95,18 @@ def _register_function_in_db(function_name, inputs, outputs):
             "output"
         )
 
+        defaults = {
+            "input_params": input_group_id,
+            "output_params": output_group_id,
+        }
+        if tag is not None:
+            defaults["tag"] = tag
+        if color is not None:
+            defaults["color"] = color
+
         RuleLogic.objects.update_or_create(
             function_name=function_name,
-            defaults={
-                "input_params": input_group_id,
-                "output_params": output_group_id
-            }
+            defaults=defaults,
         )
 
 def _create_param_group(function_name, params, group_type):
@@ -88,20 +122,19 @@ def _create_param_group(function_name, params, group_type):
     ).first()
 
     if existing:
-        return existing.parameter_group_id
+        group_id = existing.parameter_group_id
+    else:
+        max_group = ParamModel.objects.aggregate(
+            max_group=models.Max("parameter_group_id")
+        )["max_group"]
 
-    max_group = ParamModel.objects.aggregate(
-        max_group=models.Max("parameter_group_id")
-    )["max_group"]
+        group_id = (max_group or 0) + 1
 
-    new_group_id = (max_group or 0) + 1
-
-    # group marker
-    ParamModel.objects.create(
-        parameter_group_id=new_group_id,
-        param_name="__group__",
-        param_type=group_key
-    )
+        ParamModel.objects.create(
+            parameter_group_id=group_id,
+            param_name="__group__",
+            param_type=group_key
+        )
 
     # normalize params
     normalized_params = []
@@ -112,14 +145,17 @@ def _create_param_group(function_name, params, group_type):
 
             normalized_params.append({
                 "name": param,
-                "type": "string"
+                "type": "string",
+                "options": None
             })
 
         elif isinstance(param, dict):
 
             normalized_params.append({
                 "name": param["name"],
-                "type": param.get("type", "string")
+                "type": param.get("type", "string"),
+                "options": param.get("options", None),
+                "default": param.get("default", None),
             })
 
         else:
@@ -127,16 +163,30 @@ def _create_param_group(function_name, params, group_type):
                 f"Invalid param format in {function_name}: {param}"
             )
 
-    # save params
+    # upsert params so re-registration picks up new options
     for param in normalized_params:
 
-        ParamModel.objects.create(
-            parameter_group_id=new_group_id,
+        ParamModel.objects.update_or_create(
+            parameter_group_id=group_id,
             param_name=param["name"],
-            param_type=param["type"]
+            defaults={
+                "param_type": param["type"],
+                "param_options": param["options"],
+                "param_default": param.get("default"),
+            }
         )
 
-    return new_group_id
+    # remove params that are no longer in the definition
+    current_names = {p["name"] for p in normalized_params}
+    ParamModel.objects.filter(
+        parameter_group_id=group_id,
+    ).exclude(
+        param_name__in=current_names,
+    ).exclude(
+        param_name="__group__",
+    ).delete()
+
+    return group_id
 
 
 

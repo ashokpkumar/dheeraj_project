@@ -73,3 +73,9 @@ export async function executeRule(ruleId) {
   const res = await fetch(`${API_BASE}/rules/${ruleId}/execute/`, { method: 'POST' });
   return await res.json();
 }
+
+export async function refreshFunctions() {
+  const res = await fetch(`${API_BASE}/functions/refresh/`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to refresh functions');
+  return await res.json();
+}
