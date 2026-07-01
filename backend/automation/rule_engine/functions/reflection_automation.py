@@ -22,10 +22,17 @@ _session_refs: list = []
 
 
 def _is_visible_session(session) -> bool:
-    """Return True only if the EXTRA session has a visible, interactive window."""
+    """Return True only if the EXTRA session is live and interactive.
+
+    Background/zombie sessions throw an IPC COM error on any property access.
+    The exception is the signal that the session is dead — we catch it and
+    return False so it gets filtered out rather than crashing the automation.
+    """
     try:
-        return bool(session.Visible)
+        _ = session.Screen.OIA.Xstatus
+        return True
     except Exception:
+        log.debug("Session skipped — IPC/COM unreachable (background process).")
         return False
 
 
@@ -41,16 +48,21 @@ def _wait_for_new_session(before: int, retries: int = 10, interval: int = 5) -> 
 
 
 def _count_open_sessions() -> int:
-    """Return the number of visible (foreground) EXTRA sessions, ignoring background processes."""
+    """Return the number of live (foreground) EXTRA sessions, ignoring background processes."""
     global _extra_system
     try:
         pythoncom.CoInitialize()
         _extra_system = win32com.client.GetActiveObject("EXTRA.System")
-        return sum(
-            1 for i in range(1, _extra_system.Sessions.Count + 1)
+        total = _extra_system.Sessions.Count
+        usable = sum(
+            1 for i in range(1, total + 1)
             if _is_visible_session(_extra_system.Sessions.Item(i))
         )
+        log.info("EXTRA sessions — total: %d, usable: %d, skipped (background/dead): %d",
+                 total, usable, total - usable)
+        return usable
     except Exception:
+        log.info("EXTRA not running yet — 0 sessions open.")
         return 0
 
 
@@ -201,6 +213,7 @@ def open_emulator(location, context=None):
             log.info("  '%s' opened successfully. Visible sessions now: %d", filename, _count_open_sessions())
         msg = f"Opened {launched} session(s) ({already_open} were already running)."
         log.info(msg)
+        time.sleep(30)  # give EXTRA a moment to settle before attaching
 
     # Attach to all TARGET_SESSIONS sessions via EXTRA COM (from helpers)
     log.info("Attaching to emulator sessions via COM ...")
