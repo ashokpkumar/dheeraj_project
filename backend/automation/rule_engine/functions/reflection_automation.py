@@ -93,7 +93,7 @@ def _step_login_screen(screen):
     if not _wait_for_text(screen, 16, 5, 6, "Userid"):
         return False, "Login screen not detected — 'Userid' not found at (16,5)"
     place_value(screen, "RAUWTVW", 16, 20)
-    place_value(screen, "RAJ$#2DP", 17, 20)
+    place_value(screen, "DP$#2RAJ", 17, 20)
     send_enter(screen)
     if not _wait_for_text(screen, 1, 25, 8, "TPX MENU"):
         return False, "TPX MENU not confirmed after login"
