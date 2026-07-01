@@ -360,7 +360,9 @@ def attach_emulator_sessions(n=4):
     import pythoncom
     pythoncom.CoInitialize()
 
-    system = win32com.client.Dispatch("EXTRA.System")
+    # GetActiveObject attaches to the running EXTRA instance without taking
+    # ownership — releasing this reference will NOT close EXTRA.
+    system = win32com.client.GetActiveObject("EXTRA.System")
     sessions = system.Sessions
     if sessions.Count < 1:
         raise RuntimeError("No active emulator sessions found.")

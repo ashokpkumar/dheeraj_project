@@ -26,7 +26,9 @@ def _count_open_sessions() -> int:
     """Return the number of visible (foreground) EXTRA sessions, ignoring background processes."""
     try:
         pythoncom.CoInitialize()
-        system = win32com.client.Dispatch("EXTRA.System")
+        # GetActiveObject attaches to the running EXTRA instance without taking
+        # ownership — releasing this reference will NOT close EXTRA.
+        system = win32com.client.GetActiveObject("EXTRA.System")
         return sum(
             1 for i in range(1, system.Sessions.Count + 1)
             if _is_visible_session(system.Sessions.Item(i))
@@ -163,7 +165,7 @@ def open_emulator(location, context=None):
         for filename in files_to_open:
             os.startfile(os.path.join(location, filename))
         msg = f"Opened {len(files_to_open)} session(s) ({already_open} were already running)."
-        time.sleep(5)
+        time.sleep(30)
 
     # Attach to all TARGET_SESSIONS sessions via EXTRA COM (from helpers)
     try:
