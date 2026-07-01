@@ -15,6 +15,11 @@ from .helpers import (
 TARGET_SESSIONS = 4
 log = logging.getLogger(__name__)
 
+# Module-level COM references — must stay alive so EXTRA does not close
+# when the function returns and local variables are garbage-collected.
+_extra_system = None
+_session_refs: list = []
+
 
 def _is_visible_session(session) -> bool:
     """Return True only if the EXTRA session has a visible, interactive window."""
@@ -37,14 +42,13 @@ def _wait_for_new_session(before: int, retries: int = 10, interval: int = 5) -> 
 
 def _count_open_sessions() -> int:
     """Return the number of visible (foreground) EXTRA sessions, ignoring background processes."""
+    global _extra_system
     try:
         pythoncom.CoInitialize()
-        # GetActiveObject attaches to the running EXTRA instance without taking
-        # ownership — releasing this reference will NOT close EXTRA.
-        system = win32com.client.GetActiveObject("EXTRA.System")
+        _extra_system = win32com.client.GetActiveObject("EXTRA.System")
         return sum(
-            1 for i in range(1, system.Sessions.Count + 1)
-            if _is_visible_session(system.Sessions.Item(i))
+            1 for i in range(1, _extra_system.Sessions.Count + 1)
+            if _is_visible_session(_extra_system.Sessions.Item(i))
         )
     except Exception:
         return 0
@@ -205,6 +209,11 @@ def open_emulator(location, context=None):
     except RuntimeError as e:
         log.error("Failed to attach sessions: %s", e)
         return {"success": False, "sessions": [], "message": str(e)}
+
+    # Pin session objects at module level so their COM reference counts stay > 0
+    # and EXTRA does not close when this function's local variables go out of scope.
+    global _session_refs
+    _session_refs = emulator_sessions
 
     # Drop background/hidden sessions — only keep ones with a visible window
     visible_sessions = [s for s in emulator_sessions if _is_visible_session(s)]
