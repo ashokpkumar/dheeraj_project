@@ -14,12 +14,23 @@ from .helpers import (
 TARGET_SESSIONS = 4
 
 
+def _is_visible_session(session) -> bool:
+    """Return True only if the EXTRA session has a visible, interactive window."""
+    try:
+        return bool(session.Visible)
+    except Exception:
+        return False
+
+
 def _count_open_sessions() -> int:
-    """Return the number of currently open EXTRA sessions, 0 if EXTRA is not running."""
+    """Return the number of visible (foreground) EXTRA sessions, ignoring background processes."""
     try:
         pythoncom.CoInitialize()
         system = win32com.client.Dispatch("EXTRA.System")
-        return system.Sessions.Count
+        return sum(
+            1 for i in range(1, system.Sessions.Count + 1)
+            if _is_visible_session(system.Sessions.Item(i))
+        )
     except Exception:
         return 0
 
@@ -160,12 +171,15 @@ def open_emulator(location, context=None):
     except RuntimeError as e:
         return {"success": False, "sessions": [], "message": str(e)}
 
-    # Pair sessions with filenames by open order, build name -> screen map
-    session_names = [os.path.splitext(f)[0] for f in rd3x_files]
+    # Drop background/hidden sessions — only keep ones with a visible window
+    visible_sessions = [s for s in emulator_sessions if _is_visible_session(s)]
+
+    # Pair visible sessions with filenames by open order, build name -> screen map
+    session_names = [os.path.splitext(f)[0] for f in rd3x_files[:TARGET_SESSIONS]]
     named_sessions = {
-        name: emulator_sessions[i].Screen
+        name: visible_sessions[i].Screen
         for i, name in enumerate(session_names)
-        if i < len(emulator_sessions)
+        if i < len(visible_sessions)
     }
 
     results = []
