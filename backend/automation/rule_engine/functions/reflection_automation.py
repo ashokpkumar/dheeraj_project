@@ -14,14 +14,22 @@ from .helpers import (
 TARGET_SESSIONS = 4
 
 
-def _count_open_sessions() -> int:
-    """Return the number of currently open EXTRA sessions, 0 if EXTRA is not running."""
+def _get_open_session_names() -> set:
+    """Return the set of currently open EXTRA session names (uppercased), empty if EXTRA is not running."""
     try:
         pythoncom.CoInitialize()
         system = win32com.client.Dispatch("EXTRA.System")
-        return system.Sessions.Count
+        names = set()
+        for i in range(1, system.Sessions.Count + 1):
+            try:
+                name = (system.Sessions.Item(i).Name or "").strip().upper()
+            except Exception:
+                continue
+            if name:
+                names.add(name)
+        return names
     except Exception:
-        return 0
+        return set()
 
 
 def _read(screen, row, col, length):
@@ -141,32 +149,42 @@ def open_emulator(location, context=None):
     if not rd3x_files:
         return {"success": False, "sessions": [], "message": f"No .rd3x files found in: {location}"}
 
-    # Check how many sessions are already open and only launch what is missing
-    already_open = _count_open_sessions()
-    needed = max(0, TARGET_SESSIONS - already_open)
+    # session name (derived from filename) -> rd3x filename
+    file_by_name = {os.path.splitext(f)[0]: f for f in rd3x_files}
+    session_names = list(file_by_name.keys())
 
-    if needed == 0:
-        msg = f"All {TARGET_SESSIONS} emulator sessions are already open — skipping launch."
+    # Only launch sessions whose name isn't already open — never re-open by position
+    open_names = _get_open_session_names()
+    missing_names = [name for name in session_names if name.upper() not in open_names]
+
+    if not missing_names:
+        msg = f"All {len(session_names)} emulator session(s) are already open — skipping launch."
     else:
-        files_to_open = rd3x_files[:needed]
-        for filename in files_to_open:
-            os.startfile(os.path.join(location, filename))
-        msg = f"Opened {len(files_to_open)} session(s) ({already_open} were already running)."
+        for name in missing_names:
+            os.startfile(os.path.join(location, file_by_name[name]))
+        msg = (
+            f"Opened {len(missing_names)} session(s): {', '.join(missing_names)} "
+            f"({len(session_names) - len(missing_names)} were already running)."
+        )
         time.sleep(5)
 
-    # Attach to all TARGET_SESSIONS sessions via EXTRA COM (from helpers)
+    # Attach to the open EXTRA COM sessions (from helpers)
     try:
-        emulator_sessions = attach_emulator_sessions(TARGET_SESSIONS)
+        emulator_sessions = attach_emulator_sessions(max(TARGET_SESSIONS, len(session_names)))
     except RuntimeError as e:
         return {"success": False, "sessions": [], "message": str(e)}
 
-    # Pair sessions with filenames by open order, build name -> screen map
-    session_names = [os.path.splitext(f)[0] for f in rd3x_files]
-    named_sessions = {
-        name: emulator_sessions[i].Screen
-        for i, name in enumerate(session_names)
-        if i < len(emulator_sessions)
-    }
+    # Map by each session's actual reported Name, not by launch/attach order
+    named_sessions = {}
+    for sess in emulator_sessions:
+        try:
+            sess_name = (sess.Name or "").strip().upper()
+        except Exception:
+            continue
+        for expected in session_names:
+            if expected.upper() == sess_name:
+                named_sessions[expected] = sess.Screen
+                break
 
     results = []
     for name in session_names:
