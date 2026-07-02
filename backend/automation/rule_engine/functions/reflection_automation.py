@@ -4,14 +4,11 @@ import win32com.client
 import pythoncom
 from rule_engine.registry import register_function
 from .helpers import (
-    attach_emulator_sessions,
     get_screen_id,
     wait_for_screen,
     send_enter,
     place_value,
 )
-
-TARGET_SESSIONS = 4
 
 
 def _get_open_session_names() -> set:
@@ -30,6 +27,42 @@ def _get_open_session_names() -> set:
         return names
     except Exception:
         return set()
+
+
+def _attach_named_screens(expected_names) -> dict:
+    """
+    Scan every EXTRA session (System.Sessions can accumulate stale/zombie
+    entries whose underlying process is gone) and return {name: screen}
+    for the ones we can positively identify by name. Zombie entries raise
+    an IPC error on almost any property access, including .Screen — those
+    are skipped rather than allowed to crash the whole attach.
+    """
+    pythoncom.CoInitialize()
+    system = win32com.client.Dispatch("EXTRA.System")
+    total = system.Sessions.Count
+
+    remaining = {n.upper(): n for n in expected_names}
+    found = {}
+
+    for i in range(1, total + 1):
+        if not remaining:
+            break
+        try:
+            sess = system.Sessions.Item(i)
+            name = (sess.Name or "").strip().upper()
+        except Exception:
+            continue  # zombie/stale session entry — skip
+
+        if name not in remaining:
+            continue
+
+        try:
+            found[remaining[name]] = sess.Screen
+        except Exception:
+            continue  # session reports a name but its Screen is dead too
+        del remaining[name]
+
+    return found
 
 
 def _read(screen, row, col, length):
@@ -88,7 +121,7 @@ def _step_login_screen(screen):
     if not _wait_for_text(screen, 16, 5, 6, "Userid"):
         return False, "Login screen not detected — 'Userid' not found at (16,5)"
     place_value(screen, "RAUWTVW", 16, 20)
-    place_value(screen, "RAJ$#2DP", 17, 20)
+    place_value(screen, "DP$#2RAJ", 17, 20)
     send_enter(screen)
     if not _wait_for_text(screen, 1, 25, 8, "TPX MENU"):
         return False, "TPX MENU not confirmed after login"
@@ -168,23 +201,11 @@ def open_emulator(location, context=None):
         )
         time.sleep(30)
 
-    # Attach to the open EXTRA COM sessions (from helpers)
+    # Scan every open session (skipping stale/zombie entries) and map by name
     try:
-        emulator_sessions = attach_emulator_sessions(max(TARGET_SESSIONS, len(session_names)))
-    except RuntimeError as e:
-        return {"success": False, "sessions": [], "message": str(e)}
-
-    # Map by each session's actual reported Name, not by launch/attach order
-    named_sessions = {}
-    for sess in emulator_sessions:
-        try:
-            sess_name = (sess.Name or "").strip().upper()
-        except Exception:
-            continue
-        for expected in session_names:
-            if expected.upper() == sess_name:
-                named_sessions[expected] = sess.Screen
-                break
+        named_sessions = _attach_named_screens(session_names)
+    except Exception as e:
+        return {"success": False, "sessions": [], "message": f"Failed to attach to emulator sessions: {e}"}
 
     results = []
     for name in session_names:
