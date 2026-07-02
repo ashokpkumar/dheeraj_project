@@ -85,14 +85,14 @@ def _wait_for_text(screen, row, col, length, keyword, timeout=20):
 def _detect_screen(screen) -> str:
     """
     Returns one of:
-      'done'     — already on CPS515.01 or CPS520.01, no action needed
+      'done'     — already on any CPS screen, no action needed
       'tpx_menu' — stuck on TPX MENU
       'login'    — stuck on login/Userid screen
       'entry'    — stuck on entry screen (UHC0010)
       'unknown'  — unrecognised screen, fall back to full login flow
     """
     sid = get_screen_id(screen)  # reads (1, 2, 10)
-    if sid in ("CPS515.01", "CPS520.01"):
+    if sid.upper().startswith("CPS"):
         return "done"
     if "TPX MENU" in _read(screen, 1, 25, 8).upper():
         return "tpx_menu"
@@ -129,13 +129,16 @@ def _step_login_screen(screen):
 
 
 def _step_tpx_menu(screen):
-    """Confirm TPX MENU at (1,25), Enter at (18,4), type GJBB at (1,1), Enter, confirm CPS515.01."""
+    """Confirm TPX MENU at (1,25), Enter at (18,4); if not already on a CPS screen, type GJBB at (1,1) and Enter; confirm CPS515.01."""
     if not _wait_for_text(screen, 1, 25, 8, "TPX MENU"):
         return False, "TPX MENU not detected at (1,25)"
     screen.moveTo(18, 4)
     send_enter(screen)
-    place_value(screen, "GJBB", 1, 1)
-    send_enter(screen)
+
+    if not get_screen_id(screen).upper().startswith("CPS"):
+        place_value(screen, "GJBB", 1, 1)
+        send_enter(screen)
+
     if not _wait_for_text(screen, 1, 2, 9, "CPS515.01"):
         return False, "Claim screen not reached — 'CPS515.01' not found at (1,2)"
     return True, "Claim main screen reached"
