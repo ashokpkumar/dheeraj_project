@@ -166,7 +166,7 @@ def open_emulator(location, context=None):
             f"Opened {len(missing_names)} session(s): {', '.join(missing_names)} "
             f"({len(session_names) - len(missing_names)} were already running)."
         )
-        time.sleep(5)
+        time.sleep(30)
 
     # Attach to the open EXTRA COM sessions (from helpers)
     try:
