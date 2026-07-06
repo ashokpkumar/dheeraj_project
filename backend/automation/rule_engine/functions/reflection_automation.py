@@ -29,10 +29,10 @@ def _get_open_session_names() -> set:
         return set()
 
 
-def _attach_named_screens(expected_names) -> dict:
+def _attach_named_sessions(expected_names) -> dict:
     """
     Scan every EXTRA session (System.Sessions can accumulate stale/zombie
-    entries whose underlying process is gone) and return {name: screen}
+    entries whose underlying process is gone) and return {name: session}
     for the ones we can positively identify by name. Zombie entries raise
     an IPC error on almost any property access, including .Screen — those
     are skipped rather than allowed to crash the whole attach.
@@ -57,12 +57,120 @@ def _attach_named_screens(expected_names) -> dict:
             continue
 
         try:
-            found[remaining[name]] = sess.Screen
+            sess.Screen  # sanity check the session is actually alive
         except Exception:
             continue  # session reports a name but its Screen is dead too
+
+        found[remaining[name]] = sess
         del remaining[name]
 
     return found
+
+
+def _dismiss_save_prompt(timeout=5) -> bool:
+    """
+    Closing a disconnected session can pop a native 'Cannot save to file ...
+    Would you like to save to a different file?' dialog (e.g. when the
+    .rd3x profile lives under a read-only ProgramData path). That's a
+    Windows dialog, not part of the EXTRA COM screen buffer, so find it and
+    click 'No' so it doesn't block automation.
+    """
+    try:
+        import win32gui
+        import win32con
+    except ImportError:
+        return False
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        dialogs = []
+
+        def _enum_top(hwnd, _):
+            if not win32gui.IsWindowVisible(hwnd):
+                return True
+            if win32gui.GetClassName(hwnd) == "#32770":  # standard dialog class
+                dialogs.append(hwnd)
+            return True
+
+        win32gui.EnumWindows(_enum_top, None)
+
+        for hwnd in dialogs:
+            no_buttons = []
+
+            def _enum_child(child, _):
+                if (
+                    win32gui.GetClassName(child) == "Button"
+                    and win32gui.GetWindowText(child).strip().upper() == "NO"
+                ):
+                    no_buttons.append(child)
+                return True
+
+            win32gui.EnumChildWindows(hwnd, _enum_child, None)
+            if no_buttons:
+                win32gui.SendMessage(no_buttons[0], win32con.BM_CLICK, 0, 0)
+                return True
+
+        time.sleep(0.25)
+
+    return False
+
+
+def _close_without_saving(session):
+    """
+    Close a session without the 'Cannot save to file' prompt blocking us.
+    Prefers CloseEx(False) (explicit "don't save") if available; falls back
+    to Close() + dismissing the native save-prompt dialog if it appears.
+    """
+    try:
+        session.CloseEx(False)
+        return
+    except Exception:
+        pass
+
+    try:
+        session.Close()
+    except Exception:
+        pass
+
+    _dismiss_save_prompt()
+
+
+def _ensure_connected(session, name, location, file_by_name, timeout=25):
+    """
+    If the session has lost its host connection ("Not connected to the
+    host"), close it and relaunch its .rd3x profile fresh — there is no
+    Connect()/reconnect method on the Session COM object, only Close/CloseEx.
+
+    Returns (session, connected):
+      - session may be a new COM object if a relaunch happened.
+      - connected is False if it never came back within the timeout.
+    If the Connected state can't even be read, we don't block on it.
+    """
+    try:
+        connected = session.Connected
+    except Exception:
+        return session, True
+
+    if connected:
+        return session, True
+
+    _close_without_saving(session)
+
+    filename = file_by_name.get(name, f"{name}.rd3x")
+    os.startfile(os.path.join(location, filename))
+
+    for _ in range(timeout):
+        time.sleep(1)
+        fresh = _attach_named_sessions([name]).get(name)
+        if fresh is None:
+            continue
+        try:
+            if fresh.Connected:
+                return fresh, True
+        except Exception:
+            return fresh, True
+
+    return session, False
 
 
 def _read(screen, row, col, length):
@@ -144,7 +252,8 @@ def _step_tpx_menu(screen):
     return True, "Claim main screen reached"
 
 
-def _automate_session(screen, name):
+def _automate_session(session, name):
+    screen = session.Screen
     state = _detect_screen(screen)
 
     if state == "done":
@@ -206,7 +315,7 @@ def open_emulator(location, context=None):
 
     # Scan every open session (skipping stale/zombie entries) and map by name
     try:
-        named_sessions = _attach_named_screens(session_names)
+        named_sessions = _attach_named_sessions(session_names)
     except Exception as e:
         return {"success": False, "sessions": [], "message": f"Failed to attach to emulator sessions: {e}"}
 
@@ -215,7 +324,13 @@ def open_emulator(location, context=None):
         if name not in named_sessions:
             results.append({"name": name, "success": False, "message": "Session not available"})
             continue
-        result = _automate_session(named_sessions[name], name)
+
+        session, connected = _ensure_connected(named_sessions[name], name, location, file_by_name)
+        if not connected:
+            results.append({"name": name, "success": False, "message": "Session not connected to host and reconnect failed."})
+            continue
+
+        result = _automate_session(session, name)
         results.append(result)
 
     all_ok = all(r["success"] for r in results)
