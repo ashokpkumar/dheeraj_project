@@ -11,20 +11,81 @@ from .helpers import (
 )
 
 
+def _close_window(hwnd, timeout=3) -> None:
+    """Post WM_CLOSE to a window and, if a 'Cannot save' style dialog pops
+    up as a result, dismiss it with 'No' so the window doesn't get stuck."""
+    try:
+        import win32gui
+        import win32con
+    except ImportError:
+        return
+
+    try:
+        win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+    except Exception:
+        return
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not win32gui.IsWindow(hwnd):
+            return
+
+        dialogs = []
+
+        def _enum_top(candidate, _):
+            if win32gui.IsWindowVisible(candidate) and win32gui.GetClassName(candidate) == "#32770":
+                dialogs.append(candidate)
+            return True
+
+        win32gui.EnumWindows(_enum_top, None)
+
+        for dlg in dialogs:
+            no_buttons = []
+
+            def _enum_child(child, _):
+                if (
+                    win32gui.GetClassName(child) == "Button"
+                    and win32gui.GetWindowText(child).strip().upper() == "NO"
+                ):
+                    no_buttons.append(child)
+                return True
+
+            win32gui.EnumChildWindows(dlg, _enum_child, None)
+            if no_buttons:
+                win32gui.SendMessage(no_buttons[0], win32con.BM_CLICK, 0, 0)
+
+        time.sleep(0.25)
+
+
 def _close_all_sessions():
     """
-    Close every currently open EXTRA session so we always start from a
-    clean slate — no stale/zombie sessions to identify or work around.
-    Closing shifts the collection's indices, so walk it back-to-front.
-    Any session that errors on Close() (already dead) is just skipped.
+    Close every currently open EXTRA session AND its window so we always
+    start from a clean slate — Session.Close() only ends the session; the
+    window it was hosted in stays open and has to be closed separately via
+    its WindowHandle. Closing shifts the collection's indices, so walk it
+    back-to-front. Any session that errors along the way (already dead) is
+    just skipped.
     """
     pythoncom.CoInitialize()
     system = win32com.client.Dispatch("EXTRA.System")
     for i in range(system.Sessions.Count, 0, -1):
         try:
-            system.Sessions.Item(i).Close()
+            sess = system.Sessions.Item(i)
         except Exception:
             continue
+
+        try:
+            hwnd = sess.WindowHandle
+        except Exception:
+            hwnd = None
+
+        try:
+            sess.Close()
+        except Exception:
+            pass
+
+        if hwnd:
+            _close_window(hwnd)
 
 
 def _attach_named_sessions(expected_names) -> dict:
