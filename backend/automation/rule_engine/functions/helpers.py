@@ -351,7 +351,11 @@ def process_claim(
 
 def attach_emulator_sessions(n=4):
     """
-    Attach to up to `n` already-open EXTRA emulator sessions and return them as a list.
+    Attach to up to `n` live, open EXTRA emulator sessions and return them
+    as a list. System.Sessions can contain stale/zombie entries whose
+    underlying process is gone — those raise an IPC error on almost any
+    property access, including .Screen, so each candidate is sanity-checked
+    and skipped rather than returned.
     """
     if win32com is None:
         raise RuntimeError("win32com (pywin32) is not available on this host (Windows required).")
@@ -365,8 +369,19 @@ def attach_emulator_sessions(n=4):
     if sessions.Count < 1:
         raise RuntimeError("No active emulator sessions found.")
 
-    # 1-based collection
-    result = [sessions.Item(i) for i in range(1, min(n, sessions.Count) + 1)]
+    result = []
+    for i in range(1, sessions.Count + 1):
+        if len(result) >= n:
+            break
+        try:
+            sess = sessions.Item(i)
+            sess.Screen  # sanity check the session is actually alive
+        except Exception:
+            continue  # zombie/stale session entry — skip
+        result.append(sess)
+
+    if not result:
+        raise RuntimeError("No live emulator sessions found (all were stale/disconnected).")
 
     # Optional: give host a moment to be quiet
     for s in result:
