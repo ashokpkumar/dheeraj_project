@@ -1,5 +1,7 @@
 import pandas as pd
 
+from rule_engine.functions.helpers import get_screen_id, place_value, send_enter
+
 
 # ---------------------------------------------------------------------------
 # Screen primitives (mirror VBA helpers in Modules_oShared.txt)
@@ -10,33 +12,11 @@ def wait_ready(screen):
         pass
 
 
-def get_screen_id(screen) -> str:
-    return (screen.GetString(1, 2, 11) or "").strip()
-
-
-def place_value(screen, val, r: int, c: int):
-    val = ("" if val is None else str(val)).strip()
-    if not val:
-        return
-    wait_ready(screen)
-    screen.MoveTo(r, c)
-    wait_ready(screen)
-    screen.SendKeys("<EraseEOF>")
-    wait_ready(screen)
-    screen.PutString(val, r, c)
-    wait_ready(screen)
-
-
 def remove_value(screen, r: int, c: int):
     wait_ready(screen)
     screen.MoveTo(r, c)
     wait_ready(screen)
     screen.SendKeys("<EraseEOF>")
-    wait_ready(screen)
-
-
-def send_enter(screen):
-    screen.SendKeys("<Enter>")
     wait_ready(screen)
 
 

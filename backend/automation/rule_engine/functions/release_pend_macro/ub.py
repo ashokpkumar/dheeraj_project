@@ -3,9 +3,10 @@ UB (BLX2460.01) data entry — port of Modules_0UB.txt VBA.
 Returns 1 on success, 0 on skip/error.
 """
 
+from rule_engine.functions.helpers import get_screen_id, place_value, send_enter
+
 from .utils import (
-    get_screen_id, place_value, remove_value,
-    send_enter, send_pf, wait_ready,
+    remove_value, send_pf, wait_ready,
     data_entry_in_cps506, apply_631_inel,
     check_inel_code, bypass_duplicate,
     is_fully_paid, total_amt_858, plan_id_update,

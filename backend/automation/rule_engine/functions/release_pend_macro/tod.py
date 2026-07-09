@@ -2,7 +2,9 @@
 TOD (Type of Diagnosis) update — port of Modules_oTOD.txt VBA.
 """
 
-from .utils import get_screen_id, place_value, remove_value, send_enter, send_pf
+from rule_engine.functions.helpers import get_screen_id, place_value, send_enter
+
+from .utils import remove_value, send_pf
 
 
 def check_tod(row: dict) -> bool:
