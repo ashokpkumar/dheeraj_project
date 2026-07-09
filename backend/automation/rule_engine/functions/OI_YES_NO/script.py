@@ -1,5 +1,6 @@
 import pandas as pd
 
+from rule_engine.functions.helpers import get_active_screen
 from rule_engine.registry import register_function
 
 
@@ -44,8 +45,6 @@ def oi_yes_run_batch(
     """
     import datetime as _dt
 
-    # --- lazy imports so your module doesn't explode on non-Windows hosts ---
-    import win32com.client  # pip install pywin32
     df = context.get("df")
     def _to_mmddyy(v):
         if v is None or v == "":
@@ -96,10 +95,7 @@ def oi_yes_run_batch(
         return _get_screen_id(screen) == "CPS520.01"
 
     # --- session attach (VBA: Current_Session()) ---
-    system = win32com.client.Dispatch("EXTRA.System")
-    sessions = system.Sessions
-    sess =  system.ActiveSession
-    screen = sess.Screen
+    screen = get_active_screen()
 
     oi_status = (oi_status or "").strip().upper()
     if oi_status not in {"YES", "NO"}:

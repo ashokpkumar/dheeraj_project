@@ -7,20 +7,12 @@ import csv
 import os
 import traceback
 
-# Windows-only: requires pywin32. Guarded so importing this module (and thus
-# registering its functions) doesn't fail/hang on environments where pywin32
-# isn't installed or its COM cache can't be built.
-try:
-    import win32com.client  # pywin32
-except Exception:
-    win32com = None
-
 from rule_engine.registry import register_function
 
 from .hcfa import hcfa_data_entry
 from .tod import tod_update
 from .ub import ub_data_entry, ub_per_diem_process
-from rule_engine.functions.helpers import get_screen_id, place_value, send_enter
+from rule_engine.functions.helpers import get_active_screen, get_screen_id, place_value, send_enter
 
 from .utils import (
     add_condition_note, apply_ineligibility_codes,
@@ -138,13 +130,7 @@ def release_pend_run_batch(
     # ── Connect to emulator ───────────────────────────────────────────────
     print("[release_pend_run_batch] Connecting to EXTRA.System...")
     try:
-        system = win32com.client.Dispatch("EXTRA.System")
-        sess   = system.ActiveSession
-        if sess is None:
-            raise RuntimeError("ActiveSession is None — is the emulator open?")
-        screen = sess.Screen
-        if screen is None:
-            raise RuntimeError("Screen object is None — emulator may not be ready")
+        screen = get_active_screen()
         print(f"[release_pend_run_batch] Emulator connected. Initial screen: {get_screen_id(screen)!r}")
     except Exception as _e:
         print(f"[release_pend_run_batch] ERROR connecting to emulator: {_e}")
@@ -535,9 +521,7 @@ def release_pend_get_claim_details(
     codes = load_code_refs(dx_code_ref_path)
     grid_price = codes.get("grid_price", {})
 
-    system = win32com.client.Dispatch("EXTRA.System")
-    sess   = system.ActiveSession
-    screen = sess.Screen
+    screen = get_active_screen()
 
     results = []
 
