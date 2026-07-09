@@ -1,10 +1,10 @@
 import os
 import time
+import win32com.client
+import pythoncom
 from rule_engine.registry import register_function
 from .helpers import (
-    get_extra_system,
     get_screen_id,
-    iter_live_emulator_sessions,
     wait_for_screen,
     send_enter,
     place_value,
@@ -66,7 +66,8 @@ def _close_all_sessions():
     back-to-front. Any session that errors along the way (already dead) is
     just skipped.
     """
-    system = get_extra_system()
+    pythoncom.CoInitialize()
+    system = win32com.client.Dispatch("EXTRA.System")
     for i in range(system.Sessions.Count, 0, -1):
         try:
             sess = system.Sessions.Item(i)
@@ -93,18 +94,28 @@ def _attach_named_sessions(expected_names) -> dict:
     positively identify by name. Any session that errors on property access
     is skipped rather than allowed to crash the whole attach.
     """
+    pythoncom.CoInitialize()
+    system = win32com.client.Dispatch("EXTRA.System")
+    total = system.Sessions.Count
+
     remaining = {n.upper(): n for n in expected_names}
     found = {}
 
-    for _, sess in iter_live_emulator_sessions():
+    for i in range(1, total + 1):
         if not remaining:
             break
         try:
+            sess = system.Sessions.Item(i)
             name = (sess.Name or "").strip().upper()
         except Exception:
             continue
 
         if name not in remaining:
+            continue
+
+        try:
+            sess.Screen  # sanity check the session is actually alive
+        except Exception:
             continue
 
         found[remaining[name]] = sess

@@ -120,50 +120,36 @@ def rtn_patient_seq_no(screen, seq_no: str) -> int:
 # =========================
 
 
-def get_extra_system():
+def attach_emulator_sessions(n=4):
     """
-    Dispatch a handle to the EXTRA.System COM object, initializing COM for
-    the calling thread first (required since sessions are often attached
-    from worker threads).
+    Attach to up to `n` live, open EXTRA emulator sessions and return them
+    as a list. System.Sessions can contain stale/zombie entries whose
+    underlying process is gone — those raise an IPC error on almost any
+    property access, including .Screen, so each candidate is sanity-checked
+    and skipped rather than returned.
     """
     if win32com is None:
         raise RuntimeError("win32com (pywin32) is not available on this host (Windows required).")
 
+    # Initialize COM for THIS thread (the caller's thread)
     import pythoncom
     pythoncom.CoInitialize()
 
-    return win32com.client.Dispatch("EXTRA.System")
-
-
-def iter_live_emulator_sessions(system=None):
-    """
-    Yield (index, session) for each EXTRA session in System.Sessions that is
-    actually alive. System.Sessions can contain stale/zombie entries whose
-    underlying process is gone — those raise an IPC error on almost any
-    property access, including .Screen, so each candidate is sanity-checked
-    and skipped rather than yielded.
-    """
-    system = system or get_extra_system()
+    system = win32com.client.Dispatch("EXTRA.System")
     sessions = system.Sessions
+    if sessions.Count < 1:
+        raise RuntimeError("No active emulator sessions found.")
+
+    result = []
     for i in range(1, sessions.Count + 1):
+        if len(result) >= n:
+            break
         try:
             sess = sessions.Item(i)
             sess.Screen  # sanity check the session is actually alive
         except Exception:
-            continue
-        yield i, sess
-
-
-def attach_emulator_sessions(n=4):
-    """
-    Attach to up to `n` live, open EXTRA emulator sessions and return them
-    as a list.
-    """
-    result = []
-    for _, sess in iter_live_emulator_sessions():
+            continue  # zombie/stale session entry — skip
         result.append(sess)
-        if len(result) >= n:
-            break
 
     if not result:
         raise RuntimeError("No live emulator sessions found (all were stale/disconnected).")
@@ -176,22 +162,6 @@ def attach_emulator_sessions(n=4):
             pass
 
     return result
-
-
-def get_active_screen():
-    """
-    Return the Screen for the EXTRA.System's ActiveSession. This is the
-    single entry point every caller should use to grab "the current"
-    emulator screen (as opposed to attaching multiple sessions).
-    """
-    system = get_extra_system()
-    sess = system.ActiveSession
-    if sess is None:
-        raise RuntimeError("ActiveSession is None — is the emulator open?")
-    screen = sess.Screen
-    if screen is None:
-        raise RuntimeError("Screen object is None — emulator may not be ready")
-    return screen
 
 class Helpers():
     
