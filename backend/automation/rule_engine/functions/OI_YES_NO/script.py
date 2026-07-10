@@ -1,6 +1,7 @@
 import pandas as pd
 
 from rule_engine.registry import register_function
+from rule_engine.functions.helpers import attach_emulator_sessions
 
 
 
@@ -22,7 +23,7 @@ from rule_engine.registry import register_function
 )
 def oi_yes_run_batch(
     # df,
- 
+
     search_by: str,          # "CERT" or "CLAIM"
     action: str,             # "UPDATE_OI" or "UPDATE_PLAN_ID"
     oi_status: str,          # "YES" or "NO"
@@ -36,17 +37,18 @@ def oi_yes_run_batch(
 ):
     """
     Port of core behavior from the VBA in OI_YES_NO_Macro_VBA_Code.txt:
-    - Connects to Reflection (EXTRA.System)
+    - Connects to Reflection (EXTRA.System) using up to 4 emulator sessions in parallel
     - For each df row, navigates to CPS520.01 and updates OI or Plan ID fields
     Expected df columns (names can be adapted in your calling code):
       cert_id, seq, plan_id, tp, effect_date, term_date, line_update_date, claim_no
-    Returns: list[str] status messages aligned to df order.
+    Returns: list[dict] status messages aligned to df order.
     """
     import datetime as _dt
+    from concurrent.futures import ThreadPoolExecutor
+    from queue import Queue
 
-    # --- lazy imports so your module doesn't explode on non-Windows hosts ---
-    import win32com.client  # pip install pywin32
     df = context.get("df")
+
     def _to_mmddyy(v):
         if v is None or v == "":
             return ""
@@ -95,72 +97,30 @@ def oi_yes_run_batch(
             screen.SendKeys("<PF9>"); _wait_ready(screen)
         return _get_screen_id(screen) == "CPS520.01"
 
-    # --- session attach (VBA: Current_Session()) ---
-    import pythoncom
-    pythoncom.CoInitialize()
+    def _process_row(screen, row, search_by, action, oi_status, bg_mmddyy,
+                      header_updt, level_mode, default_tp, TYPE, today):
+        eff = term = line_updt = None
 
-    system = win32com.client.Dispatch("EXTRA.System")
-    sessions = system.Sessions
-
-    # system.ActiveSession is only populated when an EXTRA session window
-    # currently has Windows UI focus. When this runs off the main/UI thread
-    # (e.g. as a background job) no window has focus and it comes back None,
-    # which blows up on `.Screen`. Fall back to scanning system.Sessions for
-    # the first live one, same as attach_emulator_sessions() in helpers.py.
-    sess = system.ActiveSession
-    if sess is None:
-        if sessions.Count < 1:
-            raise RuntimeError("No active emulator sessions found (EXTRA.System.Sessions is empty).")
-        for i in range(1, sessions.Count + 1):
-            candidate = sessions.Item(i)
-            try:
-                candidate.Screen  # sanity check the session is actually alive
-            except Exception:
-                continue
-            sess = candidate
-            break
-        if sess is None:
-            raise RuntimeError("No live emulator sessions found (all were stale/disconnected).")
-
-    screen = sess.Screen
-
-    oi_status = (oi_status or "").strip().upper()
-    if oi_status not in {"YES", "NO"}:
-        raise ValueError("oi_status must be YES or NO")
-
-    search_by = (search_by or "").strip().upper()
-    action = (action or "").strip().upper()
-
-    today = _dt.date.today()
-    header_updt = _to_mmddyy(update_date or today)
-    bg_mmddyy = _to_mmddyy(bg_sv_dt)
-
-    statuses = []
-
-    for idx, row in df.iterrows():
-        print(idx)
-        print(row)
         OTH_INS_EFF_DT = row.get("OTH_INS_EFF_DT")
-        if OTH_INS_EFF_DT!=pd.NaT:
+        if OTH_INS_EFF_DT != pd.NaT:
             try:
                 eff = _to_mmddyy(OTH_INS_EFF_DT)
-            except:
+            except Exception:
                 eff = None
 
         OTH_INS_TERMN_DT = row.get("OTH_INS_TERMN_DT")
-        if OTH_INS_TERMN_DT!=pd.NaT:
+        if OTH_INS_TERMN_DT != pd.NaT:
             try:
                 term = _to_mmddyy(OTH_INS_TERMN_DT)
-            except:
+            except Exception:
                 term = None
 
         OTH_INS_EFF_DT = row.get("OTH_INS_EFF_DT")
-        if OTH_INS_EFF_DT!=pd.NaT:
+        if OTH_INS_EFF_DT != pd.NaT:
             try:
                 line_updt = _to_mmddyy(today)
-            except:
+            except Exception:
                 line_updt = None
-
 
         # pull row fields (adapt names as needed)
         cert_id = str(row.get("ENRL_CERT_NBR", "") or "").strip()
@@ -171,24 +131,21 @@ def oi_yes_run_batch(
             plan_id = None
         if not TYPE:
             tp = str(row.get("OTH_INS_CD", "") or "").strip()
-            if tp=='nan':
+            if tp == 'nan':
                 tp = None
         else:
-            tp=TYPE
-            
-       
-        if search_by=="CLAIM":
-            uniq_id = "CLAIM_"+claim_no+"_"+str(seq)
-        elif search_by=="CERT":
-            uniq_id = "CERT_"+cert_id+"_"+str(seq)
+            tp = TYPE
+
+        if search_by == "CLAIM":
+            uniq_id = "CLAIM_" + claim_no + "_" + str(seq)
+        elif search_by == "CERT":
+            uniq_id = "CERT_" + cert_id + "_" + str(seq)
         else:
             uniq_id = "UNKNW"
-        status_msg = "UNKNOWN"
 
         try:
             if not _pf9_to_cps520(screen):
-                statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"UNABLE TO MAP CPS520.01"})
-                continue
+                return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "UNABLE TO MAP CPS520.01"}
 
             # --- enter search keys on CPS520.01 ---
             if search_by == "CERT":
@@ -198,39 +155,28 @@ def oi_yes_run_batch(
 
                 sid = _get_screen_id(screen)
                 if sid == "CPS125.01":
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"MEMBER NOT FOUND"})
-                  
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "MEMBER NOT FOUND"}
                 if sid == "CPS520.01":
                     # macro reads a message line; we return a generic message
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"SEARCH DID NOT ADVANCE (CHECK INPUT)"})
-                    # statuses.append("SEARCH DID NOT ADVANCE (CHECK INPUT)")
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "SEARCH DID NOT ADVANCE (CHECK INPUT)"}
                 if sid != "CPS215.01":
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"UNABLE TO MAP ELIG DISPLAY SCREEN"})
-                    
-                    # statuses.append("UNABLE TO MAP ELIG DISPLAY SCREEN")
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "UNABLE TO MAP ELIG DISPLAY SCREEN"}
 
                 # enter to CPS220.01
                 screen.SendKeys("<Enter>"); _wait_ready(screen)
                 if _get_screen_id(screen) != "CPS220.01":
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"UNABLE TO GET MEMBER INFO"})
-                    # statuses.append("UNABLE TO GET MEMBER INFO")
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "UNABLE TO GET MEMBER INFO"}
 
                 # default member 00 and go to OI display (CPS228.01)
                 _place(screen, "00", 2, 6)
                 _place(screen, "x", 29, 38)
                 screen.SendKeys("<Enter>"); _wait_ready(screen)
                 if _get_screen_id(screen) != "CPS228.01":
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"UNABLE TO MAP MEMBER OI DISPLAY"})
-                    # statuses.append("UNABLE TO MAP MEMBER OI DISPLAY")
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "UNABLE TO MAP MEMBER OI DISPLAY"}
 
                 # go into table CPS226.01
                 _place(screen, "x", 29, 17)
@@ -242,10 +188,8 @@ def oi_yes_run_batch(
 
                 sid = _get_screen_id(screen)
                 if sid == "CPS125.01":
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"MEMBER NOT FOUND"})
-                    # statuses.append("MEMBER NOT FOUND")
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "MEMBER NOT FOUND"}
 
                 # VBA handles CPS500.01 path with extra enters/x selections.
                 if sid != "CPS520.01":
@@ -280,10 +224,8 @@ def oi_yes_run_batch(
                                 break
                         break
                 status_msg = "PLAN ID FIELD UPDATED." if updated else "NO CHANGE APPLIED."
-                statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":status_msg})
-                # statuses.append(status_msg)
                 screen.SendKeys("<PF9>"); _wait_ready(screen)
-                continue
+                return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": status_msg}
 
             if action == "UPDATE_OI":
                 # header fields
@@ -356,38 +298,97 @@ def oi_yes_run_batch(
                     break
 
                 if not matched_any:
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"NEEDS FURTHER REVIEW"})
-                    #statuses.append("NEEDS FURTHER REVIEW")
                     screen.SendKeys("<PF9>"); _wait_ready(screen)
-                    continue
+                    return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "NEEDS FURTHER REVIEW"}
 
                 # save (Enter) and read messages (like VBA checks lines 30/31)
                 screen.SendKeys("<Enter>"); _wait_ready(screen)
                 msg30 = (screen.GetString(30, 2, 79) or "").strip()
                 msg31 = (screen.GetString(31, 2, 79) or "").strip()
                 if ("INVALID KEY" in msg31.upper()) or ("ERROR IN HIGHLIGHTED" in msg30.upper()):
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"NEEDS FURTHER REVIEW"})
-                    #statuses.append("NEEDS FURTHER REVIEW")
+                    status_msg = "NEEDS FURTHER REVIEW"
                 elif msg30:
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":msg30})
-                    #statuses.append(msg30)
+                    status_msg = msg30
                 elif msg31:
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":msg31})
-                    #statuses.append(msg31)
+                    status_msg = msg31
                 else:
-                    statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"OI FIELD UPDATED"})
-                    #statuses.append("OI FIELD UPDATED")
+                    status_msg = "OI FIELD UPDATED"
 
                 screen.SendKeys("<PF9>"); _wait_ready(screen)
-                continue
+                return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": status_msg}
 
-            statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":"UNKNOWN ACTION"})
-            #statuses.append("UNKNOWN ACTION")
             screen.SendKeys("<PF9>"); _wait_ready(screen)
+            return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": "UNKNOWN ACTION"}
 
         except Exception as e:
-            statuses.append({'CLAIM CONTROL #':uniq_id,"MACRO STATUS":f"EXCEPTION: {type(e).__name__}: {e}"})
-            #statuses.append(f"EXCEPTION: {type(e).__name__}: {e}")
+            return {'CLAIM CONTROL #': uniq_id, "MACRO STATUS": f"EXCEPTION: {type(e).__name__}: {e}"}
+
+    oi_status = (oi_status or "").strip().upper()
+    if oi_status not in {"YES", "NO"}:
+        raise ValueError("oi_status must be YES or NO")
+
+    search_by = (search_by or "").strip().upper()
+    action = (action or "").strip().upper()
+
+    today = _dt.date.today()
+    header_updt = _to_mmddyy(update_date or today)
+    bg_mmddyy = _to_mmddyy(bg_sv_dt)
+
+    # --- session attach: use up to 4 live emulator sessions in parallel,
+    # same pattern as scrap_claims_from_emulator() in claims.py ---
+    try:
+        sessions = attach_emulator_sessions(n=4)
+    except Exception as e:
+        print(f"Failed to attach sessions: {e}")
+        raise
+
+    worker_count = min(4, len(sessions))
+    print(f"Using {worker_count} emulator session(s) for {len(df)} row(s).")
+
+    # (position, (df_index, row)) so results can be reassembled in original order
+    indexed_rows = list(enumerate(df.iterrows()))
+    buckets = [indexed_rows[i::worker_count] for i in range(worker_count)]
+
+    out_q = Queue()
+
+    def _worker(worker_idx, items):
+        import pythoncom
+        pythoncom.CoInitialize()
+        try:
+            session = sessions[worker_idx]
+            screen = session.Screen
+            try:
+                screen.WaitHostQuiet(2000)
+            except Exception:
+                pass
+
+            for pos, (idx, row) in items:
+                try:
+                    res = _process_row(
+                        screen, row, search_by, action, oi_status, bg_mmddyy,
+                        header_updt, level_mode, default_tp, TYPE, today,
+                    )
+                except Exception as e:
+                    print(f"Worker {worker_idx} error on row {idx}: {e}")
+                    res = {'CLAIM CONTROL #': f"ROW_{idx}", "MACRO STATUS": f"EXCEPTION: {type(e).__name__}: {e}"}
+
+                out_q.put((pos, res))
+        finally:
+            try:
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
+    with ThreadPoolExecutor(max_workers=worker_count) as pool:
+        for i in range(worker_count):
+            pool.submit(_worker, i, buckets[i])
+
+        statuses = [None] * len(indexed_rows)
+        collected = 0
+        while collected < len(indexed_rows):
+            pos, res = out_q.get()
+            statuses[pos] = res
+            collected += 1
 
     return {"success":True,
             "result":statuses
