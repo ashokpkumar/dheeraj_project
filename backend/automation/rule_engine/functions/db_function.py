@@ -39,14 +39,18 @@ def fetch_claim_ids_from_db( rules,context=None):
 def add_scrapped_values_to_db( rule_name:str,context=None):
     print("Scrapped values to db")
 
+
     results = context.get("scrapped_claims")
+    rule_name = context.get("rule_name")
+    rule_engine_id = context.get("rule_engine_id")
+    # engine = RuleEngine.objects.filter(rule_name = rule_name).first()
 
-    engine = RuleEngine.objects.filter(rule_name = rule_name).first()
 
-    rule_engine_processed = RuleEngineProcessed.objects.create(rule_engine_id = engine.id,
-                                                               rule_name = engine.rule_name,
+    rule_engine_processed = RuleEngineProcessed.objects.create(rule_engine_id = rule_engine_id,
+                                                               rule_name = rule_name,
                                                                 processed_at = datetime.now(),
-                                                                    claims_count = len(results)
+                                                                    claims_count = len(results) if results else 0
                                        )
-    upsert_result = bulk_upsert_claims(results,rule_name,context.get('manual'),rule_engine_processed.id)
-    print(upsert_result)
+    if results and len(results)!=0:
+        upsert_result = bulk_upsert_claims(results,rule_name,context.get('manual'),rule_engine_processed.id)
+        print(upsert_result)
