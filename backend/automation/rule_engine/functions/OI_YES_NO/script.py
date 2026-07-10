@@ -96,9 +96,32 @@ def oi_yes_run_batch(
         return _get_screen_id(screen) == "CPS520.01"
 
     # --- session attach (VBA: Current_Session()) ---
+    import pythoncom
+    pythoncom.CoInitialize()
+
     system = win32com.client.Dispatch("EXTRA.System")
     sessions = system.Sessions
-    sess =  system.ActiveSession
+
+    # system.ActiveSession is only populated when an EXTRA session window
+    # currently has Windows UI focus. When this runs off the main/UI thread
+    # (e.g. as a background job) no window has focus and it comes back None,
+    # which blows up on `.Screen`. Fall back to scanning system.Sessions for
+    # the first live one, same as attach_emulator_sessions() in helpers.py.
+    sess = system.ActiveSession
+    if sess is None:
+        if sessions.Count < 1:
+            raise RuntimeError("No active emulator sessions found (EXTRA.System.Sessions is empty).")
+        for i in range(1, sessions.Count + 1):
+            candidate = sessions.Item(i)
+            try:
+                candidate.Screen  # sanity check the session is actually alive
+            except Exception:
+                continue
+            sess = candidate
+            break
+        if sess is None:
+            raise RuntimeError("No live emulator sessions found (all were stale/disconnected).")
+
     screen = sess.Screen
 
     oi_status = (oi_status or "").strip().upper()
