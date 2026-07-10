@@ -483,11 +483,13 @@ def release_pend_run_batch(
     # system.ActiveSession only returns a session when an EXTRA window has
     # Windows UI focus, which isn't reliable off the main thread — use the
     # same robust multi-session attach as claims.py/OI_YES_NO. Rows are then
-    # grouped by CERT_NO and distributed across up to 4 sessions in parallel
-    # (see below): all rows for a given CERT_NO stay on the same session, in
-    # original order, since cert_no_skip auto-skips later claims for a cert
-    # after an earlier one failed/pended — that only holds if same-cert rows
-    # run in order on one session.
+    # split round-robin across up to 4 sessions in parallel (see below) to
+    # guarantee all attached emulators get used. Trade-off: cert_no_skip
+    # (skip a claim if an earlier row for the same CERT_NO already
+    # failed/pended, when a rule has seq_ordr=Y) is tracked per-worker, so it
+    # only fires correctly when both rows land on the same session — with
+    # round-robin that's not guaranteed. Accepted intentionally in favor of
+    # always using all available emulators.
     print("[release_pend_run_batch] Connecting to EXTRA.System...")
     try:
         sessions = attach_emulator_sessions(n=4)
@@ -498,27 +500,16 @@ def release_pend_run_batch(
         traceback.print_exc()
         return {"success": False, "result": [], "error": f"Emulator connection failed: {_e}"}
 
-    # Group rows by CERT_NO, preserving original order both across and within
-    # groups, so a whole cert's claims stay together on one session/worker —
-    # required for cert_no_skip above to behave like the old single-session
-    # version, while still letting different certs run in parallel.
-    groups = {}
+    worker_count = min(4, len(sessions))
+    print(f"[release_pend_run_batch] Using {worker_count} emulator session(s) for {len(df)} row(s).")
+
+    # (position, row) so results can be reassembled in original order; split
+    # evenly round-robin across all attached sessions.
+    indexed_rows = []
     for pos, (_, row_series) in enumerate(df.iterrows()):
         row = {k: (str(v).strip() if v is not None else "") for k, v in row_series.to_dict().items()}
-        cert_key = row.get("CERT_NO", "")
-        groups.setdefault(cert_key, []).append((pos, row))
-
-    worker_count = min(4, len(sessions))
-    print(f"[release_pend_run_batch] Using {worker_count} emulator session(s) for {len(df)} row(s) across {len(groups)} CERT_NO group(s).")
-
-    # Greedily bin-pack whole CERT_NO groups onto the least-loaded worker so
-    # a group never gets split across sessions.
-    buckets = [[] for _ in range(worker_count)]
-    bucket_sizes = [0] * worker_count
-    for items in groups.values():
-        target = bucket_sizes.index(min(bucket_sizes))
-        buckets[target].extend(items)
-        bucket_sizes[target] += len(items)
+        indexed_rows.append((pos, row))
+    buckets = [indexed_rows[i::worker_count] for i in range(worker_count)]
 
     out_q = Queue()
 
