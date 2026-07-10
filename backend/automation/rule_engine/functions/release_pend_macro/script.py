@@ -6,16 +6,11 @@ Ports Release_or_Pend_Claim and Get_Claim_Details from Modules_oShared.txt.
 import csv
 import os
 import traceback
-
-# Windows-only: requires pywin32. Guarded so importing this module (and thus
-# registering its functions) doesn't fail/hang on environments where pywin32
-# isn't installed or its COM cache can't be built.
-try:
-    import win32com.client  # pywin32
-except Exception:
-    win32com = None
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
 
 from rule_engine.registry import register_function
+from rule_engine.functions.helpers import attach_emulator_sessions
 
 from .hcfa import hcfa_data_entry
 from .tod import tod_update
@@ -135,15 +130,19 @@ def release_pend_run_batch(
         return {"success": False, "result": [], "error": f"_load_rule_code_ref failed: {_e}"}
 
     # ── Connect to emulator ───────────────────────────────────────────────
+    # system.ActiveSession only returns a session when an EXTRA window has
+    # Windows UI focus, which isn't reliable off the main thread — use the
+    # same robust multi-session attach as claims.py/OI_YES_NO. We still only
+    # process on ONE session (sequentially, in original row order): later
+    # rows can be auto-skipped via cert_no_skip when an earlier row for the
+    # same CERT_NO failed/pended, and that only holds if same-cert rows run
+    # in order on a single session — splitting rows across sessions would
+    # silently break that logic.
     print("[release_pend_run_batch] Connecting to EXTRA.System...")
     try:
-        system = win32com.client.Dispatch("EXTRA.System")
-        sess   = system.ActiveSession
-        if sess is None:
-            raise RuntimeError("ActiveSession is None — is the emulator open?")
+        sessions = attach_emulator_sessions(n=4)
+        sess = sessions[0]
         screen = sess.Screen
-        if screen is None:
-            raise RuntimeError("Screen object is None — emulator may not be ready")
         print(f"[release_pend_run_batch] Emulator connected. Initial screen: {get_screen_id(screen)!r}")
     except Exception as _e:
         print(f"[release_pend_run_batch] ERROR connecting to emulator: {_e}")
@@ -506,6 +505,126 @@ def release_pend_run_batch(
 # ---------------------------------------------------------------------------
 # Claim-details fetch (mirrors Get_Claim_Details + GridPriceCheck VBA)
 # ---------------------------------------------------------------------------
+def _process_claim_detail_row(screen, row, claim_no, aply_grid_prc, grid_price):
+    """
+    Per-row body of release_pend_get_claim_details. Each row is independent
+    (no cross-row state like release_pend_run_batch's cert_no_skip), so this
+    is safe to run on any session/thread.
+    """
+    try:
+        # Navigate to CPS520.01 and enter claim number
+        for _ in range(15):
+            if get_screen_id(screen) == "CPS520.01":
+                place_value(screen, claim_no, 8, 15)
+                remove_value(screen, 9, 15)
+                remove_value(screen, 12, 15)
+                break
+            send_pf(screen, 9)
+        else:
+            send_pf(screen, 9)
+            place_value(screen, claim_no, 8, 15)
+            remove_value(screen, 9, 15)
+            remove_value(screen, 12, 15)
+
+        send_enter(screen)
+
+        if get_screen_id(screen) == "CPS520.01":
+            row["MACRO_STATUS"] = (screen.GetString(31, 2, 70) or "").strip()
+            send_pf(screen, 9)
+            return row
+
+        # Read pending code
+        row["PEND_CD"] = (screen.GetString(6, 6, 3) or "").strip()
+
+        # Count drafts (may span multiple pages)
+        t_draft = 0
+        while True:
+            for line in range(6, 19, 2):
+                if (screen.GetString(line, 2, 3) or "").strip():
+                    t_draft += 1
+            if "MORE DATA" in (screen.GetString(20, 2, 60) or "").upper():
+                send_pf(screen, 11)
+            else:
+                break
+
+        row["DRAFTS"] = str(t_draft)
+
+        # GridPriceCheck: navigate drafts to find claim type and grid mismatches
+        send_pf(screen, 9)
+        place_value(screen, claim_no, 8, 15)
+        remove_value(screen, 9, 15)
+        remove_value(screen, 12, 15)
+        send_enter(screen)
+
+        t_pages = max(1, (t_draft + 6) // 7)
+        dctr = 1
+        claim_type = ""
+        status_parts: list = []
+
+        for pg in range(1, t_pages + 1):
+            for d_line in range(1, 8):
+                place_value(screen, f"{d_line:02d}", 3, 26)
+                send_enter(screen)
+                row["REL"] = (screen.GetString(13, 27, 2) or "").strip()
+                send_enter(screen)
+
+                sid = get_screen_id(screen)
+                if sid == "CPS450.01":
+                    claim_type = "HCFA"
+                    row["OLD_POS"] = (screen.GetString(2, 6, 3) or "").strip()
+                    if aply_grid_prc == "Y":
+                        for c2 in range(5, 12, 2):
+                            if not (screen.GetString(c2, 4, 6) or "").strip():
+                                break
+                            try:
+                                chg  = float((screen.GetString(c2, 26, 7) or "0").strip())
+                                proc = (screen.GetString(c2, 41, 6) or "").strip()
+                                allowed = grid_price.get(proc, 0)
+                                if allowed and chg != allowed:
+                                    msg = f"PRICE MISMATCH {proc}(Pg:{pg} Ln:{d_line:02d})"
+                                    status_parts.append(msg)
+                            except (ValueError, TypeError):
+                                pass
+                    else:
+                        break
+
+                elif sid == "BLX2460.01":
+                    claim_type = "UB"
+                    row["OLD_POS"] = (screen.GetString(1, 26, 3) or "").strip()
+                    break
+
+                dctr += 1
+                if dctr > t_draft:
+                    break
+
+                send_pf(screen, 9)
+                place_value(screen, claim_no, 8, 15)
+                remove_value(screen, 9, 15)
+                remove_value(screen, 12, 15)
+                send_enter(screen)
+
+            if claim_type in ("HCFA", "UB") and aply_grid_prc != "Y":
+                break
+            send_pf(screen, 11)
+
+        row["CLAIM_TYPE"]   = claim_type
+        row["MACRO_STATUS"] = "; ".join(status_parts) if status_parts else ""
+
+        # Read old provider code from CPS408 screen
+        send_pf(screen, 8)
+        place_value(screen, "408", 2, 37)
+        send_enter(screen)
+        row["OLD_PRV_CD"] = "'" + (screen.GetString(3, 48, 1) or "").strip()
+        send_pf(screen, 9)
+
+        return row
+
+    except Exception as exc:
+        row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
+        send_pf(screen, 9)
+        return row
+
+
 @register_function(
     name="release_pend_get_claim_details",
     tag="Release Pend Macro",
@@ -528,134 +647,65 @@ def release_pend_get_claim_details(
     Mirrors Get_Claim_Details + GridPriceCheck VBA.
     For each row in context['df'] reads: pending code, draft count, claim type, grid price mismatches.
     Writes results back as a list of dicts with updated row data.
+    Rows are independent, so they're processed in parallel across up to 4
+    emulator sessions (round-robin), same pattern as claims.py/OI_YES_NO.
     """
     df = context.get("df")
 
     codes = load_code_refs(dx_code_ref_path)
     grid_price = codes.get("grid_price", {})
 
-    system = win32com.client.Dispatch("EXTRA.System")
-    sess   = system.ActiveSession
-    screen = sess.Screen
+    try:
+        sessions = attach_emulator_sessions(n=4)
+    except Exception as e:
+        print(f"[release_pend_get_claim_details] Failed to attach sessions: {e}")
+        raise
 
-    results = []
+    worker_count = min(4, len(sessions))
+    print(f"[release_pend_get_claim_details] Using {worker_count} emulator session(s) for {len(df)} row(s).")
 
-    for _, row_series in df.iterrows():
-        row = {k: (str(v).strip() if v is not None else "") for k, v in row_series.to_dict().items()}
-        claim_no = row.get("CLAIM_NO", "")
+    # (position, (df_index, row_series)) so results can be reassembled in original order
+    indexed_rows = list(enumerate(df.iterrows()))
+    buckets = [indexed_rows[i::worker_count] for i in range(worker_count)]
 
+    out_q: Queue = Queue()
+
+    def _worker(worker_idx, items):
+        import pythoncom
+        pythoncom.CoInitialize()
         try:
-            # Navigate to CPS520.01 and enter claim number
-            for _ in range(15):
-                if get_screen_id(screen) == "CPS520.01":
-                    place_value(screen, claim_no, 8, 15)
-                    remove_value(screen, 9, 15)
-                    remove_value(screen, 12, 15)
-                    break
-                send_pf(screen, 9)
-            else:
-                send_pf(screen, 9)
-                place_value(screen, claim_no, 8, 15)
-                remove_value(screen, 9, 15)
-                remove_value(screen, 12, 15)
+            session = sessions[worker_idx]
+            screen = session.Screen
+            try:
+                screen.WaitHostQuiet(2000)
+            except Exception:
+                pass
 
-            send_enter(screen)
+            for pos, (_, row_series) in items:
+                row = {k: (str(v).strip() if v is not None else "") for k, v in row_series.to_dict().items()}
+                claim_no = row.get("CLAIM_NO", "")
+                try:
+                    res = _process_claim_detail_row(screen, row, claim_no, aply_grid_prc, grid_price)
+                except Exception as exc:
+                    print(f"[release_pend_get_claim_details] Worker {worker_idx} error on {claim_no}: {exc}")
+                    row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
+                    res = row
+                out_q.put((pos, res))
+        finally:
+            try:
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
 
-            if get_screen_id(screen) == "CPS520.01":
-                row["MACRO_STATUS"] = (screen.GetString(31, 2, 70) or "").strip()
-                results.append(row)
-                send_pf(screen, 9)
-                continue
+    with ThreadPoolExecutor(max_workers=worker_count) as pool:
+        for i in range(worker_count):
+            pool.submit(_worker, i, buckets[i])
 
-            # Read pending code
-            row["PEND_CD"] = (screen.GetString(6, 6, 3) or "").strip()
-
-            # Count drafts (may span multiple pages)
-            t_draft = 0
-            while True:
-                for line in range(6, 19, 2):
-                    if (screen.GetString(line, 2, 3) or "").strip():
-                        t_draft += 1
-                if "MORE DATA" in (screen.GetString(20, 2, 60) or "").upper():
-                    send_pf(screen, 11)
-                else:
-                    break
-
-            row["DRAFTS"] = str(t_draft)
-
-            # GridPriceCheck: navigate drafts to find claim type and grid mismatches
-            send_pf(screen, 9)
-            place_value(screen, claim_no, 8, 15)
-            remove_value(screen, 9, 15)
-            remove_value(screen, 12, 15)
-            send_enter(screen)
-
-            t_pages = max(1, (t_draft + 6) // 7)
-            dctr = 1
-            claim_type = ""
-            status_parts: list = []
-
-            for pg in range(1, t_pages + 1):
-                for d_line in range(1, 8):
-                    place_value(screen, f"{d_line:02d}", 3, 26)
-                    send_enter(screen)
-                    row["REL"] = (screen.GetString(13, 27, 2) or "").strip()
-                    send_enter(screen)
-
-                    sid = get_screen_id(screen)
-                    if sid == "CPS450.01":
-                        claim_type = "HCFA"
-                        row["OLD_POS"] = (screen.GetString(2, 6, 3) or "").strip()
-                        if aply_grid_prc == "Y":
-                            for c2 in range(5, 12, 2):
-                                if not (screen.GetString(c2, 4, 6) or "").strip():
-                                    break
-                                try:
-                                    chg  = float((screen.GetString(c2, 26, 7) or "0").strip())
-                                    proc = (screen.GetString(c2, 41, 6) or "").strip()
-                                    allowed = grid_price.get(proc, 0)
-                                    if allowed and chg != allowed:
-                                        msg = f"PRICE MISMATCH {proc}(Pg:{pg} Ln:{d_line:02d})"
-                                        status_parts.append(msg)
-                                except (ValueError, TypeError):
-                                    pass
-                        else:
-                            break
-
-                    elif sid == "BLX2460.01":
-                        claim_type = "UB"
-                        row["OLD_POS"] = (screen.GetString(1, 26, 3) or "").strip()
-                        break
-
-                    dctr += 1
-                    if dctr > t_draft:
-                        break
-
-                    send_pf(screen, 9)
-                    place_value(screen, claim_no, 8, 15)
-                    remove_value(screen, 9, 15)
-                    remove_value(screen, 12, 15)
-                    send_enter(screen)
-
-                if claim_type in ("HCFA", "UB") and aply_grid_prc != "Y":
-                    break
-                send_pf(screen, 11)
-
-            row["CLAIM_TYPE"]   = claim_type
-            row["MACRO_STATUS"] = "; ".join(status_parts) if status_parts else ""
-
-            # Read old provider code from CPS408 screen
-            send_pf(screen, 8)
-            place_value(screen, "408", 2, 37)
-            send_enter(screen)
-            row["OLD_PRV_CD"] = "'" + (screen.GetString(3, 48, 1) or "").strip()
-            send_pf(screen, 9)
-
-            results.append(row)
-
-        except Exception as exc:
-            row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
-            results.append(row)
-            send_pf(screen, 9)
+        results = [None] * len(indexed_rows)
+        collected = 0
+        while collected < len(indexed_rows):
+            pos, res = out_q.get()
+            results[pos] = res
+            collected += 1
 
     return {"success": True, "result": results}
