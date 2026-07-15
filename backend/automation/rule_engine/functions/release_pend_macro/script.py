@@ -71,9 +71,10 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
 
     if not claim_no:
         print(f"[{claim_no}] WARNING: CLAIM_NO is empty on row {row_idx} — skipping")
-        return {"CLAIM CONTROL #": "", "MACRO STATUS": "SKIPPED: empty CLAIM_NO"}, cert_no_skip
+        return {"CLAIM CONTROL #": "", "MACRO STATUS": "SKIPPED: empty CLAIM_NO", "DECISION": ""}, cert_no_skip
 
     _stage = "init"
+    _decision = ""
     try:
 
         # ── Resolve settings from rule CSV ────────────────────────────
@@ -82,10 +83,10 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         rule_key = rule_val.strip().upper()
         if not rule_key:
             print(f"[{claim_no}] SKIPPED: RULE column is empty")
-            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED: RULE column is empty"}, cert_no_skip
+            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED: RULE column is empty", "DECISION": _decision}, cert_no_skip
         if rule_key not in rule_ref:
             print(f"[{claim_no}] SKIPPED: RULE {rule_key!r} not found in rule CSV")
-            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": f"SKIPPED: RULE {rule_key!r} not found in rule CSV"}, cert_no_skip
+            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": f"SKIPPED: RULE {rule_key!r} not found in rule CSV", "DECISION": _decision}, cert_no_skip
         row_settings = rule_ref[rule_key].copy()
         row["RULE_KEY"] = rule_key
         print(f"[{claim_no}] Loaded settings from rule {rule_key!r}")
@@ -121,7 +122,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
             if cert_no_skip and cert_no_skip == row.get("CERT_NO", ""):
                 print(f"[{claim_no}] SKIPPED (SEQ ORDER) — cert_no_skip={cert_no_skip!r} matches")
                 send_pf(screen, 9)
-                return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED (SEQ ORDER)"}, cert_no_skip
+                return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": "SKIPPED (SEQ ORDER)", "DECISION": _decision}, cert_no_skip
 
         # ── TOD update ────────────────────────────────────────────────
         if row_settings.get("aply_tod_updt", "N") == "Y":
@@ -132,7 +133,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
                 _msg = row.get("MACRO_STATUS", "TOD UPDATE FAILED")
                 print(f"[{claim_no}] TOD update FAILED: {_msg!r}")
                 send_pf(screen, 9)
-                return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _msg}, cert_no_skip
+                return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _msg, "DECISION": _decision}, cert_no_skip
             print(f"[{claim_no}] TOD update OK")
 
         # ── Navigate to CPS520.01 ─────────────────────────────────────
@@ -164,7 +165,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
             _err = (screen.GetString(31, 2, 70) or "").strip()
             print(f"[{claim_no}] ERROR: Still on CPS520 after enter — {_err!r}")
             send_pf(screen, 9)
-            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _err}, cert_no_skip
+            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _err, "DECISION": _decision}, cert_no_skip
 
         # ── Draft loop ────────────────────────────────────────────────
         j = 1
@@ -381,7 +382,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
 
         macro_status = "DONE." if row_done else final_status
         print(f"[{claim_no}] ── RESULT: {macro_status!r}")
-        return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": macro_status}, cert_no_skip
+        return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": macro_status, "DECISION": _decision}, cert_no_skip
 
     except Exception as exc:
         print(f"[{claim_no}] EXCEPTION at stage={_stage!r}: {type(exc).__name__}: {exc}")
@@ -389,6 +390,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         return {
             "CLAIM CONTROL #": claim_no,
             "MACRO STATUS": f"EXCEPTION [{_stage}]: {type(exc).__name__}: {exc}",
+            "DECISION": _decision,
         }, cert_no_skip
     finally:
         try:

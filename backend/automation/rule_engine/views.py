@@ -439,7 +439,7 @@ def export_claims_csv(request):
     rule_name = request.GET.get("rule_name")
     rule_engine_id = request.GET.get("rule_engine_id")
     qs = ClaimsData.objects.all().only(
-        "claims_id", "processed_date", "rule_name", "manual", "status"
+        "claims_id", "processed_date", "rule_name", "manual", "status", "decision"
     )
 
     if rule_name:
@@ -449,7 +449,7 @@ def export_claims_csv(request):
     if rule_engine_id:
         qs = qs.filter(rule_engine_id=rule_engine_id)
 
-    headers = ["claims_id", "processed_date", "rule_name", "manual", "status"]
+    headers = ["claims_id", "processed_date", "rule_name", "manual", "status", "decision"]
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
 
@@ -462,6 +462,7 @@ def export_claims_csv(request):
                 row.rule_name,
                 "TRUE" if row.manual else "FALSE",
                 row.status,
+                row.decision,
             ])
 
     filename = f"claims_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"

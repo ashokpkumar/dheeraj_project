@@ -80,6 +80,7 @@ class ClaimsData(models.Model):
     manual = models.BooleanField()
     status = models.CharField(max_length=255)
     rule_engine_id =  models.CharField(max_length=255)
+    decision = models.CharField(max_length=500, blank=True, default="",null=True)
 
     class Meta:
         db_table = "claims_data"

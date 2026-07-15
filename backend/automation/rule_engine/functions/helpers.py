@@ -33,7 +33,8 @@ def bulk_upsert_claims(data_list: list[dict],rule_name:str,manual:bool,rule_engi
                 rule_name=rule_name,
                 manual=manual,
                 status=row["MACRO STATUS"],
-                rule_engine_id =  rule_engine_id
+                rule_engine_id =  rule_engine_id,
+                decision=row.get("DECISION", ""),
 
             )
         )
