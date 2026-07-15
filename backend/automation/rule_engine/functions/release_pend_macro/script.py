@@ -104,18 +104,16 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         _dc   = row_settings.get("denial_code", "").strip()
         _prv  = row.get("NEW_PRV_CD", "").strip()
         _eob  = row.get("EOB_PER_CLM", "").strip()
-        if _deny:
-            _decision = f"DENY  | code={_dc or '(from settings)'}"
-        else:
-            _decision = "PAID"
+        _decision = "DENY" if _deny else "PAID"
+        _decision_detail = f"DENY  | code={_dc or '(from settings)'}" if _deny else "PAID"
         _extras = []
         if _prv:
             _extras.append(f"PRV={_prv}")
         if _eob:
             _extras.append(f"EOB='{_eob[:50]}{'...' if len(_eob) > 50 else ''}'")
         if _extras:
-            _decision += "  |  " + "  ".join(_extras)
-        print(f"[{claim_no}] >>> DECISION: {_decision}")
+            _decision_detail += "  |  " + "  ".join(_extras)
+        print(f"[{claim_no}] >>> DECISION: {_decision_detail}")
 
         # ── Seq-order skip ────────────────────────────────────────────
         if row_settings.get("seq_ordr", "N") == "Y":
