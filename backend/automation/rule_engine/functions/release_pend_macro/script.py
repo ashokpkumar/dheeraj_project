@@ -107,7 +107,7 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         if _deny:
             _decision = f"DENY  | code={_dc or '(from settings)'}"
         else:
-            _decision = "RELEASE (no denial)"
+            _decision = "PAID"
         _extras = []
         if _prv:
             _extras.append(f"PRV={_prv}")
