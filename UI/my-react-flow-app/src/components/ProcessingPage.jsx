@@ -114,6 +114,10 @@ export default function ProcessingPage({
                     <div style={styles.summaryLabel}>Processed</div>
                     <div style={styles.summaryValue}>{claimsSummary.processed}</div>
                   </div>
+                  <div style={{ ...styles.summaryCard, ...styles.summaryReleased }}>
+                    <div style={styles.summaryLabel}>Already Released</div>
+                    <div style={styles.summaryValue}>{claimsSummary.already_released}</div>
+                  </div>
                   <div style={{ ...styles.summaryCard, ...styles.summaryUnprocessed }}>
                     <div style={styles.summaryLabel}>Unprocessed</div>
                     <div style={styles.summaryValue}>{claimsSummary.unprocessed}</div>
@@ -302,6 +306,7 @@ const styles = {
     textAlign: 'center',
   },
   summaryProcessed: { background: '#e6f4ea', color: '#16a34a' },
+  summaryReleased: { background: '#c3f0ed', color: '#04566b' },
   summaryUnprocessed: { background: '#fdecec', color: '#dc2626' },
   summaryTotal: { background: '#eef2f6', color: '#1f4e92' },
   summaryLabel: { fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
