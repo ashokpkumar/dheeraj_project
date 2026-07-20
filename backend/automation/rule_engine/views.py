@@ -108,12 +108,26 @@ def dashboard(request):
                 claims_qs = claims_qs.filter(processed_date__date__lte=end_date)
 
         total_count = claims_qs.count()
-        processed_count = claims_qs.filter(status__icontains="done").count()
+        
+        # Anything containing this text = Already Released
+        already_released_count = claims_qs.filter(
+        status__icontains="FBR 15   NO FOLLOW UP FOR THIS SELECTION"
+        ).count()
+        
+        # Only exact DONE.
+        processed_count = claims_qs.filter(
+        status__iexact="DONE."
+        ).count()
+
+        # Everything else
+        unprocessed_count = (total_count - processed_count - already_released_count)
+        
 
         response.data["claims_summary"] = {
-            "processed": processed_count,
-            "unprocessed": total_count - processed_count,
-            "total": total_count,
+        "processed": processed_count,
+        "already_released": already_released_count,
+        "unprocessed": unprocessed_count,
+        "total": total_count,
         }
         return response
 
