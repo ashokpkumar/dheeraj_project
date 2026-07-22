@@ -138,6 +138,10 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         _stage = "navigate_cps520"
         print(f"[{claim_no}] Navigating to CPS520.01... (current: {get_screen_id(screen)!r})")
         for _attempt in range(15):
+            _msg31 = (screen.GetString(31, 2, 70) or "").strip()
+            if "PRINT SCRN" in _msg31.upper() and "PRESS ENTER" in _msg31.upper():
+                print(f"[{claim_no}]   Detected prompt on line 31: {_msg31!r} — pressing ENTER first")
+                send_enter(screen)
             send_pf(screen, 9)
             _cur = get_screen_id(screen)
             if _cur == "CPS520.01":
@@ -379,8 +383,19 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
             print(f"[{claim_no}] Draft {i}: completed OK")
 
         macro_status = "DONE." if row_done else final_status
-        print(f"[{claim_no}] ── RESULT: {macro_status!r}")
-        return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": macro_status, "DECISION": _decision}, cert_no_skip
+
+        if macro_status == "DONE.":
+            decision = _decision      # DENY or PAID based on existing rule
+        else:
+            decision = "PEND"
+
+        print(f"[{claim_no}] ── RESULT: {macro_status!r}, DECISION: {decision!r}")
+
+        return {
+            "CLAIM CONTROL #": claim_no,
+            "MACRO STATUS": macro_status,
+            "DECISION": decision
+        }, cert_no_skip
 
     except Exception as exc:
         print(f"[{claim_no}] EXCEPTION at stage={_stage!r}: {type(exc).__name__}: {exc}")
