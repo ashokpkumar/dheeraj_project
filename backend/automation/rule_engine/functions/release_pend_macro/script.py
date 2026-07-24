@@ -167,7 +167,8 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
             _err = (screen.GetString(31, 2, 70) or "").strip()
             print(f"[{claim_no}] ERROR: Still on CPS520 after enter — {_err!r}")
             send_pf(screen, 9)
-            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _err, "DECISION": _decision}, cert_no_skip
+            _err_decision = "Already Processed" if "NO FOLLOW UP FOR THIS SELECTION" in _err.upper() else _decision
+            return {"CLAIM CONTROL #": claim_no, "MACRO STATUS": _err, "DECISION": _err_decision}, cert_no_skip
 
         # ── Draft loop ────────────────────────────────────────────────
         j = 1
@@ -386,6 +387,8 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
 
         if macro_status == "DONE.":
             decision = _decision      # DENY or PAID based on existing rule
+        elif "NO FOLLOW UP FOR THIS SELECTION" in macro_status.upper():
+            decision = "Already Processed"
         else:
             decision = "PEND"
 
