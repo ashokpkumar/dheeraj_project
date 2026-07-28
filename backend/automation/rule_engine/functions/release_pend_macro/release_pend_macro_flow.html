@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release / Pend Macro — Functional Flow</title>
+<style>
+  :root{
+    --bg: #f5f4ee;
+    --surface: #ffffff;
+    --surface-alt: #ece9de;
+    --ink: #1a231e;
+    --ink-soft: #56604f;
+    --ink-faint: #8b9284;
+    --rule: #d9d4c4;
+    --accent: #2e7d32;
+    --accent-strong: #1b5e20;
+    --accent-soft: #e0ead9;
+    --amber: #9c6a24;
+    --amber-soft: #f1e3c8;
+    --shadow: 0 1px 2px rgba(26,35,30,.06), 0 6px 20px rgba(26,35,30,.05);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: Seravek, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+  }
+  :root[data-theme="dark"]{
+    --bg: #12160f;
+    --surface: #181d16;
+    --surface-alt: #1f251b;
+    --ink: #e7ebe0;
+    --ink-soft: #b3bba7;
+    --ink-faint: #6d7566;
+    --rule: #313a2a;
+    --accent: #6fcf7d;
+    --accent-strong: #a3e6ac;
+    --accent-soft: #223522;
+    --amber: #e0ab5c;
+    --amber-soft: #3a3020;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #12160f;
+      --surface: #181d16;
+      --surface-alt: #1f251b;
+      --ink: #e7ebe0;
+      --ink-soft: #b3bba7;
+      --ink-faint: #6d7566;
+      --rule: #313a2a;
+      --accent: #6fcf7d;
+      --accent-strong: #a3e6ac;
+      --accent-soft: #223522;
+      --amber: #e0ab5c;
+      --amber-soft: #3a3020;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size: 42px 42px;
+    opacity:.25;
+    pointer-events:none;
+    z-index:0;
+  }
+  .page{ position:relative; z-index:1; max-width:1320px; margin:0 auto; padding:40px 28px 80px; }
+
+  header{ margin-bottom:36px; }
+  .eyebrow{
+    font-family: var(--mono);
+    font-size:.72rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color: var(--accent-strong);
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px; height:8px; border-radius:50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  h1{
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.6rem, 2.6vw, 2.15rem);
+    margin: 10px 0 6px;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+  .path{
+    font-family: var(--mono);
+    font-size:.82rem;
+    color: var(--ink-faint);
+    word-break: break-all;
+  }
+  .subhead{
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: .95rem;
+    margin-top:10px;
+  }
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:18px;
+    margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--rule);
+    font-size:.78rem; color: var(--ink-soft);
+  }
+  .legend-item{ display:flex; align-items:center; gap:7px; }
+  .swatch{ width:13px; height:13px; border-radius:3px; flex:none; }
+  .swatch.pipeline{ background: var(--accent); }
+  .swatch.process{ background: var(--surface); border:1.5px solid var(--ink-faint); }
+  .swatch.branch{ background: var(--amber-soft); border:1.5px solid var(--amber); }
+  .swatch.module{ background: var(--surface-alt); border:1.5px dashed var(--ink-faint); }
+  .line-sample{ width:22px; height:0; border-top:2px solid var(--ink-soft); }
+  .line-sample.uses{ border-top:2px dashed var(--accent); }
+  .line-sample.context{ border-top:2px dotted var(--ink-faint); }
+
+  .diagram-wrap{ overflow-x:auto; padding-bottom: 8px; }
+  .diagram{ position:relative; min-width:1180px; padding: 10px 4px 20px; }
+  svg#edges{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .edge{ fill:none; stroke: var(--ink-faint); stroke-width:1.6; transition: opacity .15s ease, stroke .15s ease; }
+  .edge--flow{ stroke: var(--ink-soft); }
+  .edge--uses{ stroke: var(--accent); stroke-dasharray: 5 4; }
+  .edge--context{ stroke: var(--ink-faint); stroke-dasharray: 1 5; stroke-linecap: round; }
+  .edge.active{ stroke: var(--accent-strong); stroke-width:2.4; }
+
+  .pipeline-row{
+    display:flex; gap:44px; justify-content:center;
+    margin-bottom:56px; flex-wrap:wrap;
+  }
+
+  .columns{
+    display:grid;
+    grid-template-columns: 336px 336px 296px;
+    gap:46px;
+    align-items:start;
+  }
+  .col{ display:flex; flex-direction:column; gap:12px; }
+  .col-title{
+    font-family: var(--mono);
+    font-size:.74rem; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--ink-faint);
+    margin-bottom:2px;
+  }
+
+  .node{
+    all: unset;
+    box-sizing:border-box;
+    display:block;
+    width:100%;
+    background: var(--surface);
+    border:1px solid var(--rule);
+    border-radius:9px;
+    padding:11px 13px;
+    box-shadow: var(--shadow);
+    cursor:pointer;
+    position:relative;
+    z-index:2;
+  }
+  .node-title{
+    display:block;
+    font-weight:600;
+    font-size:.9rem;
+    color: var(--ink);
+  }
+  .node-sub{
+    display:block;
+    font-family: var(--mono);
+    font-size:.7rem;
+    color: var(--ink-faint);
+    margin-top:3px;
+  }
+  .node--pipeline{
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    min-width:190px;
+  }
+  .node--pipeline .node-title{ color: var(--accent-strong); }
+  .node--branch{
+    background: var(--amber-soft);
+    border-color: var(--amber);
+  }
+  .node--module{
+    background: var(--surface-alt);
+    border-style: dashed;
+  }
+  .node:hover, .node:focus-visible{
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(26,35,30,.09), 0 10px 26px rgba(26,35,30,.10);
+  }
+  .node:focus-visible{ outline: 2px solid var(--accent); outline-offset:2px; }
+  .node.active{ border-color: var(--accent-strong); }
+  .node.dim{ opacity:.32; }
+  .edge.dim{ opacity:.12; }
+
+  .branch-row{ display:flex; gap:10px; }
+  .branch-row .node{ flex:1; }
+
+  .subprocess{
+    border:1px dashed var(--rule);
+    border-radius:11px;
+    padding:14px 12px 12px;
+    display:flex; flex-direction:column; gap:10px;
+    background: linear-gradient(var(--surface-alt), var(--surface-alt));
+    background-blend-mode: normal;
+    position:relative;
+    z-index:1;
+  }
+  .subprocess-label{
+    font-family: var(--mono);
+    font-size:.68rem; letter-spacing:.05em; text-transform:uppercase;
+    color: var(--ink-faint);
+  }
+
+  .rail-note{
+    font-size:.8rem; color: var(--ink-soft); margin-bottom:4px;
+  }
+
+  .detail{
+    margin-top:46px;
+    border-radius:12px;
+    background:#0c1109;
+    border:1px solid #232c1d;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+  }
+  .detail-bar{
+    display:flex; align-items:center; gap:8px;
+    padding:9px 14px;
+    background:#10160c;
+    border-bottom:1px solid #232c1d;
+  }
+  .dot{ width:9px; height:9px; border-radius:50%; }
+  .dot.r{ background:#e5675f;} .dot.y{ background:#e5c15f;} .dot.g{ background:#63c964;}
+  .detail-bar span{
+    font-family: var(--mono); font-size:.72rem; color:#7c8a72; margin-left:6px;
+  }
+  .detail-body{
+    padding:18px 20px 22px;
+    font-family: var(--mono);
+    font-size:.83rem;
+    color:#8fe39a;
+    min-height:108px;
+  }
+  .detail-title{
+    color:#d7f5da; font-size:.95rem; margin-bottom:2px;
+  }
+  .detail-file{ color:#5f9a68; margin-bottom:12px; }
+  .detail-body p{ margin:3px 0; white-space:pre-wrap; }
+  .detail-body p::before{ content:"› "; color:#4f8558; }
+  .detail-empty{ color:#5f9a68; }
+  .detail-empty::before{ content:"› "; color:#3d6944; }
+
+  @media (prefers-reduced-motion: reduce){
+    .node{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">automation / rule_engine / functions</div>
+    <h1>Release / Pend Macro — Functional Flow</h1>
+    <div class="path">backend/automation/rule_engine/functions/release_pend_macro/</div>
+    <p class="subhead">How script.py's two entry points drive the AS/400 claim screens through the emulator, and where they lean on the tod / hcfa / ub / utils support modules. Click any block for detail; hover to trace its connections.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch pipeline"></span>Rule-engine pipeline stage</div>
+      <div class="legend-item"><span class="swatch process"></span>Process step</div>
+      <div class="legend-item"><span class="swatch branch"></span>Claim-type branch</div>
+      <div class="legend-item"><span class="swatch module"></span>Support module</div>
+      <div class="legend-item"><span class="line-sample"></span>sequential call</div>
+      <div class="legend-item"><span class="line-sample uses"></span>uses / imports</div>
+      <div class="legend-item"><span class="line-sample context"></span>via context dict</div>
+    </div>
+  </header>
+
+  <div class="diagram-wrap">
+    <div class="diagram" id="diagram">
+      <svg id="edges"><defs>
+        <marker id="arrow-flow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--ink-soft)"></path>
+        </marker>
+        <marker id="arrow-uses" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"></path>
+        </marker>
+        <marker id="arrow-context" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--ink-faint)"></path>
+        </marker>
+      </defs><g id="edge-lines"></g></svg>
+
+      <div class="pipeline-row">
+        <button type="button" class="node node--pipeline" data-id="p-fetch"><span class="node-title">Fetch Claims</span><span class="node-sub">helper.py</span></button>
+        <button type="button" class="node node--pipeline" data-id="p-dispatch"><span class="node-title">Rule Engine Dispatch</span><span class="node-sub">registry.py</span></button>
+        <button type="button" class="node node--pipeline" data-id="p-macro"><span class="node-title">Release / Pend Macro</span><span class="node-sub">script.py</span></button>
+        <button type="button" class="node node--pipeline" data-id="p-persist"><span class="node-title">Persist Results</span><span class="node-sub">helper.py</span></button>
+      </div>
+
+      <div class="columns">
+        <div class="col" id="col-a">
+          <div class="col-title">release_pend_run_batch</div>
+          <button type="button" class="node" data-id="a1"><span class="node-title">Validate Inputs</span><span class="node-sub">context, df, required columns</span></button>
+          <button type="button" class="node" data-id="a2"><span class="node-title">Load Reference Data</span><span class="node-sub">load_code_refs · _load_rule_code_ref</span></button>
+          <button type="button" class="node" data-id="a3"><span class="node-title">Attach Emulator Sessions</span><span class="node-sub">attach_emulator_sessions(n=4)</span></button>
+          <button type="button" class="node" data-id="a4"><span class="node-title">Split Rows Round-Robin</span><span class="node-sub">≤4 worker threads</span></button>
+          <div class="subprocess">
+            <div class="subprocess-label">per worker · _process_release_pend_row()</div>
+            <button type="button" class="node" data-id="a5a"><span class="node-title">Resolve Settings &amp; Decision</span><span class="node-sub">DENY vs PAID from rule CSV</span></button>
+            <button type="button" class="node" data-id="a5b"><span class="node-title">Seq-Order Skip</span><span class="node-sub">repeat CERT_NO after a pend</span></button>
+            <button type="button" class="node" data-id="a5c"><span class="node-title">TOD Update</span><span class="node-sub">tod_update()</span></button>
+            <button type="button" class="node" data-id="a5d"><span class="node-title">Navigate &amp; Open Claim</span><span class="node-sub">CPS520.01</span></button>
+            <button type="button" class="node" data-id="a5e"><span class="node-title">Draft Processing Loop</span><span class="node-sub">CPS850 / CPS910 / condition &amp; AFV</span></button>
+            <div class="branch-row">
+              <button type="button" class="node node--branch" data-id="a5f_hcfa"><span class="node-title">HCFA Entry</span><span class="node-sub">hcfa_data_entry</span></button>
+              <button type="button" class="node node--branch" data-id="a5f_ub"><span class="node-title">UB Entry</span><span class="node-sub">ub_data_entry</span></button>
+            </div>
+          </div>
+          <button type="button" class="node" data-id="a6"><span class="node-title">Final Status &amp; Decision</span><span class="node-sub">DONE / PEND / DENY / PAID / Already Processed</span></button>
+          <button type="button" class="node" data-id="a7"><span class="node-title">Collect Results</span><span class="node-sub">Queue, original row order</span></button>
+          <button type="button" class="node" data-id="a8"><span class="node-title">Return {success, result}</span><span class="node-sub">script.py</span></button>
+        </div>
+
+        <div class="col" id="col-b">
+          <div class="col-title">release_pend_get_claim_details</div>
+          <button type="button" class="node" data-id="b1"><span class="node-title">Load Grid-Price Refs</span><span class="node-sub">load_code_refs()</span></button>
+          <button type="button" class="node" data-id="b2"><span class="node-title">Attach Emulator Sessions</span><span class="node-sub">attach_emulator_sessions(n=4)</span></button>
+          <button type="button" class="node" data-id="b3"><span class="node-title">Split Rows Round-Robin</span><span class="node-sub">≤4 worker threads</span></button>
+          <div class="subprocess">
+            <div class="subprocess-label">per worker · _process_claim_detail_row()</div>
+            <button type="button" class="node" data-id="b4a"><span class="node-title">Navigate &amp; Open Claim</span><span class="node-sub">CPS520.01</span></button>
+            <button type="button" class="node" data-id="b4b"><span class="node-title">Read Pend Code &amp; Drafts</span><span class="node-sub">multi-page aware</span></button>
+            <button type="button" class="node" data-id="b4c"><span class="node-title">GridPriceCheck</span><span class="node-sub">claim type + price mismatch</span></button>
+            <button type="button" class="node" data-id="b4d"><span class="node-title">Read Old Provider Code</span><span class="node-sub">CPS408</span></button>
+          </div>
+          <button type="button" class="node" data-id="b5"><span class="node-title">Collect Results</span><span class="node-sub">Queue, original row order</span></button>
+          <button type="button" class="node" data-id="b6"><span class="node-title">Return {success, result}</span><span class="node-sub">script.py</span></button>
+        </div>
+
+        <div class="col" id="col-rail">
+          <div class="col-title">support modules</div>
+          <p class="rail-note">Imported by script.py — the actual per-line entry logic lives here.</p>
+          <button type="button" class="node node--module" data-id="lib-utils"><span class="node-title">utils.py</span><span class="node-sub">screen primitives + shared engine</span></button>
+          <button type="button" class="node node--module" data-id="lib-tod"><span class="node-title">tod.py</span><span class="node-sub">TOD update</span></button>
+          <button type="button" class="node node--module" data-id="lib-hcfa"><span class="node-title">hcfa.py</span><span class="node-sub">HCFA data entry</span></button>
+          <button type="button" class="node node--module" data-id="lib-ub"><span class="node-title">ub.py</span><span class="node-sub">UB data entry + per-diem</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="detail">
+    <div class="detail-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span>console — click a block to inspect</span></div>
+    <div class="detail-body" id="detail-body">
+      <p class="detail-empty">waiting for input…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DETAILS = {
+    "p-fetch": { title:"Fetch Claims", file:"helper.py — release_pend_fetch_from_file(location) / release_pend_fetch_from_db(rules)", lines:[
+      "release_pend_fetch_from_file: reading <location>",
+      "release_pend_fetch_from_file: 143 rows loaded",
+      "Produces the columns the batch functions expect: CLAIM_NO, CLAIM_TYPE, DRAFTS, RULE, CERT_NO, …"
+    ]},
+    "p-dispatch": { title:"Rule Engine Dispatch", file:"registry.py — @register_function", lines:[
+      "Hands context['df'] to whichever tagged step the pipeline runs next — here, one of script.py's two entry points."
+    ]},
+    "p-macro": { title:"Release / Pend Macro", file:"script.py", lines:[
+      "Two entry points, same attach-emulator + round-robin-workers shape:",
+      "release_pend_run_batch  — actually releases or pends claims.",
+      "release_pend_get_claim_details — read-only claim inspection, never releases anything."
+    ]},
+    "p-persist": { title:"Persist Results", file:"helper.py — release_pend_send_status_to_db()", lines:[
+      "release_pend_send_status_to_db: saving 143 records",
+      "Writes context['result'] to RuleEngineProcessed, then bulk_upsert_claims() to update claim rows."
+    ]},
+
+    "a1": { title:"Validate Inputs", file:"script.py — release_pend_run_batch()", lines:[
+      "[release_pend_run_batch] Starting...",
+      "[release_pend_run_batch] WARNING: Expected column 'RULE' not found — check your DataFrame",
+      "Bails out early if context or context['df'] is missing/empty."
+    ]},
+    "a2": { title:"Load Reference Data", file:"script.py — load_code_refs() · _load_rule_code_ref()", lines:[
+      "[release_pend_run_batch] Loading code refs from: '<dx_code_ref_path>'",
+      "[release_pend_run_batch] Loading rule code ref from: '<rule_code_ref_path>'",
+      "[release_pend_run_batch] Loaded 6 rules: ['RULE_A', 'RULE_B', ...]"
+    ]},
+    "a3": { title:"Attach Emulator Sessions", file:"script.py — attach_emulator_sessions(n=4)", lines:[
+      "[release_pend_run_batch] Connecting to EXTRA.System...",
+      "[release_pend_run_batch] Attached 4 emulator session(s)."
+    ]},
+    "a4": { title:"Split Rows Round-Robin", file:"script.py — ThreadPoolExecutor", lines:[
+      "[release_pend_run_batch] Using 4 emulator session(s) for 143 row(s).",
+      "Rows go indexed_rows[i::worker_count] per worker so original order is recoverable later."
+    ]},
+    "a5a": { title:"Resolve Settings & Decision", file:"script.py — _process_release_pend_row()", lines:[
+      "[CLM001] Loaded settings from rule 'RULE_A'",
+      "[CLM001] >>> DECISION: DENY  | code=947  |  PRV=E",
+      "Seeds NEW_AP_CD / NEW_PRV_CD onto the row from the rule CSV if not already set."
+    ]},
+    "a5b": { title:"Seq-Order Skip", file:"script.py — cert_no_skip", lines:[
+      "[CLM004] SKIPPED (SEQ ORDER) — cert_no_skip='C-88213' matches",
+      "Only applies when the rule has seq_ordr=Y — one worker's own running memory, not shared across workers."
+    ]},
+    "a5c": { title:"TOD Update", file:"script.py → tod.py — tod_update()", lines:[
+      "[CLM001] Running TOD update (TOD='11')...",
+      "[CLM001] TOD update OK"
+    ]},
+    "a5d": { title:"Navigate & Open Claim", file:"script.py — CPS520.01", lines:[
+      "[CLM001] Navigating to CPS520.01... (current: 'CPS520.01')",
+      "[CLM001]   On CPS520.01 after 1 PF9(s). Placing claim number."
+    ]},
+    "a5e": { title:"Draft Processing Loop", file:"script.py — per draft, 1..DRAFTS", lines:[
+      "[CLM001] ── Draft 1/2 (selector j=1) ──",
+      "[CLM001] Draft 1: On CPS850 — coded_OPI='A100'",
+      "[CLM001] Draft 1: completed OK"
+    ]},
+    "a5f_hcfa": { title:"HCFA Entry", file:"script.py → hcfa.py — hcfa_data_entry()", lines:[
+      "[CLM001] Draft 1: Running hcfa_data_entry...",
+      "[CLM001] Draft 1: hcfa_data_entry → res=1, parts=['Released.']"
+    ]},
+    "a5f_ub": { title:"UB Entry", file:"script.py → ub.py — ub_data_entry() / ub_per_diem_process()", lines:[
+      "[CLM002] Draft 1: Running ub_data_entry...",
+      "[CLM002] Draft 1: ub_data_entry → res=1, parts=['Released.']"
+    ]},
+    "a6": { title:"Final Status & Decision", file:"script.py — macro_status → decision", lines:[
+      "[CLM001] ── RESULT: 'DONE.', DECISION: 'DENY'",
+      "'NO FOLLOW UP FOR THIS SELECTION' → Already Processed; anything else → PEND."
+    ]},
+    "a7": { title:"Collect Results", file:"script.py — Queue", lines:[
+      "Worker threads push (position, result) onto a shared Queue; the main thread reassembles results[] in original row order."
+    ]},
+    "a8": { title:"Return {success, result}", file:"script.py — release_pend_run_batch()", lines:[
+      "[release_pend_run_batch] Done. Processed 143/143 claims."
+    ]},
+
+    "b1": { title:"Load Grid-Price Refs", file:"script.py — load_code_refs()", lines:[
+      "Loads the same DX code ref workbook, but this entry point only needs the grid_price table."
+    ]},
+    "b2": { title:"Attach Emulator Sessions", file:"script.py — attach_emulator_sessions(n=4)", lines:[
+      "[release_pend_get_claim_details] Using 4 emulator session(s) for 143 row(s)."
+    ]},
+    "b3": { title:"Split Rows Round-Robin", file:"script.py — ThreadPoolExecutor", lines:[
+      "Rows here are independent — no cert_no_skip carry-over needed, unlike release_pend_run_batch."
+    ]},
+    "b4a": { title:"Navigate & Open Claim", file:"script.py — _process_claim_detail_row()", lines:[
+      "Same CPS520.01 → place claim no → Enter pattern as the batch releaser."
+    ]},
+    "b4b": { title:"Read Pend Code & Drafts", file:"script.py", lines:[
+      "Reads PEND_CD off screen, then counts draft lines across as many CPS520 pages as needed (PF11 on 'MORE DATA')."
+    ]},
+    "b4c": { title:"GridPriceCheck", file:"script.py — mirrors GridPriceCheck VBA", lines:[
+      "Walks each draft to detect CPS450.01 (HCFA) vs BLX2460.01 (UB), and — if aply_grid_prc=Y — flags PRICE MISMATCH lines against grid_price."
+    ]},
+    "b4d": { title:"Read Old Provider Code", file:"script.py — CPS408", lines:[
+      "One PF8 hop to CPS408 to capture OLD_PRV_CD before returning to the claim list."
+    ]},
+    "b5": { title:"Collect Results", file:"script.py — Queue", lines:[
+      "Same ordered-reassembly pattern as release_pend_run_batch."
+    ]},
+    "b6": { title:"Return {success, result}", file:"script.py — release_pend_get_claim_details()", lines:[
+      "Returns one row per claim: PEND_CD, DRAFTS, CLAIM_TYPE, OLD_POS, OLD_PRV_CD, and any grid-price mismatch notes."
+    ]},
+
+    "lib-utils": { title:"utils.py", file:"screen primitives + shared engine", lines:[
+      "wait_ready / get_screen_id / place_value / remove_value / send_enter / send_pf — the low-level screen I/O everything else is built on.",
+      "Plus: load_code_refs(), data_entry_in_cps506(), apply_ineligibility_codes(), 631/034 inel handling, is_fully_paid(), condition note & AFV updates."
+    ]},
+    "lib-tod": { title:"tod.py", file:"TOD update", lines:[
+      "tod_update(): validates the TOD value, opens the claim's condition screen, and rewrites TOD for every condition still coded 99 or 00 — paging through multiple condition pages if needed."
+    ]},
+    "lib-hcfa": { title:"hcfa.py", file:"HCFA data entry (CPS450 → CPS506)", lines:[
+      "hcfa_data_entry(): per-line ineligibility/denial logic, modifier flips, grid-price checks, DX/TOS exceptions, duplicate & full-paid validation — then releases or pends via utils.data_entry_in_cps506()."
+    ]},
+    "lib-ub": { title:"ub.py", file:"UB data entry + per-diem (BLX2460 → CPS506)", lines:[
+      "ub_data_entry() mirrors hcfa.py's ineligibility/denial/validation logic for UB claims.",
+      "ub_per_diem_process() builds a per-diem line instead when chk_per_diem=Y."
+    ]}
+  };
+
+  const EDGES = [
+    ["p-fetch","p-dispatch","flow"], ["p-dispatch","p-macro","flow"],
+    ["p-macro","a1","flow"], ["p-macro","b1","flow"],
+    ["a1","a2","flow"], ["a2","a3","flow"], ["a3","a4","flow"], ["a4","a5a","flow"],
+    ["a5a","a5b","flow"], ["a5b","a5c","flow"], ["a5c","a5d","flow"], ["a5d","a5e","flow"],
+    ["a5e","a5f_hcfa","flow"], ["a5e","a5f_ub","flow"],
+    ["a5f_hcfa","a6","flow"], ["a5f_ub","a6","flow"],
+    ["a6","a7","flow"], ["a7","a8","flow"],
+    ["b1","b2","flow"], ["b2","b3","flow"], ["b3","b4a","flow"],
+    ["b4a","b4b","flow"], ["b4b","b4c","flow"], ["b4c","b4d","flow"],
+    ["b4d","b5","flow"], ["b5","b6","flow"],
+    ["a8","p-persist","context"], ["b6","p-persist","context"],
+    ["a2","lib-utils","uses"], ["a5c","lib-tod","uses"],
+    ["a5f_hcfa","lib-hcfa","uses"], ["a5f_ub","lib-ub","uses"],
+    ["b4a","lib-utils","uses"],
+    ["lib-hcfa","lib-utils","uses"], ["lib-ub","lib-utils","uses"], ["lib-tod","lib-utils","uses"]
+  ];
+
+  const diagram = document.getElementById("diagram");
+  const svg = document.getElementById("edges");
+  const group = document.getElementById("edge-lines");
+  const nodes = {};
+  document.querySelectorAll(".node").forEach(function(el){ nodes[el.dataset.id] = el; });
+
+  function rectRel(el, base){
+    const r = el.getBoundingClientRect();
+    return { left: r.left-base.left, top: r.top-base.top, right: r.right-base.left, bottom: r.bottom-base.top };
+  }
+
+  function pathD(a,b){
+    const aCx=(a.left+a.right)/2, bCx=(b.left+b.right)/2;
+    const aCy=(a.top+a.bottom)/2, bCy=(b.top+b.bottom)/2;
+    const dx=bCx-aCx, dy=bCy-aCy;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      const down = bCy > aCy;
+      const y1 = down ? a.bottom : a.top;
+      const y2 = down ? b.top : b.bottom;
+      const midY = (y1+y2)/2;
+      return "M "+aCx+" "+y1+" C "+aCx+" "+midY+", "+bCx+" "+midY+", "+bCx+" "+y2;
+    } else {
+      const right = bCx > aCx;
+      const x1 = right ? a.right : a.left;
+      const x2 = right ? b.left : b.right;
+      const midX = (x1+x2)/2;
+      return "M "+x1+" "+aCy+" C "+midX+" "+aCy+", "+midX+" "+bCy+", "+x2+" "+bCy;
+    }
+  }
+
+  function draw(){
+    const base = diagram.getBoundingClientRect();
+    svg.setAttribute("width", base.width);
+    svg.setAttribute("height", base.height);
+    group.innerHTML = "";
+    EDGES.forEach(function(e){
+      const a = nodes[e[0]], b = nodes[e[1]];
+      if(!a || !b) return;
+      const ra = rectRel(a, base), rb = rectRel(b, base);
+      const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+      p.setAttribute("d", pathD(ra,rb));
+      p.setAttribute("class", "edge edge--"+e[2]);
+      p.setAttribute("marker-end","url(#arrow-"+e[2]+")");
+      p.dataset.from = e[0]; p.dataset.to = e[1];
+      group.appendChild(p);
+    });
+  }
+
+  function adjacency(id){
+    const out = new Set([id]);
+    EDGES.forEach(function(e){
+      if(e[0]===id) out.add(e[1]);
+      if(e[1]===id) out.add(e[0]);
+    });
+    return out;
+  }
+
+  function setHover(id){
+    if(!id){
+      diagram.classList.remove("has-hover");
+      Object.values(nodes).forEach(function(n){ n.classList.remove("dim","active"); });
+      group.querySelectorAll(".edge").forEach(function(p){ p.classList.remove("dim","active"); });
+      return;
+    }
+    const rel = adjacency(id);
+    diagram.classList.add("has-hover");
+    Object.entries(nodes).forEach(function(pair){
+      const n = pair[1];
+      if(rel.has(pair[0])){ n.classList.remove("dim"); n.classList.toggle("active", pair[0]===id); }
+      else { n.classList.add("dim"); n.classList.remove("active"); }
+    });
+    group.querySelectorAll(".edge").forEach(function(p){
+      const hit = p.dataset.from===id || p.dataset.to===id;
+      p.classList.toggle("active", hit);
+      p.classList.toggle("dim", !hit);
+    });
+  }
+
+  function showDetail(id){
+    const d = DETAILS[id];
+    const body = document.getElementById("detail-body");
+    if(!d){ body.innerHTML = '<p class="detail-empty">no detail recorded for this block</p>'; return; }
+    let html = '<div class="detail-title">'+d.title+'</div><div class="detail-file">'+d.file+'</div>';
+    d.lines.forEach(function(line){ html += "<p>"+line.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>"; });
+    body.innerHTML = html;
+  }
+
+  Object.entries(nodes).forEach(function(pair){
+    const id = pair[0], el = pair[1];
+    el.addEventListener("mouseenter", function(){ setHover(id); });
+    el.addEventListener("mouseleave", function(){ setHover(null); });
+    el.addEventListener("focus", function(){ setHover(id); });
+    el.addEventListener("blur", function(){ setHover(null); });
+    el.addEventListener("click", function(){ showDetail(id); });
+  });
+
+  window.addEventListener("resize", draw);
+  window.addEventListener("load", draw);
+  draw();
+})();
+</script>
+</body>
+</html>
