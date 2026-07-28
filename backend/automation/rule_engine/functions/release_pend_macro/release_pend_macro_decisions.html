@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release / Pend Macro — Decision Logic</title>
+<style>
+  :root{
+    --bg: #f5f4ee;
+    --surface: #ffffff;
+    --surface-alt: #ece9de;
+    --ink: #1a231e;
+    --ink-soft: #56604f;
+    --ink-faint: #8b9284;
+    --rule: #d9d4c4;
+    --accent: #2e7d32;
+    --accent-strong: #1b5e20;
+    --accent-soft: #e0ead9;
+    --amber: #9c6a24;
+    --amber-soft: #f1e3c8;
+    --info: #2f6f8f;
+    --info-soft: #dbe7ec;
+    --danger: #a13b2e;
+    --danger-soft: #f3ded9;
+    --shadow: 0 1px 2px rgba(26,35,30,.06), 0 6px 20px rgba(26,35,30,.05);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: Seravek, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+  }
+  :root[data-theme="dark"]{
+    --bg: #12160f; --surface: #181d16; --surface-alt: #1f251b;
+    --ink: #e7ebe0; --ink-soft: #b3bba7; --ink-faint: #6d7566; --rule: #313a2a;
+    --accent: #6fcf7d; --accent-strong: #a3e6ac; --accent-soft: #223522;
+    --amber: #e0ab5c; --amber-soft: #3a3020;
+    --info: #7fc6e0; --info-soft: #1c2f36;
+    --danger: #e08a7a; --danger-soft: #3a2420;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #12160f; --surface: #181d16; --surface-alt: #1f251b;
+      --ink: #e7ebe0; --ink-soft: #b3bba7; --ink-faint: #6d7566; --rule: #313a2a;
+      --accent: #6fcf7d; --accent-strong: #a3e6ac; --accent-soft: #223522;
+      --amber: #e0ab5c; --amber-soft: #3a3020;
+      --info: #7fc6e0; --info-soft: #1c2f36;
+      --danger: #e08a7a; --danger-soft: #3a2420;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg); color: var(--ink); font-family: var(--sans);
+    line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:""; position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--rule) 1px, transparent 1px),
+      linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size:42px 42px; opacity:.25; pointer-events:none; z-index:0;
+  }
+  .page{ position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:40px 28px 80px; }
+
+  header{ margin-bottom:36px; }
+  .eyebrow{
+    font-family: var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color: var(--accent-strong); display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{
+    content:""; width:8px; height:8px; border-radius:50%;
+    background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  h1{
+    font-family: var(--serif); font-weight:500; font-size: clamp(1.6rem, 2.6vw, 2.15rem);
+    margin:10px 0 6px; text-wrap:balance; color: var(--ink);
+  }
+  .path{ font-family: var(--mono); font-size:.82rem; color: var(--ink-faint); word-break:break-all; }
+  .subhead{ max-width:64ch; color: var(--ink-soft); font-size:.95rem; margin-top:10px; }
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:16px; margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--rule); font-size:.76rem; color: var(--ink-soft);
+  }
+  .legend-item{ display:flex; align-items:center; gap:7px; }
+  .swatch{ width:13px; height:13px; border-radius:3px; flex:none; }
+  .swatch.process{ background: var(--surface); border:1.5px solid var(--ink-faint); }
+  .swatch.gate{ background: var(--surface-alt); border:1.5px dashed var(--ink-faint); }
+  .swatch.done{ background: var(--accent-soft); border-left:3px solid var(--accent); }
+  .swatch.pend{ background: var(--amber-soft); border-left:3px solid var(--amber); }
+  .swatch.info{ background: var(--info-soft); border-left:3px solid var(--info); }
+  .swatch.skip{ background: var(--surface-alt); border-left:3px solid var(--ink-faint); }
+  .swatch.danger{ background: var(--danger-soft); border-left:3px solid var(--danger); }
+
+  .diagram-wrap{ overflow-x:auto; padding-bottom:8px; }
+  .diagram{ position:relative; min-width:1040px; padding:10px 4px 30px; }
+  svg#edges{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .edge{ fill:none; stroke: var(--ink-faint); stroke-width:1.6; transition:opacity .15s ease, stroke .15s ease; }
+  .edge--flow{ stroke: var(--ink-soft); }
+  .edge--no{ stroke: var(--ink-faint); stroke-dasharray:1 5; stroke-linecap:round; }
+  .edge.active{ stroke: var(--accent-strong); stroke-width:2.4; }
+
+  .tree{ display:flex; flex-direction:column; gap:16px; max-width:1000px; margin:0 auto; }
+  .row{ display:flex; align-items:center; gap:32px; }
+  .spine{ width:400px; flex:none; }
+  .branch{ flex:1; display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:0; }
+
+  .node{
+    all:unset; box-sizing:border-box; display:block; width:100%;
+    background: var(--surface); border:1px solid var(--rule); border-radius:9px;
+    padding:11px 13px; box-shadow: var(--shadow); cursor:pointer; position:relative; z-index:2;
+  }
+  .node-title{ display:block; font-weight:600; font-size:.88rem; color: var(--ink); }
+  .node-sub{ display:block; font-family: var(--mono); font-size:.68rem; color: var(--ink-faint); margin-top:3px; }
+  .node--gate{ border-style:dashed; background: var(--surface-alt); }
+  .node--gate .node-title{ font-style:italic; }
+  .node--term-skip{ border-left:4px solid var(--ink-faint); background: var(--surface-alt); }
+  .node--term-pend{ border-left:4px solid var(--amber); background: var(--amber-soft); }
+  .node--term-done{ border-left:4px solid var(--accent); background: var(--accent-soft); }
+  .node--term-done .node-title{ color: var(--accent-strong); }
+  .node--term-info{ border-left:4px solid var(--info); background: var(--info-soft); }
+  .node--term-danger{ border-left:4px solid var(--danger); background: var(--danger-soft); }
+  .node:hover, .node:focus-visible{ transform: translateY(-1px); box-shadow: 0 2px 4px rgba(26,35,30,.09), 0 10px 26px rgba(26,35,30,.10); }
+  .node:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .node.active{ border-color: var(--accent-strong); }
+  .node.dim{ opacity:.32; }
+  .edge.dim{ opacity:.12; }
+
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:28px; margin: 4px 0; }
+  .split-col{ display:flex; flex-direction:column; gap:10px; border:1px dashed var(--rule); border-radius:11px; padding:14px 12px; background: linear-gradient(var(--surface-alt), var(--surface-alt)); }
+  .split-col-label{ font-family: var(--mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; color: var(--ink-faint); }
+
+  .note{
+    margin-top:8px; font-size:.8rem; color: var(--ink-faint); max-width:400px;
+  }
+  .note.exception{
+    border:1px dashed var(--danger); border-radius:9px; padding:9px 12px; color: var(--danger);
+    background: var(--danger-soft);
+  }
+
+  .detail{
+    margin-top:46px; border-radius:12px; background:#0c1109; border:1px solid #232c1d;
+    box-shadow: var(--shadow); overflow:hidden;
+  }
+  .detail-bar{ display:flex; align-items:center; gap:8px; padding:9px 14px; background:#10160c; border-bottom:1px solid #232c1d; }
+  .dot{ width:9px; height:9px; border-radius:50%; }
+  .dot.r{ background:#e5675f;} .dot.y{ background:#e5c15f;} .dot.g{ background:#63c964;}
+  .detail-bar span{ font-family: var(--mono); font-size:.72rem; color:#7c8a72; margin-left:6px; }
+  .detail-body{ padding:18px 20px 22px; font-family: var(--mono); font-size:.82rem; color:#8fe39a; min-height:108px; }
+  .detail-title{ color:#d7f5da; font-size:.95rem; margin-bottom:2px; }
+  .detail-file{ color:#5f9a68; margin-bottom:12px; }
+  .detail-body p{ margin:3px 0; white-space:pre-wrap; }
+  .detail-body p::before{ content:"› "; color:#4f8558; }
+  .detail-empty{ color:#5f9a68; }
+  .detail-empty::before{ content:"› "; color:#3d6944; }
+  .detail-body ul{ margin:4px 0 10px 0; padding-left:18px; }
+  .detail-body li{ margin:2px 0; }
+  .detail-body li::marker{ color:#4f8558; }
+
+  @media (prefers-reduced-motion: reduce){ .node{ transition:none; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">automation / rule_engine / functions</div>
+    <h1>Release / Pend Macro — Decision Logic</h1>
+    <div class="path">backend/automation/rule_engine/functions/release_pend_macro/ — release_pend_run_batch()</div>
+    <p class="subhead">Every gate a claim row passes through before script.py reports a DECISION, and exactly which rule_code_ref CSV column or on-screen condition forces which outcome. Click any block for detail — the amber PEND blocks expand into the full list of sub-reasons from hcfa.py / ub.py.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch process"></span>Process step</div>
+      <div class="legend-item"><span class="swatch gate"></span>Decision gate</div>
+      <div class="legend-item"><span class="swatch done"></span>DONE. → DENY / PAID</div>
+      <div class="legend-item"><span class="swatch pend"></span>PEND</div>
+      <div class="legend-item"><span class="swatch info"></span>Already Processed</div>
+      <div class="legend-item"><span class="swatch skip"></span>SKIPPED (no decision)</div>
+      <div class="legend-item"><span class="swatch danger"></span>Exception</div>
+    </div>
+  </header>
+
+  <div class="diagram-wrap">
+    <div class="diagram" id="diagram">
+      <svg id="edges"><defs>
+        <marker id="arrow-flow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--ink-soft)"></path></marker>
+        <marker id="arrow-no" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--ink-faint)"></path></marker>
+      </defs><g id="edge-lines"></g></svg>
+
+      <div class="tree">
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n0"><span class="node-title">Claim Row Received</span><span class="node-sub">CLAIM_NO, RULE, DRAFTS, CLAIM_TYPE, CERT_NO</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g1"><span class="node-title">CLAIM_NO empty?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-skip" data-id="t-skip1"><span class="node-title">SKIPPED: empty CLAIM_NO</span><span class="node-sub">DECISION: (blank)</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g2"><span class="node-title">RULE column empty?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-skip" data-id="t-skip2"><span class="node-title">SKIPPED: RULE column is empty</span><span class="node-sub">DECISION: (blank)</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g3"><span class="node-title">RULE found in rule_code_ref CSV?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-skip" data-id="t-skip3"><span class="node-title">SKIPPED: RULE not found in rule CSV</span><span class="node-sub">DECISION: (blank)</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n1"><span class="node-title">Resolve Settings &amp; Baseline Decision</span><span class="node-sub">deny_clm + denial_code → DENY or PAID</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g4"><span class="node-title">seq_ordr=Y and CERT_NO repeats a pended claim?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-skip" data-id="t-seqskip"><span class="node-title">SKIPPED (SEQ ORDER)</span><span class="node-sub">DECISION: baseline unchanged</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g5"><span class="node-title">aply_tod_updt=Y and tod_update() fails?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-skip" data-id="t-todfail"><span class="node-title">TOD update failed</span><span class="node-sub">DECISION: baseline unchanged</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n2"><span class="node-title">Navigate &amp; Open Claim</span><span class="node-sub">CPS520.01</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g6"><span class="node-title">Claim failed to open?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-info" data-id="t-alreadyproc"><span class="node-title">Already Processed</span><span class="node-sub">host says "NO FOLLOW UP FOR THIS SELECTION"</span></button>
+          <button type="button" class="node node--term-skip" data-id="t-openfail"><span class="node-title">Claim not opened — any other host error</span><span class="node-sub">DECISION: baseline unchanged</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n3"><span class="node-title">Draft Processing Loop</span><span class="node-sub">for i in 1..DRAFTS</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g7"><span class="node-title">OPI apply requested &amp; rejected?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-pend" data-id="t-pend-opi"><span class="node-title">PEND — OPI rejected</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g8"><span class="node-title">CPS910 draft TOD prompt rejected?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-pend" data-id="t-pend-tod2"><span class="node-title">PEND — CPS910 TOD rejected</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g9"><span class="node-title">aply_cond_nt=Y &amp; condition note fails?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-pend" data-id="t-pend-condnote"><span class="node-title">PEND — condition note failed</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g10"><span class="node-title">aply_cond_afv=Y &amp; condition AFV fails?</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-pend" data-id="t-pend-afv"><span class="node-title">PEND — condition AFV failed</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--gate" data-id="g11"><span class="node-title">CLAIM_TYPE branch</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-pend" data-id="t-pend-invalid"><span class="node-title">PEND — INVALID CLAIM TYPE.</span><span class="node-sub">CLAIM_TYPE is neither UB nor HCFA</span></button>
+        </div></div>
+
+        <div class="split">
+          <div class="split-col">
+            <div class="split-col-label">CLAIM_TYPE = UB</div>
+            <button type="button" class="node node--gate" data-id="g-perdiem"><span class="node-title">chk_per_diem=Y?</span></button>
+            <button type="button" class="node node--term-pend" data-id="t-pend-perdiem"><span class="node-title">PEND — per-diem line created</span><span class="node-sub">always pends, regardless of outcome</span></button>
+            <button type="button" class="node" data-id="n-ub"><span class="node-title">ub_data_entry()</span><span class="node-sub">ub.py</span></button>
+            <button type="button" class="node node--gate" data-id="g-ub"><span class="node-title">returns 0?</span></button>
+            <button type="button" class="node node--term-pend" data-id="t-pend-ub"><span class="node-title">PEND — UB entry rejected</span><span class="node-sub">click for sub-reasons</span></button>
+          </div>
+          <div class="split-col">
+            <div class="split-col-label">CLAIM_TYPE = HCFA</div>
+            <button type="button" class="node" data-id="n-hcfa"><span class="node-title">hcfa_data_entry()</span><span class="node-sub">hcfa.py</span></button>
+            <button type="button" class="node node--gate" data-id="g-hcfa"><span class="node-title">returns 0?</span></button>
+            <button type="button" class="node node--term-pend" data-id="t-pend-hcfa"><span class="node-title">PEND — HCFA entry rejected</span><span class="node-sub">click for sub-reasons</span></button>
+          </div>
+        </div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n4"><span class="node-title">All drafts completed, no break</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--term-done" data-id="t-done"><span class="node-title">DONE. → DECISION = baseline</span><span class="node-sub">DENY (with code) or PAID, per the rule</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-danger" data-id="t-exception"><span class="node-title">Exception at any stage</span><span class="node-sub">DECISION: baseline if resolved, else blank</span></button>
+        </div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="detail">
+    <div class="detail-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span>console — click a block to inspect</span></div>
+    <div class="detail-body" id="detail-body"><p class="detail-empty">waiting for input…</p></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DETAILS = {
+    "n0": { title:"Claim Row Received", file:"script.py — _process_release_pend_row()", lines:[
+      "One row per claim from context['df']: CLAIM_NO, DRAFTS, CLAIM_TYPE, RULE, CERT_NO, plus whatever the rule needs (DX_CD, NEW_AP_CD, TOD, COND_NOTE, AFV, …)."
+    ]},
+    "g1": { title:"CLAIM_NO empty?", file:"script.py, line ~72", lines:["if not claim_no: return SKIPPED before any settings are even looked up."] },
+    "t-skip1": { title:"SKIPPED: empty CLAIM_NO", file:"script.py", lines:["MACRO STATUS: 'SKIPPED: empty CLAIM_NO'  ·  DECISION: '' (never computed — nothing to resolve a rule against)."] },
+    "g2": { title:"RULE column empty?", file:"script.py, line ~84", lines:["rule_key = row['RULE'].strip().upper(); empty → skip before touching the emulator."] },
+    "t-skip2": { title:"SKIPPED: RULE column is empty", file:"script.py", lines:["MACRO STATUS: 'SKIPPED: RULE column is empty'  ·  DECISION: ''."] },
+    "g3": { title:"RULE found in rule_code_ref CSV?", file:"script.py, line ~87", lines:["Looks up rule_key in the dict built by _load_rule_code_ref(rule_code_ref_path). No match → skip; this is a data-setup problem, not a claim problem."] },
+    "t-skip3": { title:"SKIPPED: RULE not found in rule CSV", file:"script.py", lines:["MACRO STATUS: \"SKIPPED: RULE '<RULE_KEY>' not found in rule CSV\"  ·  DECISION: ''.", "Fix: add a row for that RULE value to rule_code_ref.csv."] },
+    "n1": { title:"Resolve Settings & Baseline Decision", file:"script.py, line ~90-108 — rule_code_ref CSV", lines:[
+      "row_settings = rule_ref[rule_key] — every flag below (aply_tod_updt, aply_cond_nt, chk_per_diem, deny_clm, …) comes from this one CSV row.",
+      "_deny = row_settings.get('deny_clm','N') == 'Y'",
+      "_decision = 'DENY' if _deny else 'PAID'   (denial_code is attached for reporting, e.g. 'DENY | code=947')",
+      "Real examples from rule_code_ref_template.csv:",
+      "  deny_clm=N → PAID:  RULE2, RULE5, RULE6, RULE31, RULE61, RULE103, RULE953, RULE870",
+      "  deny_clm=Y → DENY:  RULE295(947), Rule597(947), RULE875(559), Rule53(109), RULE16(997), RULE65(997)",
+      "Caveat: RULE17 and Rule776 have deny_clm=Y but denial_code left BLANK. hcfa.py/ub.py do int(denial_code) on some branches with no fallback — a claim denied under one of these two rules can throw an EXCEPTION instead of denying cleanly. Worth a data fix if either rule is still active."
+    ]},
+    "g4": { title:"seq_ordr=Y and CERT_NO repeats?", file:"script.py, line ~119 — cert_no_skip", lines:["Only meaningful when the rule sets seq_ordr=Y. cert_no_skip is per-worker-thread memory of the last CERT_NO that failed/pended — if this row's CERT_NO matches, skip it without touching the screen (send_pf 9 only)."] },
+    "t-seqskip": { title:"SKIPPED (SEQ ORDER)", file:"script.py", lines:["MACRO STATUS: 'SKIPPED (SEQ ORDER)'  ·  DECISION: baseline (DENY/PAID) — reported unchanged even though the claim was never opened.", "Round-robin caveat: this only fires if both rows for the same CERT_NO land on the same worker thread, which is not guaranteed."] },
+    "g5": { title:"aply_tod_updt=Y and tod_update() fails?", file:"script.py → tod.py — tod_update()", lines:["Runs before the claim is even opened for real processing. Only entered when the rule sets aply_tod_updt=Y."] },
+    "t-todfail": { title:"TOD update failed", file:"tod.py — sets row['MACRO_STATUS']", lines:[
+      "Possible causes, most specific first:",
+      "• 'CHECK TOD VALUE' — row['TOD'] is blank, non-numeric, or more than 2 digits (check_tod() fails before anything is touched).",
+      "• CPS520.01 stayed on screen after Enter — host error text is used as the message.",
+      "• CPS910.01 rejected the new TOD value — host error text is used as the message.",
+      "DECISION: baseline (DENY/PAID) unchanged — same 'reported but not actually done' pattern as SEQ ORDER."
+    ]},
+    "n2": { title:"Navigate & Open Claim", file:"script.py, line ~138", lines:["Up to 15 PF9 attempts to reach CPS520.01, place the claim number, then Enter."] },
+    "g6": { title:"Claim failed to open?", file:"script.py, line ~166", lines:["Checked right after Enter: get_screen_id(screen) still == 'CPS520.01' means the claim did not open."] },
+    "t-alreadyproc": { title:"Already Processed", file:"script.py", lines:["Triggers only when the CPS520 error line contains the exact phrase \"NO FOLLOW UP FOR THIS SELECTION\" — the host's way of saying this claim has no pending selection left to act on.", "This is the only path (besides the identical check on the final draft-loop status) that produces the 'Already Processed' decision."] },
+    "t-openfail": { title:"Claim not opened — other host error", file:"script.py", lines:["Any other CPS520 error text (e.g. claim not found, claim on hold for another user) is reported as-is in MACRO STATUS.", "DECISION still reports baseline (DENY/PAID) even though no screen work happened — worth treating this status text as the real signal, not the decision field."] },
+    "n3": { title:"Draft Processing Loop", file:"script.py, line ~178", lines:["Runs once per draft, 1..DRAFTS. Any failure inside breaks the loop immediately (row_done=False) and everything already drafted stays as entered — it does not roll back."] },
+    "g7": { title:"OPI apply requested & rejected?", file:"script.py, line ~234 — aply_opi in {Y, D}", lines:["After placing NEW_OPI (Y) or clearing it (D) and pressing Enter, still on CPS850.01 → rejected. The host's own message becomes final_status."] },
+    "t-pend-opi": { title:"PEND — OPI rejected", file:"script.py", lines:["MACRO STATUS = whatever text CPS850 showed on line 31 after the failed OPI entry."] },
+    "g8": { title:"CPS910 draft TOD prompt rejected?", file:"script.py, line ~283", lines:["Only reached if the draft actually lands on CPS910.01 after the 850 screen. Places TOD, Enter; still on CPS910.01 → rejected."] },
+    "t-pend-tod2": { title:"PEND — CPS910 TOD rejected", file:"script.py", lines:["Distinct from the earlier tod.py TOD update gate — this one is the mid-draft prompt, not the standalone TOD update step."] },
+    "g9": { title:"Condition note fails?", file:"script.py → utils.py — add_condition_note()", lines:["Only when the rule sets aply_cond_nt=Y. Places COND_NOTE on the CPS910 condition screen; staying on CPS910.01 after Enter counts as failure."] },
+    "t-pend-condnote": { title:"PEND — condition note failed", file:"script.py", lines:["MACRO STATUS = row['MACRO_STATUS'] if add_condition_note() set one, else 'ERROR ADDING CONDITION NOTE'."] },
+    "g10": { title:"Condition AFV fails?", file:"script.py → utils.py — update_condition_afv()", lines:["Only when aply_cond_afv=Y. Same CPS910.01-stayed-on-screen failure pattern as the condition note."] },
+    "t-pend-afv": { title:"PEND — condition AFV failed", file:"script.py", lines:["MACRO STATUS = row['MACRO_STATUS'] if set, else 'ERROR UPDATING CONDITION AFV'."] },
+    "g11": { title:"CLAIM_TYPE branch", file:"script.py, line ~317", lines:["row['CLAIM_TYPE'] is upper-cased and matched against 'UB' or 'HCFA'. Anything else — blank, typo, unsupported type — pends immediately without attempting data entry."] },
+    "t-pend-invalid": { title:"PEND — INVALID CLAIM TYPE.", file:"script.py", lines:["Usually a data problem upstream (CLAIM_TYPE not populated correctly by release_pend_fetch_from_file/db) rather than a claim-specific issue."] },
+    "g-perdiem": { title:"chk_per_diem=Y?", file:"rule_code_ref CSV column", lines:["When set, the draft is treated as needing a per-diem line rather than a normal release/deny — this always ends in PEND by design, so a person reviews the new per-diem line."] },
+    "t-pend-perdiem": { title:"PEND — per-diem line created", file:"script.py + ub.py — ub_per_diem_process()", lines:["script.py ignores ub_per_diem_process()'s own return value — row_done is unconditionally set False here.", "cert_no_skip is also set to this claim's CERT_NO, so a seq_ordr=Y rule will skip any later row sharing the same CERT_NO on this worker."] },
+    "n-ub": { title:"ub_data_entry()", file:"ub.py", lines:["Full BLX2460.01 → CPS506.01 release path for UB claims: OI fields, ineligibility/denial logic, modifiers, DX/TOS exceptions, duplicate & full-paid validation, then the actual release via utils.data_entry_in_cps506()."] },
+    "g-ub": { title:"ub_data_entry() returns 0?", file:"ub.py", lines:["0 means something stopped the release before it reached CPS506's screen_code check — reason is appended to status_parts."] },
+    "t-pend-ub": { title:"PEND — UB entry rejected", file:"ub.py — status_parts", lines:["<ul>"+
+        "<li>'001 FOUND' — an inel code slot is already '001' and apply_001/remove_inel_amt_cd don't handle it.</li>"+
+        "<li>'APPLY DISCOUNT AFTER DENIAL:INELCD2 PRESENT.' — deny_clm=Y, dis_aft_dnl=Y, but inel-code-2 is already occupied.</li>"+
+        "<li>'INEL AMT PRESENT' — a PRVD OPI P&amp;P edit hit a line that already has an inel amount.</li>"+
+        "<li>'POSSIBLE DUP' or the host's duplicate-claim text — landed on CPS445.01 and aply_dpsv≠N is false (i.e. dpsv suppressed).</li>"+
+        "<li>'NOT PROCESSED. &lt;host message&gt;' — didn't reach CPS506.01 after all edits (e.g. an unhandled SAF or CRL edit).</li>"+
+        "<li>'CHANGE PAYEE TO 1' — screen already shows payee 1 but the rule's payee setting is 0.</li>"+
+        "<li>'NOT PROCESSED. NOT 100% FULLY PD.' — vld_amt_pd or vld_amt_pd_by_cpt=Y and is_fully_paid() disagrees.</li>"+
+        "<li>'CHECK INEL CODE:&lt;codes&gt;' — chk_inel=Y and an inel code matches the ck_inel watch-list.</li>"+
+        "<li>Host screen_code 115 — release rejected outright; 114 also appends 'Duplicate Claim'; anything but 112 → generic 'Not Released. &lt;host message&gt;'.</li>"+
+      "</ul>"], html:true },
+    "n-hcfa": { title:"hcfa_data_entry()", file:"hcfa.py", lines:["Full CPS450.01 → CPS506.01 release path for HCFA claims — mirrors ub_data_entry()'s logic line-by-line for each of up to 4 service lines, plus modifier-flip and bond-clinic handling that UB doesn't have."] },
+    "g-hcfa": { title:"hcfa_data_entry() returns 0?", file:"hcfa.py", lines:["Same idea as the UB gate — the specific reason is in status_parts."] },
+    "t-pend-hcfa": { title:"PEND — HCFA entry rejected", file:"hcfa.py — status_parts", lines:["<ul>"+
+        "<li>'001 FOUND' — same as UB.</li>"+
+        "<li>'APPLY DISCOUNT AFTER DENIAL:INELCD2 PRESENT.' — same as UB.</li>"+
+        "<li>'POSSIBLE HCR' — id_hcr=Y (default), CPT is in the possible_hcr code list, and an inel code in {947,200,750,751,800,804} is already present.</li>"+
+        "<li>'POSSIBLE DUP' / host duplicate text — same CPS445.01 handling as UB.</li>"+
+        "<li>1432 CALC CHRG NOT EQUAL TO TOTAL, still on CPS450.01 after the automatic correction attempt.</li>"+
+        "<li>Generic '&lt;host edit&gt; &lt;BN edit&gt;' — didn't reach CPS506.01 and no SAF recovery applied.</li>"+
+        "<li>'CHANGE PAYEE TO 1' — same as UB.</li>"+
+        "<li>'NOT PROCESSED. NOT 100% FULLY PD.' — same is_fully_paid() check as UB.</li>"+
+        "<li>'CHECK INEL CODE:&lt;codes&gt;' — same chk_inel watch-list as UB.</li>"+
+        "<li>Host screen_code 115/114/other — same release-code handling as UB.</li>"+
+      "</ul>"], html:true },
+    "n4": { title:"All drafts completed, no break", file:"script.py, line ~386", lines:["row_done stayed True through every draft in DRAFTS — macro_status = 'DONE.'."] },
+    "t-done": { title:"DONE. → DECISION = baseline", file:"script.py, line ~388-393", lines:[
+      "decision = _decision — exactly the DENY(code)/PAID value computed back in 'Resolve Settings', now backed by a fully completed draft loop.",
+      "This is the only path where DECISION and the actual on-screen outcome are guaranteed to agree."
+    ]},
+    "t-exception": { title:"Exception at any stage", file:"script.py — try/except around the whole row", lines:[
+      "MACRO STATUS: 'EXCEPTION [<stage>]: <ExceptionType>: <message>' — <stage> is whichever _stage label was last set (e.g. 'draft_2_cps850', 'tod_update').",
+      "DECISION: _decision if the rule/settings lookup had already succeeded, otherwise '' (blank) if the exception hit before that.",
+      "The finally block always sends one PF9 to back out of whatever screen was open, win or lose."
+    ]}
+  };
+
+  const EDGES = [
+    ["n0","g1","flow"], ["g1","g2","flow"], ["g2","g3","flow"], ["g3","n1","flow"],
+    ["n1","g4","flow"], ["g4","g5","flow"], ["g5","n2","flow"], ["n2","g6","flow"], ["g6","n3","flow"],
+    ["n3","g7","flow"], ["g7","g8","flow"], ["g8","g9","flow"], ["g9","g10","flow"], ["g10","g11","flow"],
+    ["g11","n-ub","flow"], ["g11","n-hcfa","flow"],
+    ["n-ub","g-perdiem","flow"], ["g-perdiem","g-ub","flow"], ["g-ub","n4","flow"],
+    ["n-hcfa","g-hcfa","flow"], ["g-hcfa","n4","flow"],
+    ["n4","t-done","flow"],
+    ["g1","t-skip1","no"], ["g2","t-skip2","no"], ["g3","t-skip3","no"],
+    ["g4","t-seqskip","no"], ["g5","t-todfail","no"], ["g6","t-alreadyproc","no"], ["g6","t-openfail","no"],
+    ["g7","t-pend-opi","no"], ["g8","t-pend-tod2","no"], ["g9","t-pend-condnote","no"], ["g10","t-pend-afv","no"],
+    ["g11","t-pend-invalid","no"], ["g-perdiem","t-pend-perdiem","no"], ["g-ub","t-pend-ub","no"], ["g-hcfa","t-pend-hcfa","no"],
+    ["n0","t-exception","no"]
+  ];
+
+  const diagram = document.getElementById("diagram");
+  const svg = document.getElementById("edges");
+  const group = document.getElementById("edge-lines");
+  const nodes = {};
+  document.querySelectorAll(".node").forEach(function(el){ nodes[el.dataset.id] = el; });
+
+  function rectRel(el, base){
+    const r = el.getBoundingClientRect();
+    return { left:r.left-base.left, top:r.top-base.top, right:r.right-base.left, bottom:r.bottom-base.top };
+  }
+  function pathD(a,b){
+    const aCx=(a.left+a.right)/2, bCx=(b.left+b.right)/2;
+    const aCy=(a.top+a.bottom)/2, bCy=(b.top+b.bottom)/2;
+    const dx=bCx-aCx, dy=bCy-aCy;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      const down = bCy > aCy;
+      const y1 = down ? a.bottom : a.top, y2 = down ? b.top : b.bottom;
+      const midY = (y1+y2)/2;
+      return "M "+aCx+" "+y1+" C "+aCx+" "+midY+", "+bCx+" "+midY+", "+bCx+" "+y2;
+    } else {
+      const right = bCx > aCx;
+      const x1 = right ? a.right : a.left, x2 = right ? b.left : b.right;
+      const midX = (x1+x2)/2;
+      return "M "+x1+" "+aCy+" C "+midX+" "+aCy+", "+midX+" "+bCy+", "+x2+" "+bCy;
+    }
+  }
+  function draw(){
+    const base = diagram.getBoundingClientRect();
+    svg.setAttribute("width", base.width); svg.setAttribute("height", base.height);
+    group.innerHTML = "";
+    EDGES.forEach(function(e){
+      const a = nodes[e[0]], b = nodes[e[1]];
+      if(!a || !b) return;
+      const ra = rectRel(a, base), rb = rectRel(b, base);
+      const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+      p.setAttribute("d", pathD(ra,rb));
+      p.setAttribute("class", "edge edge--"+(e[2]==="flow"?"flow":"no"));
+      p.setAttribute("marker-end","url(#arrow-"+(e[2]==="flow"?"flow":"no")+")");
+      p.dataset.from = e[0]; p.dataset.to = e[1];
+      group.appendChild(p);
+    });
+  }
+  function adjacency(id){
+    const out = new Set([id]);
+    EDGES.forEach(function(e){ if(e[0]===id) out.add(e[1]); if(e[1]===id) out.add(e[0]); });
+    return out;
+  }
+  function setHover(id){
+    if(!id){
+      diagram.classList.remove("has-hover");
+      Object.values(nodes).forEach(function(n){ n.classList.remove("dim","active"); });
+      group.querySelectorAll(".edge").forEach(function(p){ p.classList.remove("dim","active"); });
+      return;
+    }
+    const rel = adjacency(id);
+    diagram.classList.add("has-hover");
+    Object.entries(nodes).forEach(function(pair){
+      const n = pair[1];
+      if(rel.has(pair[0])){ n.classList.remove("dim"); n.classList.toggle("active", pair[0]===id); }
+      else { n.classList.add("dim"); n.classList.remove("active"); }
+    });
+    group.querySelectorAll(".edge").forEach(function(p){
+      const hit = p.dataset.from===id || p.dataset.to===id;
+      p.classList.toggle("active", hit); p.classList.toggle("dim", !hit);
+    });
+  }
+  function showDetail(id){
+    const d = DETAILS[id];
+    const body = document.getElementById("detail-body");
+    if(!d){ body.innerHTML = '<p class="detail-empty">no detail recorded for this block</p>'; return; }
+    let html = '<div class="detail-title">'+d.title+'</div><div class="detail-file">'+d.file+'</div>';
+    d.lines.forEach(function(line){
+      if(d.html){ html += line; }
+      else { html += "<p>"+line.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>"; }
+    });
+    body.innerHTML = html;
+  }
+  Object.entries(nodes).forEach(function(pair){
+    const id = pair[0], el = pair[1];
+    el.addEventListener("mouseenter", function(){ setHover(id); });
+    el.addEventListener("mouseleave", function(){ setHover(null); });
+    el.addEventListener("focus", function(){ setHover(id); });
+    el.addEventListener("blur", function(){ setHover(null); });
+    el.addEventListener("click", function(){ showDetail(id); });
+  });
+  window.addEventListener("resize", draw);
+  window.addEventListener("load", draw);
+  draw();
+})();
+</script>
+</body>
+</html>
