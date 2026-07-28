@@ -1,0 +1,156 @@
+<mxfile host="app.diagrams.net" agent="claude-code" version="24.0.0">
+  <diagram id="release_pend_macro_flow" name="Release Pend Macro - Flow">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== COLUMN A: release_pend_run_batch ===================== -->
+
+        <mxCell id="A_header" value="release_pend_run_batch&#10;(Batch Release / Pend Processor)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2e7d32;fontColor=#ffffff;strokeColor=#1b5e20;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="340" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A1" value="Validate Inputs&#10;context, df, required columns (CLAIM_NO, DRAFTS, CLAIM_TYPE, RULE)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A2" value="Load Reference Data&#10;load_code_refs(dx_code_ref_path)  +  _load_rule_code_ref(rule_code_ref_path)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="170" width="340" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A3" value="Attach Emulator Sessions&#10;attach_emulator_sessions(n=4)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="250" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A4" value="Split Claim Rows Round-Robin&#10;across up to 4 worker threads (ThreadPoolExecutor)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A_container" value="Per Worker Thread — Process Claim Row&#10;( _process_release_pend_row )" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="390" width="340" height="420" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5a" value="Resolve Rule Settings from CSV&#10;seed NEW_AP_CD / NEW_PRV_CD → compute Decision: DENY or PAID" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="425" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5b" value="Seq-Order Skip Check&#10;(skip claim if same CERT_NO already pended/failed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="485" width="300" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5c" value="TOD Update  ( tod_update )" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="540" width="300" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5d" value="Navigate &amp; Open Claim&#10;(CPS520.01 → enter claim number)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="590" width="300" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5e" value="Draft Processing Loop (1..DRAFTS)&#10;select draft → CPS850 entry (OPI/notes/DX/INT-ZIP) → CPS910 TOD prompt → Condition Note &amp; AFV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="645" width="300" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5f_UB" value="UB Data Entry&#10;ub_data_entry / ub_per_diem_process" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="720" width="145" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A5f_HCFA" value="HCFA Data Entry&#10;hcfa_data_entry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="215" y="720" width="145" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A6" value="Determine Final Status &amp; Decision&#10;(DONE. / PEND / DENY / PAID / Already Processed)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="835" width="340" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A7" value="Collect Results via Queue&#10;(reassembled in original row order)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="910" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="A8" value="Return { success, result }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="980" width="340" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Column A edges -->
+        <mxCell id="eA_h1" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A_header" target="A1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA12" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A1" target="A2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA23" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A2" target="A3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA34" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A3" target="A4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA4c" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A4" target="A5a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5ab" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A5a" target="A5b"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5bc" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A5b" target="A5c"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5cd" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A5c" target="A5d"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5de" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A5d" target="A5e"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5e_ub" value="CLAIM_TYPE=UB" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;fontSize=10;" edge="1" parent="1" source="A5e" target="A5f_UB"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5e_hcfa" value="CLAIM_TYPE=HCFA" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;fontSize=10;" edge="1" parent="1" source="A5e" target="A5f_HCFA"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5f_ub6" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="A5f_UB" target="A6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA5f_hcfa6" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;exitX=0.5;exitY=1;entryX=0.75;entryY=0;" edge="1" parent="1" source="A5f_HCFA" target="A6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA67" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A6" target="A7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eA78" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="A7" target="A8"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===================== COLUMN B: release_pend_get_claim_details ===================== -->
+
+        <mxCell id="B_header" value="release_pend_get_claim_details&#10;(Claim Detail Fetch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2e7d32;fontColor=#ffffff;strokeColor=#1b5e20;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="460" y="40" width="340" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B1" value="Load Code Refs&#10;load_code_refs(dx_code_ref_path)  →  grid_price table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="100" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B2" value="Attach Emulator Sessions&#10;attach_emulator_sessions(n=4)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="170" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B3" value="Split Claim Rows Round-Robin&#10;across up to 4 worker threads (ThreadPoolExecutor)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="240" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B_container" value="Per Worker Thread — Process Claim Detail Row&#10;( _process_claim_detail_row )" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;verticalAlign=top;fontStyle=1;fontSize=12;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="460" y="310" width="340" height="270" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B4a" value="Navigate &amp; Open Claim&#10;(CPS520.01 → enter claim number)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="345" width="300" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B4b" value="Read Pend Code &amp; Count Drafts&#10;(handles multi-page &quot;MORE DATA&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="400" width="300" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B4c" value="GridPriceCheck Loop&#10;detect Claim Type (HCFA / UB) → compare draft pricing vs grid_price" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="455" width="300" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B4d" value="Read Old Provider Code&#10;(CPS408 screen)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="520" width="300" height="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B5" value="Collect Results via Queue&#10;(reassembled in original row order)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="460" y="600" width="340" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="B6" value="Return { success, result }" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="670" width="340" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Column B edges -->
+        <mxCell id="eB_h1" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B_header" target="B1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB12" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B1" target="B2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB23" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B2" target="B3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB3c" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B3" target="B4a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB4ab" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B4a" target="B4b"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB4bc" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B4b" target="B4c"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB4cd" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B4c" target="B4d"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB_c5" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B4d" target="B5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="eB56" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;" edge="1" parent="1" source="B5" target="B6"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Footer note -->
+        <mxCell id="note" value="Source: backend/automation/rule_engine/functions/release_pend_macro/script.py&#10;Draft-level detail (utils.py, hcfa.py, tod.py, ub.py) intentionally omitted — functional-block level only." style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1040" width="760" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
