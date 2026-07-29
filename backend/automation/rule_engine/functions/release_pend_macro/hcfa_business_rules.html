@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HCFA Claim — Business Rules</title>
+<style>
+  :root{
+    --bg: #f5f4ee; --surface: #ffffff; --surface-alt: #ece9de;
+    --ink: #1a231e; --ink-soft: #56604f; --ink-faint: #8b9284; --rule: #d9d4c4;
+    --accent: #2e7d32; --accent-strong: #1b5e20; --accent-soft: #e0ead9;
+    --amber: #9c6a24; --amber-soft: #f1e3c8;
+    --info: #2f6f8f; --info-soft: #dbe7ec;
+    --danger: #a13b2e; --danger-soft: #f3ded9;
+    --shadow: 0 1px 2px rgba(26,35,30,.06), 0 6px 20px rgba(26,35,30,.05);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: Seravek, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
+  }
+  :root[data-theme="dark"]{
+    --bg: #12160f; --surface: #181d16; --surface-alt: #1f251b;
+    --ink: #e7ebe0; --ink-soft: #b3bba7; --ink-faint: #6d7566; --rule: #313a2a;
+    --accent: #6fcf7d; --accent-strong: #a3e6ac; --accent-soft: #223522;
+    --amber: #e0ab5c; --amber-soft: #3a3020;
+    --info: #7fc6e0; --info-soft: #1c2f36;
+    --danger: #e08a7a; --danger-soft: #3a2420;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #12160f; --surface: #181d16; --surface-alt: #1f251b;
+      --ink: #e7ebe0; --ink-soft: #b3bba7; --ink-faint: #6d7566; --rule: #313a2a;
+      --accent: #6fcf7d; --accent-strong: #a3e6ac; --accent-soft: #223522;
+      --amber: #e0ab5c; --amber-soft: #3a3020;
+      --info: #7fc6e0; --info-soft: #1c2f36;
+      --danger: #e08a7a; --danger-soft: #3a2420;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background: var(--bg); color: var(--ink); font-family: var(--sans); line-height:1.45; -webkit-font-smoothing:antialiased; }
+  body::before{
+    content:""; position:fixed; inset:0;
+    background-image: linear-gradient(var(--rule) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+    background-size:42px 42px; opacity:.25; pointer-events:none; z-index:0;
+  }
+  .page{ position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:40px 28px 80px; }
+  header{ margin-bottom:36px; }
+  .eyebrow{ font-family: var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color: var(--accent-strong); display:flex; align-items:center; gap:10px; }
+  .eyebrow::before{ content:""; width:8px; height:8px; border-radius:50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  h1{ font-family: var(--serif); font-weight:500; font-size: clamp(1.6rem, 2.6vw, 2.15rem); margin:10px 0 6px; text-wrap:balance; }
+  .path{ font-family: var(--mono); font-size:.82rem; color: var(--ink-faint); word-break:break-all; }
+  .subhead{ max-width:66ch; color: var(--ink-soft); font-size:.95rem; margin-top:10px; }
+  .framing{
+    margin-top:20px; padding:14px 16px; border-radius:10px; border:1px solid var(--rule);
+    background: var(--surface); font-size:.88rem; color: var(--ink-soft);
+  }
+  .framing b{ color: var(--ink); }
+  .legend{ display:flex; flex-wrap:wrap; gap:16px; margin-top:20px; padding-top:18px; border-top:1px solid var(--rule); font-size:.76rem; color: var(--ink-soft); }
+  .legend-item{ display:flex; align-items:center; gap:7px; }
+  .swatch{ width:13px; height:13px; border-radius:3px; flex:none; }
+  .swatch.phase{ background: var(--surface); border:1.5px solid var(--ink-faint); }
+  .swatch.done{ background: var(--accent-soft); border-left:3px solid var(--accent); }
+  .swatch.stop{ background: var(--amber-soft); border-left:3px solid var(--amber); }
+  .swatch.info{ background: var(--info-soft); border-left:3px solid var(--info); }
+  .swatch.danger{ background: var(--danger-soft); border-left:3px solid var(--danger); }
+
+  .diagram-wrap{ overflow-x:auto; padding-bottom:8px; }
+  .diagram{ position:relative; min-width:940px; padding:10px 4px 30px; }
+  svg#edges{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .edge{ fill:none; stroke: var(--ink-faint); stroke-width:1.6; transition:opacity .15s ease, stroke .15s ease; }
+  .edge--flow{ stroke: var(--ink-soft); }
+  .edge--stop{ stroke: var(--amber); stroke-dasharray:5 4; }
+  .edge.active{ stroke: var(--accent-strong); stroke-width:2.4; }
+
+  .tree{ display:flex; flex-direction:column; gap:16px; max-width:920px; margin:0 auto; }
+  .row{ display:flex; align-items:center; gap:32px; }
+  .spine{ width:460px; flex:none; }
+  .branch{ flex:1; display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:0; }
+
+  .node{
+    all:unset; box-sizing:border-box; display:block; width:100%;
+    background: var(--surface); border:1px solid var(--rule); border-radius:9px;
+    padding:12px 14px; box-shadow: var(--shadow); cursor:pointer; position:relative; z-index:2;
+  }
+  .node-num{ font-family: var(--mono); font-size:.68rem; color: var(--accent-strong); letter-spacing:.06em; }
+  .node-title{ display:block; font-weight:600; font-size:.92rem; color: var(--ink); margin-top:1px; }
+  .node-sub{ display:block; font-family: var(--mono); font-size:.68rem; color: var(--ink-faint); margin-top:3px; }
+  .node--term-stop{ border-left:4px solid var(--amber); background: var(--amber-soft); }
+  .node--term-done{ border-left:4px solid var(--accent); background: var(--accent-soft); }
+  .node--term-done .node-title{ color: var(--accent-strong); }
+  .node--term-info{ border-left:4px solid var(--info); background: var(--info-soft); }
+  .node--term-danger{ border-left:4px solid var(--danger); background: var(--danger-soft); }
+  .node:hover, .node:focus-visible{ transform: translateY(-1px); box-shadow: 0 2px 4px rgba(26,35,30,.09), 0 10px 26px rgba(26,35,30,.10); }
+  .node:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .node.active{ border-color: var(--accent-strong); }
+  .node.dim{ opacity:.32; }
+  .edge.dim{ opacity:.12; }
+
+  .detail{ margin-top:46px; border-radius:12px; background:#0c1109; border:1px solid #232c1d; box-shadow: var(--shadow); overflow:hidden; }
+  .detail-bar{ display:flex; align-items:center; gap:8px; padding:9px 14px; background:#10160c; border-bottom:1px solid #232c1d; }
+  .dot{ width:9px; height:9px; border-radius:50%; }
+  .dot.r{ background:#e5675f;} .dot.y{ background:#e5c15f;} .dot.g{ background:#63c964;}
+  .detail-bar span{ font-family: var(--mono); font-size:.72rem; color:#7c8a72; margin-left:6px; }
+  .detail-body{ padding:18px 20px 22px; font-family: var(--mono); font-size:.82rem; color:#8fe39a; min-height:108px; }
+  .detail-title{ color:#d7f5da; font-size:.95rem; margin-bottom:2px; }
+  .detail-file{ color:#5f9a68; margin-bottom:12px; }
+  .detail-body p{ margin:3px 0; white-space:pre-wrap; }
+  .detail-body p::before{ content:"› "; color:#4f8558; }
+  .detail-empty{ color:#5f9a68; }
+  .detail-empty::before{ content:"› "; color:#3d6944; }
+  .detail-body ul{ margin:4px 0 10px 0; padding-left:18px; }
+  .detail-body li{ margin:3px 0; }
+  .detail-body li::marker{ color:#4f8558; }
+  .detail-body b{ color:#c9f0cc; }
+
+  @media (prefers-reduced-motion: reduce){ .node{ transition:none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="eyebrow">automation / rule_engine / functions / release_pend_macro</div>
+    <h1>HCFA Claim — Business Rules</h1>
+    <div class="path">hcfa.py — hcfa_data_entry()</div>
+    <p class="subhead">What the macro does to an HCFA claim in business terms — no screen coordinates, no PF-key mechanics. Just: which rule setting fires, what it means for the claim, and what stops the claim short of release.</p>
+    <div class="framing">
+      <b>Framing:</b> hcfa.py does not decide DENY vs. PAID — the rule (deny_clm, denial_code) already made that call before this runs. hcfa.py's job is to <b>write that decision onto the claim's service lines</b> in the way the payer's system expects, apply every other per-rule adjustment, and attempt to release the claim. If any check along the way can't be satisfied, it stops and hands the claim back for manual review instead of releasing it.
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch phase"></span>Business rule phase</div>
+      <div class="legend-item"><span class="swatch done"></span>Claim released</div>
+      <div class="legend-item"><span class="swatch stop"></span>Held for review (PEND)</div>
+      <div class="legend-item"><span class="swatch info"></span>Inquiry-only exit</div>
+      <div class="legend-item"><span class="swatch danger"></span>Not released</div>
+    </div>
+  </header>
+
+  <div class="diagram-wrap">
+    <div class="diagram" id="diagram">
+      <svg id="edges"><defs>
+        <marker id="arrow-flow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--ink-soft)"></path></marker>
+        <marker id="arrow-stop" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill="var(--amber)"></path></marker>
+      </defs><g id="edge-lines"></g></svg>
+
+      <div class="tree">
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="n0"><span class="node-num">START</span><span class="node-title">HCFA Claim Line Arrives</span><span class="node-sub">up to 4 billed service lines, plus the rule's settings</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p1"><span class="node-num">01</span><span class="node-title">Claim-Level Overrides</span><span class="node-sub">place of service, assignment, other-insurance cleanup</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p2"><span class="node-num">02</span><span class="node-title">Per-Line Pricing &amp; Ineligibility Adjustments</span><span class="node-sub">applies to each of the up to 4 billed lines</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p3"><span class="node-num">03</span><span class="node-title">Ineligible-Code Assignment ("001" family)</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-001"><span class="node-title">Held — "001" already on the line</span><span class="node-sub">no rule tells the macro how to reinterpret it</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p4"><span class="node-num">04</span><span class="node-title">Denial Application</span><span class="node-sub">writes the rule's DENY decision onto the lines</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-discdeny"><span class="node-title">Held — can't discount after denial</span><span class="node-sub">a second ineligible amount is already recorded</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p5"><span class="node-num">05</span><span class="node-title">Provider &amp; Modifier Routing</span><span class="node-sub">Allowed-Provider codes, diagnosis, modifiers</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p6"><span class="node-num">06</span><span class="node-title">Pricing &amp; Compliance Safeguards</span><span class="node-sub">contract pricing, auto-deny list, fraud/recovery flag</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-hcr"><span class="node-title">Held — possible High-Cost Recovery claim</span><span class="node-sub">needs recovery/audit review before release</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p7"><span class="node-num">07</span><span class="node-title">Claim-Level Cleanup</span><span class="node-sub">bulk ineligible recode, provider code</span></button>
+        </div><div class="branch"></div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p8"><span class="node-num">08</span><span class="node-title">Submission &amp; Payer Edit Resolution</span><span class="node-sub">responds to the payer system's own pushback</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-dup"><span class="node-title">Held — duplicate payment, not overridden</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p9"><span class="node-num">09</span><span class="node-title">Release / Pend Submission Details</span><span class="node-sub">who gets paid, why it's pending, follow-up plan</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-payee"><span class="node-title">Held — payee on file doesn't match the rule</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node" data-id="p10"><span class="node-num">10</span><span class="node-title">Pre-Release Validation</span><span class="node-sub">final checks before the claim is allowed to release</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-stop" data-id="t-notfullypd"><span class="node-title">Held — not 100% accounted for</span></button>
+          <button type="button" class="node node--term-info" data-id="t-inquiry"><span class="node-title">Inquiry only — nothing released</span></button>
+          <button type="button" class="node node--term-stop" data-id="t-watchlist"><span class="node-title">Held — ineligible code on the watch-list</span></button>
+        </div></div>
+
+        <div class="row"><div class="spine">
+          <button type="button" class="node node--term-done" data-id="t-released"><span class="node-title">Released</span><span class="node-sub">payer system accepted the release</span></button>
+        </div><div class="branch">
+          <button type="button" class="node node--term-danger" data-id="t-notreleased"><span class="node-title">Not Released</span><span class="node-sub">payer system rejected it, incl. duplicate-claim</span></button>
+        </div></div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="detail">
+    <div class="detail-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span>console — click a block to inspect</span></div>
+    <div class="detail-body" id="detail-body"><p class="detail-empty">waiting for input…</p></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DETAILS = {
+    "n0": { title:"HCFA Claim Line Arrives", lines:[
+      "hcfa.py works on up to 4 billed service lines per claim, plus whatever the rule's settings and the claim row (DX_CD, NEW_AP_CD, FAIE_INEL_CD, …) supply.",
+      "Everything below fires or doesn't based on the rule's own configuration — no two rules necessarily behave the same way."
+    ]},
+    "p1": { title:"Claim-Level Overrides", lines:[ "<ul>"+
+      "<li><b>Override place of service</b> — replaces the billed place of service when the rule supplies a new one.</li>"+
+      "<li><b>Mark Usual &amp; Customary accepted</b> — flags the claim as UC-accepted when the rule calls for it (on by default).</li>"+
+      "<li><b>Override the assignment/OV code</b> — replaces it when the rule supplies a new value.</li>"+
+      "<li><b>Clear other-insurance amounts</b> — wipes any other-insurance eligible/paid figures already on the claim, when the rule says the OI data shouldn't carry forward.</li>"+
+      "</ul>" ], html:true },
+    "p2": { title:"Per-Line Pricing & Ineligibility Adjustments", lines:[ "<ul>"+
+      "<li><b>FAIE reclassification</b> — if a line is pending under the generic 908 ineligible code, and the rule provides a FAIE-specific code, reclassify the amount under that FAIE code instead.</li>"+
+      "<li><b>Remove a stale discount amount</b> — if the line's ineligible code is on the payer's \"remove discount\" list (and, depending on the rule, the other-insurance type qualifies), drop the old ineligible amount.</li>"+
+      "<li><b>Delete a benefit-number entry</b> — clears an existing BN code/quantity from the line.</li>"+
+      "<li><b>Ineligible-code switch</b> — replaces a pending 908 code with a rule-specified alternate code.</li>"+
+      "<li><b>Bond-clinic pricing</b> — recalculates the ineligible amount for bond-clinic providers using a $10 floor, so small-dollar clinic visits aren't over-denied.</li>"+
+      "<li><b>Modifier flip</b> — swaps a P3/P4/P5 modifier into the primary modifier position (used when a procedure needs to be re-coded as primary), optionally followed by a recalculated post-flip discount.</li>"+
+      "</ul>" ], html:true },
+    "p3": { title:"Ineligible-Code Assignment (\"001\" family)", lines:[ "<ul>"+
+      "<li><b>Force code \"001\"</b> — on the first line only, or on every line, stamps ineligible code 001 (a specific \"informational, no dollar impact\" code) wherever a charge exists.</li>"+
+      "<li><b>Second ineligible slot = 001</b> — mirrors the rule's NEW_INEL_CD into the line's second ineligible slot, or sets it to 001 specifically when that's all the rule specifies.</li>"+
+      "<li><b>Remove an ineligible amount/code</b> — clears the first slot, the second slot, both, or only a specific code the rule names — depending on how the rule is configured.</li>"+
+      "</ul>",
+      "If none of the above applies and the line already carries ineligible code 001 with no override configured, the line is rejected outright (see the \"Held\" branch)." ], html:true },
+    "t-001": { title:"Held — \"001\" already on the line", lines:[ "MACRO STATUS: '001 FOUND'.", "Meaning: the claim already carries an informational-only ineligible code the rule doesn't know how to handle — needs either a rule update or manual review, since auto-releasing could silently drop a real ineligible amount." ]},
+    "p4": { title:"Denial Application (deny_clm)", lines:[ "<ul>"+
+      "<li>Lines whose ineligible code is on the payer's <b>denial-exception list</b> are protected — the denial is never written to them.</li>"+
+      "<li>If the rule allows a <b>discount after denial</b>: computes the denial amount as charge minus whatever's already been paid, and applies either a procedure-specific denial code (for CPTs the rule flags) or the rule's standard denial code.</li>"+
+      "<li>If discount-after-denial isn't allowed: denies the <b>full charge</b> under the rule's denial code, replacing anything already there.</li>"+
+      "<li><b>Deny what's already covered elsewhere</b> — if another payer (e.g. Medicare) already has an eligible amount recorded, that same amount gets denied on this claim too, under the rule's denial code.</li>"+
+      "</ul>",
+      "This is the mechanism that turns the rule's deny_clm=Y / denial_code setting into an actual mark on the claim — the DENY decision itself was already made upstream by script.py." ], html:true },
+    "t-discdeny": { title:"Held — can't discount after denial", lines:[ "MACRO STATUS: 'APPLY DISCOUNT AFTER DENIAL:INELCD2 PRESENT.'", "Meaning: the rule wants to discount-then-deny, but the line already has a second ineligible amount recorded — applying the rule now would overwrite existing adjudication, so it's held instead." ]},
+    "p5": { title:"Provider & Modifier Routing", lines:[ "<ul>"+
+      "<li><b>Remove Allowed-Provider code / fee-schedule code set</b> — strips a previously applied AP code or code set from the line.</li>"+
+      "<li><b>Change diagnosis code</b> — overwrites the line's diagnosis with the rule's DX_CD.</li>"+
+      "<li><b>Apply benefit-number quantity</b> — sets the BN code/quantity the rule specifies.</li>"+
+      "<li><b>First Allowed-Provider code</b> — applied when a claim needs two AP codes total; this is the first of them.</li>"+
+      "<li><b>Allowed-Provider code routing</b> — the rule can restrict when the new AP code actually gets applied: only on lines with a tracked modifier, only for recognized lab procedures, only for a rule-specific lab list, or only when a tracked diagnosis lines up with an office-visit-type line — otherwise it applies unconditionally.</li>"+
+      "<li><b>Remove provider-rate overrides / remove modifiers</b> — clears manually set rate overrides or any tracked modifier codes across all lines.</li>"+
+      "<li><b>DX + lab review flag</b> — marks a line for manual review when a lab procedure and a tracked diagnosis appear together.</li>"+
+      "<li><b>Other-insurance eligible/paid &amp; indicator overrides</b> — replaces those figures on one line or all lines, per the rule.</li>"+
+      "</ul>" ], html:true },
+    "p6": { title:"Pricing & Compliance Safeguards", lines:[ "<ul>"+
+      "<li><b>Contract-price enforcement</b> — if the billed charge exceeds the contracted grid price for that procedure, the overage is ineligible-coded (code 997) rather than paid.</li>"+
+      "<li><b>Auto-deny a specific procedure (S9451)</b> — always ineligible-codes this procedure under code 947, regardless of other settings (on by default).</li>"+
+      "<li><b>Possible High-Cost Recovery flag</b> — if the procedure is on the recovery watch-list and already carries a denial-adjacent code, the claim is held for audit/recovery review instead of continuing (on by default).</li>"+
+      "<li><b>Time units</b> — can clear time units entirely, or add the rule's specified units (capped at 99 — beyond that, it flags for manual handling instead of guessing).</li>"+
+      "</ul>" ], html:true },
+    "t-hcr": { title:"Held — possible High-Cost Recovery claim", lines:[ "MACRO STATUS: 'POSSIBLE HCR'.", "Meaning: this procedure/ineligible-code combination is one the payer wants a human to double-check before release, typically because of overpayment recovery risk." ]},
+    "p7": { title:"Claim-Level Cleanup", lines:[ "<ul>"+
+      "<li><b>Bulk ineligible recode</b> — when enabled, re-labels every existing ineligible entry on the claim under a single sweep code (one of two payer-defined sweep codes), used for specific reprocessing scenarios.</li>"+
+      "<li><b>Set/remove claim provider code</b> — applies the rule's new provider code, or clears the existing one first.</li>"+
+      "</ul>" ], html:true },
+    "p8": { title:"Submission & Payer Edit Resolution", lines:[ "<ul>"+
+      "<li><b>Auto-clear identity-verification edit errors</b> — when the payer's generic edit error is really just an identity-check field, the macro clears it automatically rather than stopping.</li>"+
+      "<li><b>Duplicate-payment check</b> — if the payer flags a possible duplicate, the rule decides whether to override and continue, or stop for manual review.</li>"+
+      "<li><b>Charge-total mismatch</b> — if the payer rejects because the calculated charge doesn't match the total, the macro either applies the \"already covered elsewhere\" denial logic, or a standard adjustment, then retries once.</li>"+
+      "<li><b>Benefit-number-required edit</b> — supplies the benefit number the payer is asking for on a specific service date, including a calculated ineligible threshold when the rule requires one.</li>"+
+      "<li><b>Diagnosis-exception override</b> — when the payer rejects a diagnosis as invalid for the service, the rule can flag it as an accepted exception and retry.</li>"+
+      "<li><b>Place-of-service / type-of-service correction</b> — corrects the type of service on the flagged line (and mirrors it to related placeholder lines), when the payer rejects the original value.</li>"+
+      "<li><b>Surprise-billing acknowledgment</b> — if the payer flags the claim under surprise-billing rules and the provider type qualifies, the macro acknowledges it so the claim can proceed.</li>"+
+      "</ul>" ], html:true },
+    "t-dup": { title:"Held — duplicate payment, not overridden", lines:[ "MACRO STATUS: 'POSSIBLE DUP' or the payer's own duplicate-claim message.", "Meaning: the rule is configured NOT to auto-override duplicate-payment warnings, so a possible duplicate stops here for a person to confirm." ]},
+    "p9": { title:"Release / Pend Submission Details", lines:[ "<ul>"+
+      "<li>Populates the actual release/pend paperwork from the rule's settings: release code, whether this is the last release, pend reason, responsible operator, follow-up days, note text, distribution unit, EOB code and check indicator, and any EOB note text (claim-specific text overrides the rule's default note).</li>"+
+      "<li><b>Payee handling</b> — standard payee, OR a secondary payee's full name/address when the rule pays someone other than the default, OR a 50/50 employee-provider split, depending on the rule's payee setting.</li>"+
+      "<li><b>Overpayment-recovery cleanup</b> — for lines carrying a specific recovery code (700), forces a small standard ineligible amount before release.</li>"+
+      "</ul>" ], html:true },
+    "t-payee": { title:"Held — payee on file doesn't match the rule", lines:[ "MACRO STATUS: 'CHANGE PAYEE TO 1'.", "Meaning: the claim already shows the member as payee, but the rule expects the provider to be paid — a safeguard against silently overriding who receives payment." ]},
+    "p10": { title:"Pre-Release Validation", lines:[ "<ul>"+
+      "<li><b>Fully-paid validation</b> — by ineligible code, or by specific procedure code — confirms the charge is fully accounted for by payment plus discount before allowing release; also rejects specific combinations of ineligible codes the payer considers suspicious.</li>"+
+      "<li><b>Inquiry-only mode</b> — instead of releasing, just totals up the claim's recovery-related ineligible amounts for reporting and exits — this rule never intends to release the claim.</li>"+
+      "<li><b>Second Allowed-Provider code</b> — applied after the release-screen details are entered, when the claim needs two AP codes.</li>"+
+      "<li><b>Member plan-ID update</b> — updates the member's plan record when the rule supplies a new plan ID and it hasn't already been updated.</li>"+
+      "<li><b>Ineligible-code watch-list check</b> — scans the claim's history for any ineligible code the payer wants flagged, and stops if one is found.</li>"+
+      "</ul>" ], html:true },
+    "t-notfullypd": { title:"Held — not 100% accounted for", lines:[ "MACRO STATUS: 'NOT PROCESSED. NOT 100% FULLY PD.' (or a specific rejected-code / multiple-ineligible-code message).", "Meaning: the rule requires proof the charge is fully resolved between payment and discount before it will release — if the math doesn't add up, it won't." ]},
+    "t-inquiry": { title:"Inquiry only — nothing released", lines:[ "Tallies the claim's recovery-related ineligible amounts into AMT_858_TOTAL and stops — by design, this rule is read-only and never releases the claim." ]},
+    "t-watchlist": { title:"Held — ineligible code on the watch-list", lines:[ "MACRO STATUS: 'CHECK INEL CODE:<codes found>'.", "Meaning: one of the claim's ineligible codes is one the payer specifically wants reviewed by a person before this claim goes out." ]},
+    "t-released": { title:"Released", lines:[ "MACRO STATUS: 'Released.'", "The payer system accepted every field the macro entered and the claim moved to a released status — whatever combination of DENY/PAID and adjustments the rule specified is now what actually paid out." ]},
+    "t-notreleased": { title:"Not Released", lines:[ "MACRO STATUS: 'Not Released. <payer's own message>' — with 'Duplicate Claim' appended when the payer's own duplicate-detection rejects it outright at the final step.", "Meaning: every earlier check passed, but the payer system's own release logic still refused it — usually a data or timing issue outside what the rule can control." ]}
+  };
+
+  const EDGES = [
+    ["n0","p1","flow"], ["p1","p2","flow"], ["p2","p3","flow"], ["p3","p4","flow"], ["p4","p5","flow"],
+    ["p5","p6","flow"], ["p6","p7","flow"], ["p7","p8","flow"], ["p8","p9","flow"], ["p9","p10","flow"],
+    ["p10","t-released","flow"],
+    ["p3","t-001","stop"], ["p4","t-discdeny","stop"], ["p6","t-hcr","stop"],
+    ["p8","t-dup","stop"], ["p9","t-payee","stop"],
+    ["p10","t-notfullypd","stop"], ["p10","t-inquiry","stop"], ["p10","t-watchlist","stop"],
+    ["t-released","t-notreleased","stop"]
+  ];
+
+  const diagram = document.getElementById("diagram");
+  const svg = document.getElementById("edges");
+  const group = document.getElementById("edge-lines");
+  const nodes = {};
+  document.querySelectorAll(".node").forEach(function(el){ nodes[el.dataset.id] = el; });
+
+  function rectRel(el, base){
+    const r = el.getBoundingClientRect();
+    return { left:r.left-base.left, top:r.top-base.top, right:r.right-base.left, bottom:r.bottom-base.top };
+  }
+  function pathD(a,b){
+    const aCx=(a.left+a.right)/2, bCx=(b.left+b.right)/2;
+    const aCy=(a.top+a.bottom)/2, bCy=(b.top+b.bottom)/2;
+    const dx=bCx-aCx, dy=bCy-aCy;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      const down = bCy > aCy;
+      const y1 = down ? a.bottom : a.top, y2 = down ? b.top : b.bottom;
+      const midY = (y1+y2)/2;
+      return "M "+aCx+" "+y1+" C "+aCx+" "+midY+", "+bCx+" "+midY+", "+bCx+" "+y2;
+    } else {
+      const right = bCx > aCx;
+      const x1 = right ? a.right : a.left, x2 = right ? b.left : b.right;
+      const midX = (x1+x2)/2;
+      return "M "+x1+" "+aCy+" C "+midX+" "+aCy+", "+midX+" "+bCy+", "+x2+" "+bCy;
+    }
+  }
+  function draw(){
+    const base = diagram.getBoundingClientRect();
+    svg.setAttribute("width", base.width); svg.setAttribute("height", base.height);
+    group.innerHTML = "";
+    EDGES.forEach(function(e){
+      const a = nodes[e[0]], b = nodes[e[1]];
+      if(!a || !b) return;
+      const ra = rectRel(a, base), rb = rectRel(b, base);
+      const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+      p.setAttribute("d", pathD(ra,rb));
+      p.setAttribute("class", "edge edge--"+(e[2]==="flow"?"flow":"stop"));
+      p.setAttribute("marker-end","url(#arrow-"+(e[2]==="flow"?"flow":"stop")+")");
+      p.dataset.from = e[0]; p.dataset.to = e[1];
+      group.appendChild(p);
+    });
+  }
+  function adjacency(id){
+    const out = new Set([id]);
+    EDGES.forEach(function(e){ if(e[0]===id) out.add(e[1]); if(e[1]===id) out.add(e[0]); });
+    return out;
+  }
+  function setHover(id){
+    if(!id){
+      diagram.classList.remove("has-hover");
+      Object.values(nodes).forEach(function(n){ n.classList.remove("dim","active"); });
+      group.querySelectorAll(".edge").forEach(function(p){ p.classList.remove("dim","active"); });
+      return;
+    }
+    const rel = adjacency(id);
+    diagram.classList.add("has-hover");
+    Object.entries(nodes).forEach(function(pair){
+      const n = pair[1];
+      if(rel.has(pair[0])){ n.classList.remove("dim"); n.classList.toggle("active", pair[0]===id); }
+      else { n.classList.add("dim"); n.classList.remove("active"); }
+    });
+    group.querySelectorAll(".edge").forEach(function(p){
+      const hit = p.dataset.from===id || p.dataset.to===id;
+      p.classList.toggle("active", hit); p.classList.toggle("dim", !hit);
+    });
+  }
+  function showDetail(id){
+    const d = DETAILS[id];
+    const body = document.getElementById("detail-body");
+    if(!d){ body.innerHTML = '<p class="detail-empty">no detail recorded for this block</p>'; return; }
+    let html = '<div class="detail-title">'+d.title+'</div>';
+    d.lines.forEach(function(line){
+      if(d.html){ html += line; }
+      else { html += "<p>"+line.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>"; }
+    });
+    body.innerHTML = html;
+  }
+  Object.entries(nodes).forEach(function(pair){
+    const id = pair[0], el = pair[1];
+    el.addEventListener("mouseenter", function(){ setHover(id); });
+    el.addEventListener("mouseleave", function(){ setHover(null); });
+    el.addEventListener("focus", function(){ setHover(id); });
+    el.addEventListener("blur", function(){ setHover(null); });
+    el.addEventListener("click", function(){ showDetail(id); });
+  });
+  window.addEventListener("resize", draw);
+  window.addEventListener("load", draw);
+  draw();
+})();
+</script>
+</body>
+</html>
