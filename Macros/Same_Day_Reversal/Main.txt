@@ -1,0 +1,20 @@
+Private Sub cmdClear_Click()
+    With ThisWorkbook.Worksheets("Main")
+        .Range("A4") = "Temp"
+        .Range("A4:L" & .Cells(.Rows.Count, "A").End(xlUp).Row + 1).ClearContents
+    End With
+End Sub
+
+Private Sub cmdRun_Click()
+    Dim rw As Long
+    With ThisWorkbook.Worksheets("Main")
+        If Current_Session(Trim(.Range("J2"))) Then
+            For rw = .Range("G1") To .Range("G2")
+               .Range("H2") = rw
+                Draft_Reveral_9994 Trim(.Range("B" & rw)), Trim(.Range("A" & rw)), Trim(.Range("D" & rw)), rw
+                DoEvents
+            Next rw
+            MsgBox "Draft Reversal Macro is finished", vbInformation, ThisWorkbook.Name
+        End If
+    End With
+End Sub
