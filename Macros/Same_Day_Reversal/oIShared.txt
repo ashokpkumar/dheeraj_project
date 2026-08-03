@@ -1,0 +1,308 @@
+Public objSession As Object
+
+Public Function Current_Session(ByVal SessionPath As String) As Boolean
+    Dim objSystem As Object, objSessions As Object, msg As String
+    On Error GoTo ErrHandler
+    Current_Session = False
+    Set objSystem = CreateObject("EXTRA.System")
+    If (objSystem Is Nothing) Then
+        msg = "Could not create the EXTRA System object.  Stopping macro playback."
+    End If
+    Set objSessions = objSystem.Sessions
+    If (objSessions Is Nothing) Then
+        msg = "Could not create the Sessions collection object.  Stopping macro playback."
+    End If
+    OldSystemTimeout& = objSystem.TimeoutValue: g_HostSettleTime = 500
+    OldSystemTimeout& = objSystem.TimeoutValue
+    If (g_HostSettleTime > OldSystemTimeout) Then objSystem.TimeoutValue = g_HostSettleTime
+    If Len(Trim(SessionPath)) > 0 Then
+        Set objSession = objSessions.Item(Trim(SessionPath))
+    Else
+        Set objSession = objSystem.ActiveSession
+    End If
+    If (objSession Is Nothing) Then
+        msg = "Could not create the Session object.  Stopping macro playback."
+    End If
+    Current_Session = True
+    Exit Function
+ErrHandler:
+    MsgBox "Unable to communicate with session." & _
+    vbNewLine & vbNewLine & msg & vbNewLine & vbNewLine & _
+    Err.Description, vbCritical, ThisWorkbook.Name
+End Function
+
+Public Function PlaceValue(ByVal Val As String, ByVal r As Integer, c As Integer)
+    If Len(Trim(Val)) < 0 Then Exit Function
+    With objSession.Screen
+        .moveTo r, c
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        .SendKeys ("<EraseEof>")
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        .PutString Trim(Val), r, c
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
+Public Function InCorrectScreen(ByVal ScrnVal As String, ByVal r As Integer, ByVal c As Integer, ByVal L As Integer) As Boolean
+    Dim Scrn As String: InCorrectScreen = False
+    With objSession.Screen
+        Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        Scrn = Trim(.GetString(r, c, L))
+        Select Case Scrn
+            Case ScrnVal
+                InCorrectScreen = True
+        End Select
+    End With
+End Function
+
+Public Sub Draft_Reveral_9994(ByVal CERTID As String, ByVal CCN As String, ByVal BGSVDT As String, ByVal rw As Double)
+    Dim ws As Worksheet, DS_PATTERN, i As Integer, dsCount As Integer, r As Integer, lnNo As Integer, lnCntr As Integer
+   'Dim CERTID As String, BGSVDT As String, CCN As String, rw As Double
+   'CERTID = "C09348258" '"C02304820"
+   'CCN = "20259266242" '"20258118621"
+   'rw = 36
+    If Len(Trim(BGSVDT)) < 1 Then BGSVDT = Format(Now(), "MMDDYY")
+   'Current_Session ("")
+    Set ws = ThisWorkbook.Worksheets("Main")
+    With objSession.Screen
+EntryPoint:
+        Select Case InCorrectScreen("BLX112.01", 1, 71, 10)
+            Case True
+                 PlaceValue CERTID, 9, 15
+                 PlaceValue BGSVDT, 12, 15
+                .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                 If InCorrectScreen("BLX106.01", 1, 72, 10) Then
+                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                     PlaceValue "00", 2, 6 'Default 00
+                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys ("<Pf7>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                     PlaceValue CCN, 13, 45
+                     PlaceValue "x", 16, 45 'Search all family
+                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                     
+                        Select Case Trim(.GetString(1, 71, 10))
+                            Case "BLX143.01" 'HCFA
+                                ws.Range("C" & rw) = "HCFA"
+                               'If Trim(.GetString(29, 69, 7)) = "NO DATA" Then
+                                If Len(Trim(.GetString(3, 28, 4))) < 1 Then
+                                    ws.Range("G" & rw) = "NO SERVICE DISPLAY DATA"
+                                    GoTo ExitPoint
+                                End If
+                                i = 3: dsCount = 1
+                                DS_PATTERN = Trim(.GetString(i, 28, 4))
+                                Do While Len(Trim(.GetString(i, 28, 4))) > 0
+                                    If DS_PATTERN <> Trim(.GetString(i, 28, 4)) Then
+                                        DS_PATTERN = Trim(.GetString(i, 28, 4))
+                                        dsCount = dsCount + 1
+                                    End If
+                                    If i < 17 Then
+                                        i = i + 14
+                                    Else
+                                        If InStr(1, "F1/F11", Trim(.GetString(29, 74, 4))) > 0 Then
+                                            .SendKeys ("<Pf11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                             If Trim(.GetString(31, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Then
+                                                Exit Do
+                                             End If
+                                        End If
+                                        i = 3
+                                    End If
+                                    DoEvents
+                                Loop
+                                ws.Range("E" & rw) = dsCount: r = 9: lnNo = 1
+                               .SendKeys ("<Pf7>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                PlaceValue CCN, 13, 45
+                                PlaceValue "x", 16, 45 'Search all family
+                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                PlaceValue "1", 1, 22  'SVC
+                                PlaceValue "x", 29, 67 'CLRVS
+                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                lnCntr = 0
+HCFAReadLineNumbers:
+                                r = 9
+                                Do While Len(Trim(.GetString(r, 2, 2))) > 0
+                                    lnCntr = lnCntr + 1: DoEvents
+                                    r = r + 2
+                                Loop
+                               .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                If Trim(.GetString(31, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Or _
+                                   Trim(.GetString(32, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Then
+                                Else
+                                    GoTo HCFAReadLineNumbers
+                                End If
+                                r = 9
+                                For i = 1 To lnCntr
+                                    .SendKeys ("<Pf7>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     PlaceValue CCN, 13, 45
+                                     PlaceValue "x", 16, 45 'Search all family
+                                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     PlaceValue "1", 1, 22  'SVC
+                                     PlaceValue "x", 29, 67 'CLRVS
+                                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     If InCorrectScreen("BLX143.01", 1, 71, 10) Then
+                                        ws.Range("G" & rw) = "DS: " & Trim(.GetString(3, 28, 4)) & " | " & Trim(.GetString(31, 2, 70))
+                                        GoTo ExitPoint
+                                     Else
+                                        If InCorrectScreen("BLX152.01", 1, 71, 10) Then
+                                            If InCorrectScreen("CPS701.01", 1, 2, 10) Then
+                                                ws.Range("G" & rw) = "NOT REVERSED: MEDICAL ADJUSTMENT REQUEST SCREEN"
+                                                GoTo ExitPoint
+                                            End If
+                                            Select Case i
+                                                Case 0 To 5
+                                                Case 6 To 10
+                                                     If i = 6 Then
+                                                        r = 9: lnNo = 1
+                                                     End If
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                Case 11 To 15
+                                                     If i = 11 Then
+                                                        r = 9: lnNo = 1
+                                                     End If
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                            End Select
+                                            If Trim(.GetString(r, 44, 2)) <> "99" Then
+                                                PlaceValue Format(lnNo, "00"), 2, 10 '"01" Default
+                                                PlaceValue "99", 2, 23
+                                                PlaceValue "94", 2, 36
+                                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                If InCorrectScreen("BLX152.01", 1, 71, 10) Then
+                                                    ws.Range("G" & rw) = Trim(.GetString(31, 2, 70))
+                                                    GoTo ExitPoint
+                                                End If
+                                             End If
+                                             r = r + 2: lnNo = lnNo + 1
+                                        Else
+                                            ws.Range("G" & rw) = "BLX152.01/CPS611.01: UNABLE TO MAPP CHECK REVERSAL SCREEN"
+                                            GoTo ExitPoint
+                                        End If
+                                     End If
+                                     DoEvents
+                                Next i
+                                ws.Range("G" & rw) = "CLAIM REVERESED"
+                            Case "BLX143" 'UB
+                                ws.Range("C" & rw) = "UB"
+                                If Len(Trim(.GetString(7, 27, 4))) < 1 Then
+                                    ws.Range("G" & rw) = "NO SERVICE DISPLAY DATA"
+                                    GoTo ExitPoint
+                                End If
+                                i = 7: dsCount = 1
+                                DS_PATTERN = Trim(.GetString(i, 27, 4))
+                                Do While Len(Trim(.GetString(i, 27, 4))) > 0
+                                    If DS_PATTERN <> Trim(.GetString(i, 27, 4)) Then
+                                        DS_PATTERN = Trim(.GetString(i, 27, 4))
+                                        dsCount = dsCount + 1
+                                    End If
+                                    If i < 19 Then
+                                        i = i + 12
+                                    Else
+                                        'If InStr(1, "F1/F11", Trim(.GetString(29, 74, 4))) > 0 Then
+                                            .SendKeys ("<Pf11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                             If Trim(.GetString(32, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Then
+                                                Exit Do
+                                             End If
+                                        'End If
+                                        i = 3
+                                    End If
+                                    DoEvents
+                                Loop
+                                ws.Range("E" & rw) = dsCount: r = 9: lnNo = 1
+                               .SendKeys ("<Pf7>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                PlaceValue CCN, 13, 45
+                                PlaceValue "x", 16, 45 'Search all family
+                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                PlaceValue "1", 1, 21  'SVC
+                                PlaceValue "x", 31, 62 'CLRVS
+                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                lnCntr = 0
+UBReadLineNumbers:
+                                r = 9
+                                Do While Len(Trim(.GetString(r, 2, 2))) > 0
+                                    lnCntr = lnCntr + 1: DoEvents
+                                    r = r + 2
+                                Loop
+                               .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                If Trim(.GetString(31, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Or _
+                                   Trim(.GetString(32, 2, 60)) = "YOU MAY NOT PAGE FORWARD AT THIS TIME" Then
+                                Else
+                                    GoTo UBReadLineNumbers
+                                End If
+                                r = 9
+                                For i = 1 To lnCntr
+                                    .SendKeys ("<Pf7>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     PlaceValue CCN, 13, 45
+                                     PlaceValue "x", 16, 45 'Search all family
+                                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     PlaceValue "1", 1, 21  'SVC
+                                     PlaceValue "x", 31, 62 'CLRVS
+                                    .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     If InCorrectScreen("BLX143", 1, 71, 10) Then
+                                        ws.Range("G" & rw) = "DS: " & Trim(.GetString(7, 27, 4)) & " | " & Trim(.GetString(31, 12, 70))
+                                        GoTo ExitPoint
+                                     Else
+                                        If InCorrectScreen("BLX152.01", 1, 71, 10) Then
+                                            If InCorrectScreen("CPS701.01", 1, 2, 10) Then
+                                                ws.Range("G" & rw) = "NOT REVERSED: MEDICAL ADJUSTMENT REQUEST SCREEN"
+                                                GoTo ExitPoint
+                                            End If
+                                            Select Case i
+                                                Case 0 To 5
+                                                Case 6 To 10
+                                                     If i = 6 Then
+                                                        r = 9: lnNo = 1
+                                                     End If
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                Case 11 To 15
+                                                     If i = 11 Then
+                                                        r = 9: lnNo = 1
+                                                     End If
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                    .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                            End Select
+                                            If Trim(.GetString(r, 44, 2)) <> "99" Then
+                                                PlaceValue Format(lnNo, "00"), 2, 10 '"01" Default
+                                                PlaceValue "99", 2, 23
+                                                PlaceValue "94", 2, 36
+                                               .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                                If InCorrectScreen("BLX152.01", 1, 71, 10) Then
+                                                    ws.Range("G" & rw) = Trim(.GetString(31, 2, 70))
+                                                    GoTo ExitPoint
+                                                End If
+                                             End If
+                                             r = r + 2: lnNo = lnNo + 1
+'                                            PlaceValue "01", 2, 10
+'                                            PlaceValue "99", 2, 23
+'                                            PlaceValue "94", 2, 36
+'                                           'Stop
+'                                           .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                        Else
+                                            ws.Range("G" & rw) = "BLX152.01/CPS611.01: UNABLE TO MAPP CHECK REVERSAL SCREEN"
+                                            GoTo ExitPoint
+                                        End If
+                                     End If
+                                     DoEvents
+                                Next i
+                                ws.Range("G" & rw) = "CLAIM REVERESED"
+                            Case Else
+                                ws.Range("G" & rw) = "BLX143.01: UNABLE TO MAP SERVICE DISPLAY"
+                                GoTo ExitPoint
+                        End Select
+                     
+                 Else
+                    ws.Range("G" & rw) = "MEMBER NOT FOUND"
+                    GoTo ExitPoint
+                 End If
+            Case False
+                .SendKeys ("<Pf22>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                 PlaceValue "i GJBB", 31, 15
+                .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                 PlaceValue "GJBB", 31, 15
+                .SendKeys ("<ENTER>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                 GoTo EntryPoint
+        End Select
+ExitPoint:
+       .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+    Set ws = Nothing
+End Sub
