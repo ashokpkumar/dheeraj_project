@@ -202,6 +202,16 @@ def run_claim_type_reversal(screen, claim_type: str, ccn: str, rw_result: dict) 
     place_value(screen, "x", *cfg["clrvs_pos"])  # CLRVS
     send_enter(screen)
 
+    screen_id = get_screen_id(screen)
+    if screen_id != "BLX152.01" and screen_id == cfg["ds_screen_id"]:
+        # Still on the service-display screen instead of advancing to the
+        # check-reversal screen — if it's prompting to press Enter again,
+        # stop here rather than reading line numbers off a stale screen.
+        msg31 = (screen.GetString(31, 2, 70) or "").strip()
+        if "PRESS ENTER" in msg31.upper():
+            send_enter(screen)
+            return msg31
+
     ln_cntr = _count_lines(screen)
 
     return _reverse_lines(screen, ccn, cfg, ln_cntr)
