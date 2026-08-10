@@ -303,7 +303,7 @@ def ub_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts: 
                 place_value(screen, f"{int(settings.get('denial_code','0')):03d}", p + 6, 30)
 
         if settings.get("remove_ap", "N") == "Y":
-            screen.MoveTo(10, 46 + l); wait_ready(screen); screen.SendKeys("<EraseEOF>"); wait_ready(screen)
+            screen.MoveTo(10, 54 + l); wait_ready(screen); screen.SendKeys("<EraseEOF>"); wait_ready(screen)
         if settings.get("rem_code_set", "N") == "Y":
             screen.MoveTo(p, 24); wait_ready(screen); screen.SendKeys("<EraseEOF>"); wait_ready(screen)
         if settings.get("chnge_dx_cd", "N") == "Y":
@@ -313,18 +313,18 @@ def ub_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts: 
         new_ap_cd = str(row.get("NEW_AP_CD", "") or "").strip()
         if settings.get("apply_dx", "N") == "Y" and new_ap_cd:
             if (screen.GetString(p, 8, 5) or "").strip() in lab_codes:
-                screen.PutString(new_ap_cd, 10, 46 + l); wait_ready(screen)
+                screen.PutString(new_ap_cd, 10, 54 + l); wait_ready(screen)
         if settings.get("apply_dx", "N") == "N" and settings.get("apply_lab", "N") == "N":
             if new_ap_cd:
-                screen.PutString(new_ap_cd, 10, 46 + l); wait_ready(screen)
+                screen.PutString(new_ap_cd, 10, 54 + l); wait_ready(screen)
         if settings.get("apply_dx", "N") == "N" and settings.get("apply_lab", "N") == "Y":
             cpt_val = (screen.GetString(p, 8, 5) or "").strip()
             if new_ap_cd and cpt_val in rule_lab_codes:
-                screen.PutString(new_ap_cd, 10, 46 + l); wait_ready(screen)
+                screen.PutString(new_ap_cd, 10, 54 + l); wait_ready(screen)
 
         ap1 = str(row.get("AP_CD_1ST", "") or "").strip()
         if settings.get("aply_two_ap_cd", "N") == "Y" and ap1:
-            screen.PutString(ap1, 10, 46 + l); wait_ready(screen)
+            screen.PutString(ap1, 10, 54 + l); wait_ready(screen)
 
         if settings.get("remv_prov_rate", "N") == "Y":
             for rr in range(12, 16):
@@ -343,7 +343,7 @@ def ub_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts: 
             cpt_val = (screen.GetString(p, 8, 5) or "").strip()
             dx_val = (screen.GetString(10, z, 7) or "").strip()
             if (rev_code in ub_rev_codes and dx_val in dx_codes) or (cpt_val in lab_codes and dx_val in dx_codes):
-                screen.PutString("#", 10, 46 + l); wait_ready(screen)
+                screen.PutString("#", 10, 54 + l); wait_ready(screen)
 
         # New OI Elig/Paid (UB per-line for ALL LINES)
         _apply_ub_oi_elig_pd(screen, row, p, settings.get("new_oi_elig_pd", "N/A"))
@@ -703,7 +703,7 @@ def _ub_ap_code_entry(screen, row):
         l = 0
         for i in range(6, 10):
             if (screen.GetString(i, 4, 6) or "").strip():
-                place_value(screen, str(row.get("AP_CD_2ND", "") or "").strip(), 10, 46 + l)
+                place_value(screen, str(row.get("AP_CD_2ND", "") or "").strip(), 10, 54 + l)
             l += 3
     place_value(screen, "x", 29, 71)
     send_enter(screen)
