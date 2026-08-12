@@ -1,0 +1,5 @@
+rule,rls_code,lst_rls,pnd_rsn,pnd_op_id,flw_up_days,note,eob,ck,dci,payee,eob_note,inel_cd_fld,inel_code_val,inel2_option,remove_prv,apply_uc,apply_dpsv,new_pos,chg_provider,prv_int_nbr,prv_zip,apply_oi_amt,oi_calc_type,release_if_inel_code,ignore_pnd_cd,pnd_cd_to_ignore,draft_sub_line_apply01,change_from_to_dates,apply_rp_bypass_precert,rem_oi_elig_amt,change_cond_onset_dt,new_cond_onset_dt,apply_inel_cd_exceptions,just_release_claim,skip_no_update_check,show_confirmation
+RULE1,19,Y,,,,,,,,0,,1,,,N,Y,Y,,N,,,N,,950,N,,N,N,N,N,N,,N,N,N,N
+RULE2,10,N,66,,,,,,,0,,1,,,N,Y,Y,,N,,,N,,,Y,66,N,N,N,N,N,,N,N,N,N
+RULE3,19,Y,,,,,,,,0,,BOTH,,REMOVE INEL2 AMTCD,N,Y,Y,,N,,,Y,TYPE B,950,N,,N,N,N,Y,N,,Y,N,N,N
+RULE4,,,,,,,,,,0,,1,,,N,N,N,,N,,,N,,,N,,N,N,N,N,N,,N,Y,N,N
