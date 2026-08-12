@@ -1,0 +1,160 @@
+Private Sub cdmMRU_Click() 'ADDED 2025.08.26
+    Dim rW As Long, lRw As Long, mRw As Long, rNG As Range, rMg As Range
+    MRU_CALC_SETTINGS
+    With MN
+        For rW = .Range("G1") To .Range("G2")
+            If MN.AutoFilterMode Then MN.AutoFilterMode = False
+            If MR.AutoFilterMode Then MR.AutoFilterMode = False
+            lRw = MN.Cells(MN.Rows.Count, "G").End(xlUp).Row + 1
+            MN.Range("G12:AH" & lRw).AutoFilter Field:=MN.Columns(colCCN1).Column, Criteria1:=Trim(MN.Range("A" & rW))
+            If MN.AutoFilter.Range.Columns(colCCN2).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+                For Each rNG In MN.AutoFilter.Range.Columns(colCCN2).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible)
+                    MN.Range(colStat & rNG.Row).ClearContents
+                    MN.Range(colNwAmt & rNG.Row).ClearContents
+                    If MR.AutoFilterMode Then MR.AutoFilterMode = False
+                    mRw = MR.Cells(MR.Rows.Count, mrCCN).End(xlUp).Row + 1
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrCCN).Column, Criteria1:=Trim(MN.Range(colCCN2 & rNG.Row))
+                    If Len(Trim(MN.Range(colBgnSvDt & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrBGN).Column, Criteria1:=Trim(MN.Range(colBgnSvDt & rNG.Row)) 'BG SV DT
+                    If Len(Trim(MN.Range(colCPT & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrCPT).Column, Criteria1:=Trim(MN.Range(colCPT & rNG.Row)) 'CPT
+                    If Len(Trim(MN.Range(colLnChgAmt & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrAMT).Column, Criteria1:=Format(Trim(MN.Range(colLnChgAmt & rNG.Row)), "#.00") 'LINE CHARGE AMT
+                    If Len(Trim(MN.Range(colUnit & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrUNT).Column, Criteria1:=Trim(MN.Range(colUnit & rNG.Row)) 'UNITS
+                    If Len(Trim(MN.Range(colMod1 & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrMD1).Column, Criteria1:=Trim(MN.Range(colMod1 & rNG.Row)) 'MOD 01
+                    If Len(Trim(MN.Range(colMod2 & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrMD2).Column, Criteria1:=Trim(MN.Range(colMod2 & rNG.Row)) 'MOD 02
+                    If Len(Trim(MN.Range(colMod3 & rNG.Row))) > 0 Then _
+                    MR.Range("A1:I" & mRw).AutoFilter Field:=MR.Columns(mrMD3).Column, Criteria1:=Trim(MN.Range(colMod3 & rNG.Row)) 'MOD 03 'ADDED 2026.03.10
+                    If MR.AutoFilter.Range.Columns(mrCCN).SpecialCells(xlCellTypeVisible).Cells.Count - 1 <> 1 Then
+                        MN.Range(colStat & rNG.Row) = "UNABLE TO CALCULATE"
+                    Else
+                        Set rMg = MR.AutoFilter.Range.Columns(mrCCN).Offset(1, 0).Resize(mRw - 1, 1).SpecialCells(xlCellTypeVisible)
+                        If MruCalc.Exists(CStr(Year(CDate(MR.Range(mrBGN & rMg.Row))) & Trim(MR.Range(mrPRV & rMg.Row)))) Then
+                            If PosIn.Exists(CStr(Format(Trim(MR.Range(mrPOS & rMg.Row)), "00"))) Then 'IN-NETWORK
+                                MN.Range(colNwAmt & rNG.Row) = Format(Round(CDbl(MR.Range(mrAMT & rMg.Row)) * CDbl(Split(MruCalc.Item(CStr(Year(CDate(MR.Range(mrBGN & rMg.Row))) & Trim(MR.Range(mrPRV & rMg.Row)))), ":")(0)), 2), "#.00")
+                            Else 'OUT-OF-NETWORK
+                                MN.Range(colNwAmt & rNG.Row) = Format(Round(CDbl(MR.Range(mrAMT & rMg.Row)) * CDbl(Split(MruCalc.Item(CStr(Year(CDate(MR.Range(mrBGN & rMg.Row))) & Trim(MR.Range(mrPRV & rMg.Row)))), ":")(1)), 2), "#.00")
+                            End If
+                        Else
+                            MN.Range(colStat & rNG.Row) = "NO MRU CALC SET"
+                        End If
+                    End If: DoEvents
+                Next rNG
+            End If
+            DoEvents
+        Next rW
+        If MN.AutoFilterMode Then MN.AutoFilterMode = False
+        If MR.AutoFilterMode Then MR.AutoFilterMode = False
+        Set rNG = Nothing: Set rMg = Nothing
+    End With
+End Sub
+
+Private Sub chkReprice_Click()
+    Dim rW As Long
+    With MN
+        If .chkReprice.Value = True Then
+            If MsgBox("APPLY " & Format(.Range("U5"), "0.00%") & " IN LINE CHARGE." & vbCrLf & vbCrLf & _
+            "Do you want to continue?", vbQuestion + vbYesNo, "HELPER") <> vbYes Then End
+            For rW = .Range("G1") To .Range("G2")
+                .Range(colNwAmt & rW) = "'" & Format(Round(.Range(colLnChgAmt & rW) * .Range("U5"), 2), "0.00")
+                DoEvents
+            Next rW
+        End If
+    End With
+End Sub
+
+Private Sub cmdMedCalc_Click()
+    Dim MacroAssetName As String, MacroStartTime As Date, MacroEndTime As Date, MacroFile As String, MacroTransaction As String, MacroAssetId As String, MacroComments As String
+    Dim rW As Long
+    Local_Folder = Environ("LocalAppData") & "\Macros\VBS"
+    AAI_ID = AAI_ASSET_INFO(Local_Folder & "\", fASSETLIST)
+   'AAI LOG ATTRIBUTES
+    MacroAssetName = mASSETNAME 'OPTIONAL (ORIGINAL AAI REGISTRATION)
+    MacroFile = "" 'OPTIONAL (ORIGINAL REGISTERED MACRO FILE)
+    MacroComments = mCURRENTVR & "|" & ThisWorkbook.Name 'OPTIONAL (USER RENAMEED FILE)
+    MacroStartTime = Now() 'REQUIRED
+    MacroAssetId = AAI_ID 'REQUIRED
+    tTrans = 0
+   '**************************
+   'START OF AUTOMATION
+   '**************************
+    With MN
+       .Application.ScreenUpdating = False
+        For rW = .Range("G1") To .Range("G2")
+            MEDICARE_CALCULATION MN, .Range("N6"), Trim(.Range(colCCN1 & rW))
+            DoEvents: tTrans = tTrans + 1
+        Next rW
+       .Application.ScreenUpdating = True
+    End With
+   '**************************
+    MacroEndTime = Now() 'REQUIRED
+    MacroTransaction = IIf(tTrans > 0, CStr(tTrans), "") 'OPTIONAL (TOTAL TRANSACTION)
+    If Len(Trim(MacroAssetId)) > 0 Then
+        Call USAGE_LOG_AAI(MacroAssetName, MacroStartTime, MacroEndTime, MacroFile, MacroTransaction, MacroAssetId, MacroComments, AutomationTeam, AAIEnvironment)
+    End If
+    MsgBox "MACRO IS FINISHED", vbInformation, ThisWorkbook.Name
+End Sub
+
+Private Sub cmdRun_Click()
+    Dim MacroAssetName As String, MacroStartTime As Date, MacroEndTime As Date, MacroFile As String, MacroTransaction As String, MacroAssetId As String, MacroComments As String
+    Dim rW As Long, SESSION_TYP As String
+    Local_Folder = Environ("LocalAppData") & "\Macros\VBS"
+    AAI_ID = AAI_ASSET_INFO(Local_Folder & "\", fASSETLIST)
+   'AAI LOG ATTRIBUTES
+    MacroAssetName = mASSETNAME 'OPTIONAL (ORIGINAL AAI REGISTRATION)
+    MacroFile = "" 'OPTIONAL (ORIGINAL REGISTERED MACRO FILE)
+    MacroComments = mCURRENTVR & "|" & ThisWorkbook.Name 'OPTIONAL (USER RENAMEED FILE)
+    MacroStartTime = Now() 'REQUIRED
+    MacroAssetId = AAI_ID 'REQUIRED
+    tTrans = 0
+   '**************************
+   'START OF AUTOMATION
+   '**************************
+    With MN
+        SESSION_TYP = .Range("B10")
+        If CURRENT_SESSION(SESSION_TYP) <> True Then Exit Sub
+        For rW = .Range("G1") To .Range("G2")
+            Line_Update_Release SESSION_TYP, rW
+            DoEvents: tTrans = tTrans + 1
+        Next rW
+    End With
+   '**************************
+    MacroEndTime = Now() 'REQUIRED
+    MacroTransaction = IIf(tTrans > 0, CStr(tTrans), "") 'OPTIONAL (TOTAL TRANSACTION)
+    If Len(Trim(MacroAssetId)) > 0 Then
+        Call USAGE_LOG_AAI(MacroAssetName, MacroStartTime, MacroEndTime, MacroFile, MacroTransaction, MacroAssetId, MacroComments, AutomationTeam, AAIEnvironment)
+    End If
+    MsgBox "MACRO IS FINISHED", vbInformation, ThisWorkbook.Name
+End Sub
+
+Private Sub lblClearClaim_Click()
+    If MsgBox("This will clear all CLAIM LEVEL info. Do you want to proceed?", _
+    vbQuestion + vbYesNo, ThisWorkbook.Name) <> vbYes Then Exit Sub
+    CLEARLIST "CLAIM LEVEL"
+End Sub
+
+Private Sub lblClearSvc_Click()
+    If MsgBox("This will clear all SERVICE LINE info. Do you want to proceed?", _
+    vbQuestion + vbYesNo, ThisWorkbook.Name) <> vbYes Then Exit Sub
+    CLEARLIST "SERVICE LINE"
+End Sub
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    With MN
+        Select Case Target.Address
+            Case "$B$10"
+                With .Range("E10:I10")
+                    .ClearContents
+                    .Validation.Delete
+                End With
+                Select Case Target.Value
+                    Case "REFLECTION"
+                        AVAILABLE_EXTRAS True
+                    Case "IBM PCOMM": SESSION_AVAILABLE True
+                End Select
+        End Select
+    End With
+End Sub
