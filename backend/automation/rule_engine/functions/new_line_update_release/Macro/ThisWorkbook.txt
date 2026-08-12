@@ -1,0 +1,5 @@
+Private Sub Workbook_Open()
+    MACRO_LIST_AND_LOG_SETUP False
+    FORCE_EXCEL_TONEW_INSTANCE True
+    MN.Range("B10") = "REFLECTION"
+End Sub
