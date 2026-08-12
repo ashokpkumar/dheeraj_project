@@ -1,0 +1,275 @@
+'ADD BELOW REQUIRED REFERENCES
+'Microsoft ActiveX Data Object 2.8 Library
+'Microsoft Scripting Runtime
+'Windows Script Host Object Model
+ Option Explicit
+ Global Const NETWORK_FILE = "\\nasgw013pn\National_Macro_Project\MasterCopies\Production Files\Files Needed For Macros\ATO\AAI_TrackingScript.vbs" 'AAI SCRIPT
+ Global Const dASSETFILE = "\\nas00462pn\data\UMR-Automation-Team\Manila_UMR_Team\Macro Repository\Inventory\"
+ Global Const fASSETLIST = "Macro Asset List.txt"
+ Global Const AutomationTeam = "umrautomation" 'AAI SCRIPT
+ Global Const AAIEnvironment = "Prod" 'AAI SCRIPT
+ Global Const AAI_VBS = "AAI_TrackingScript.vbs" 'AAI SCRIPT
+ Public Local_Folder As String 'AAI SCRIPT
+ Public AAI_ID As String
+ Public EnvUSER As String
+'************************************************************************
+'**** REQUIRED: NEEDS TO BE POPULATED. ALL VALUES MUST BE CAPITALIZE ****
+'**** MULTIPLE VALUES MUST BE SEPARATED BY SEMI-COLON                ****
+'************************************************************************
+'MUST.BE.THE.SAME.AS.THE.FILENAME.NO.SPACES.IN.BETWEEN.REPLACE.SPACE.WITH.PERIOD
+ Global Const mASSETNAME = "NEW.LINE.UPDATE.RELEASE"
+'REVISION DATE YYYY.MM.DD
+ Global Const mCURRENTVR = "2026.08.07"
+'OTHER SYSTEM PLATFORM MACRO INTEGRATES/USED.(e.g. ATTACHMATE;REFLECTION;IBM PCOMM;SHAREPOINT;MS.EXCEL;MS.SQL;PDF;NOTEPAD;MS.WORD;MS.ACCESS;JACADA)
+ Global Const mDEPENDENCIES = "ATTACHMATE;REFLECTION;EXCEL;IBM"
+'SPECIFICS RELATED TO OTHER TOOLS (e.g. BWAA;GJBB;GJAH;GJFI;EXEL.REPORT;TEXT.REPORT)
+ Global Const mSPECIFICS = "GJBB"
+'TECHNOLOGY USED (e.g. VBA;API;SOAP;XML;JSON;ODBC;ADO)
+ Global Const mCATEGORY = "VBA;API;ADO"
+'PROCESS TYPE (e.g MEDICAL;DENTAL;VISION;REPORT.GENERATION;LETTER.PDF;WORD.DOCUMENT;SHAREPOINT.UPDATE)
+ Global Const mSUBJECT = "HCFA;UB"
+'****                                                                ****
+
+Public Sub MACRO_LIST_AND_LOG_SETUP(ByVal IS_WEBCLAIM_REQUIRED As Boolean)
+    Dim FileSYS As FileSystemObject: Set FileSYS = New FileSystemObject
+    Local_Folder = Environ("LocalAppData") & "\Macros\VBS"
+    CREATE_FOLDERS Local_Folder
+    If FILE_MODDATE_COMPARE(dASSETFILE & fASSETLIST, Local_Folder & "\" & fASSETLIST) <> False Then _
+    COPY_FILE dASSETFILE & fASSETLIST, Local_Folder & "\" & fASSETLIST
+    EnvUSER = Left(UCase(Environ("SessionName")), 3)
+    If EnvUSER <> "ICA" Then
+        If IS_WEBCLAIM_REQUIRED <> False Then
+            If Not FileSYS.FolderExists(Local_Folder & "\" & "Utilities") Then _
+            FileSYS.CopyFolder dASSETFILE & "Utilities", Local_Folder & "\" & "Utilities"
+            If FILE_EXISTS(Local_Folder & "\Utilities\PdfClaimImageDetails.dll") <> False Then _
+            ADD_REFERENCE_LIBRARY Local_Folder & "\Utilities\PdfClaimImageDetails.tlb"
+        End If
+    End If
+    SET_MACRO_FILE_PROPERTIES
+    SETUP_USAGE_LOGGING 'AAI SCRIPT
+    Set FileSYS = Nothing
+End Sub
+
+Public Sub SET_MACRO_FILE_PROPERTIES()
+    With ThisWorkbook.BuiltinDocumentProperties
+       .Item("Title") = mASSETNAME
+       .Item("Keywords").Value = mDEPENDENCIES
+       .Item("Comments").Value = mSPECIFICS
+       .Item("Document version").Value = mCURRENTVR
+       .Item("Category").Value = mCATEGORY
+       .Item("Subject").Value = mSUBJECT
+        If Len(Trim(.Item("Revision number").Value)) < 1 Then _
+       .Item("Revision number").Value = 1 Else _
+       .Item("Revision number").Value = CLng(.Item("Revision number").Value) + 1
+    End With
+End Sub
+
+Private Sub AAI_ASSET_INI(ByVal pDIR As String, ByVal fNAME As String)
+    Dim wSH As WshShell: Set wSH = New WshShell
+    Open pDIR & "Schema.ini" For Output As #1
+    Print #1, "[" & fNAME & "]"
+    Print #1, "Format=TabDelimited"
+    Print #1, "ColNameHeader=True"
+    Print #1, "MaxScanRows=0"
+    Close #1
+    Set wSH = Nothing
+End Sub
+
+Public Function AAI_ASSET_INFO(ByVal pDIR As String, ByVal fNAME As String) As String
+    Dim objCON As ADODB.Connection, oConSTR As String, objRS As ADODB.Recordset, QrySTR As String
+    oConSTR = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" & pDIR & ";" & _
+    "Extended Properties=" & """" & "Text;HDR=Yes;FMT=Delimited;ReadOnly=True" & """" & ";"
+    AAI_ASSET_INFO = ""
+    AAI_ASSET_INI pDIR, fNAME
+    Set objCON = New ADODB.Connection
+    If objCON.STATE = adStateClosed Then objCON.Open oConSTR
+    QrySTR = "SELECT TOP 1 [ASSETID] FROM [" & fNAME & "] WHERE [ASSET NAME] = '" & mASSETNAME & _
+    "' AND UCASE([ASSET STATUS]) = 'ACTIVE' ORDER BY CDATE([CREATIONDATE]) DESC;"
+    Set objRS = New ADODB.Recordset
+    objRS.Open QrySTR, objCON, adOpenKeyset, adLockReadOnly, adCmdText
+    If Not objRS.EOF Then AAI_ASSET_INFO = objRS(0)
+    If objRS.STATE Then objRS.Close
+    If objCON.STATE = adStateOpen Then objCON.Close
+    DEL_EXISTING_FILE Local_Folder & "\" & "Schema.ini"
+End Function
+
+Public Function DEL_EXISTING_FILE(ByVal KillFile As String) As String
+     DEL_EXISTING_FILE = "NOT DELETED"
+     If Len(Dir$(KillFile)) > 0 Then
+         SetAttr KillFile, vbNormal: Kill KillFile
+         DEL_EXISTING_FILE = "DELETED"
+     End If
+End Function
+
+Public Sub CREATE_FOLDERS(ByVal FolderPATH As String) 'AAI SCRIPT
+    Dim FileSYS As FileSystemObject, dFOLDERS As String, Folder
+    Set FileSYS = New FileSystemObject
+    For Each Folder In Split(FolderPATH, "\")
+        dFOLDERS = dFOLDERS & Folder & "\"
+        If Not FileSYS.FolderExists(dFOLDERS) Then
+            On Error Resume Next
+            FileSYS.CreateFolder dFOLDERS
+        End If
+    Next: Set FileSYS = Nothing
+End Sub
+
+Public Function FILE_MODDATE_COMPARE(ByVal origFILE As String, ByVal destFILE As String) As Boolean 'AAI SCRIPT
+    Dim FileSYS As FileSystemObject
+    FILE_MODDATE_COMPARE = False
+    Set FileSYS = New FileSystemObject
+    If (MODIFIED_FILE_CHECK(origFILE) <> MODIFIED_FILE_CHECK(destFILE)) Or _
+    Not FileSYS.FileExists(destFILE) Then
+        FILE_MODDATE_COMPARE = True
+    End If
+    Set FileSYS = Nothing
+End Function
+
+Public Function MODIFIED_FILE_CHECK(ByVal filePATH As String) As Date 'AAI SCRIPT
+    Dim FileSYS As FileSystemObject, modFILE As File
+    Set FileSYS = New FileSystemObject
+    If FileSYS.FileExists(filePATH) Then
+        Set modFILE = FileSYS.GetFile(filePATH)
+        MODIFIED_FILE_CHECK = Trim(modFILE.DateLastModified)
+    Else
+        MODIFIED_FILE_CHECK = "1/1/1899"
+    End If: Set FileSYS = Nothing: Set modFILE = Nothing
+End Function
+
+Public Sub COPY_FILE(ByVal origFILE As String, ByVal destFILE As String) 'AAI SCRIPT
+    Dim FileSYS As FileSystemObject
+    Set FileSYS = New FileSystemObject
+    If FileSYS.FileExists(origFILE) Then
+        On Error Resume Next
+        FileSYS.CopyFile origFILE, destFILE, True
+    End If: Set FileSYS = Nothing
+End Sub
+
+Public Function FILE_EXISTS(ByVal filePATH As String) As Boolean  'ADDED 2025.05.02
+    Dim FileSYS As FileSystemObject
+    Set FileSYS = New FileSystemObject
+    FILE_EXISTS = False
+    If FileSYS.FileExists(filePATH) Then FILE_EXISTS = True
+    Set FileSYS = Nothing
+End Function
+
+Public Sub SETUP_USAGE_LOGGING() 'AAI SCRIPT
+    If FILE_MODDATE_COMPARE(NETWORK_FILE, Local_Folder & "\" & AAI_VBS) <> False Then _
+    COPY_FILE NETWORK_FILE, Local_Folder & "\" & AAI_VBS
+End Sub
+
+Public Function USAGE_LOG_AAI(ByVal MacroAssetName As String, ByVal MacroStartTime As Date, ByVal MacroEndTime As Date, ByVal MacroFile As String, _
+ByVal MacroTransaction As String, ByVal MacroAssetId As String, ByVal MacroComments As String, ByVal AutomationTeam As String, ByVal AAIEnvironment As String) 'AAI SCRIPT
+'************************************************************************************
+   '// Parameters to pass to vbs
+    Dim Macro_Parameters, wSHELL As WshShell, filelaunch, returnError, AAiAutomationType
+    AAiAutomationType = "End User"
+    Macro_Parameters = cHr(34) & AAiAutomationType & cHr(34) & " " & cHr(34) & MacroAssetName & cHr(34) & " " & cHr(34) & MacroAssetId & _
+    cHr(34) & " " & cHr(34) & MacroStartTime & cHr(34) & " " & cHr(34) & MacroEndTime & cHr(34) & " " & cHr(34) & MacroComments & cHr(34) & _
+    " " & cHr(34) & MacroTransaction & cHr(34) & " " & cHr(34) & MacroFile & cHr(34) & " " & cHr(34) & AutomationTeam & cHr(34) & _
+    " " & cHr(34) & AAIEnvironment & cHr(34)
+
+   '// Program to be launched
+    Set wSHELL = New WshShell
+   
+   '// Set Local Log filepath
+    filelaunch = cHr(34) & Local_Folder & "\" & AAI_VBS & cHr(34) & " " & Macro_Parameters
+    
+    On Error Resume Next
+    returnError = wSHELL.Run(filelaunch)  '// Launch Droid Log VBS
+    If returnError <> 0 Then
+        MsgBox "Usage tracking was not logged correctly." & vbNewLine & "Please notify your SAA/Macro Champ with this information."
+    End If
+    Set wSHELL = Nothing
+End Function
+
+Public Sub REGISTER_DLL(DLLPath As String)
+   'Path to RegAsm, adjust to the version of the .Net framework you're targeting
+    Dim RegasmPATH As String, LibraryPATH As String, strNewRegPATH As String, wS As WshShell, strRegFileCONTENT As String, fileNO As Integer
+    RegasmPATH = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
+    Set wS = New WshShell
+    #If Win64 Then
+        Const Win64 = True
+    #Else
+        Const Win64 = False
+    #End If
+    LibraryPATH = Left(DLLPath, Len(DLLPath) - 4)
+    If Dir(DLLPath) = "" Then 'Check if file exists
+        Err.Raise 1, Description:="Missing DLL!"
+        Exit Sub
+    End If
+    wS.Run """" & RegasmPATH & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
+        strNewRegPATH = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
+    Else
+        strNewRegPATH = "HKEY_CURRENT_USER\SOFTWARE\Classes" 'Default registry path
+    End If
+    fileNO = FreeFile
+    Open LibraryPATH & ".reg" For Binary Access Read Write As #fileNO
+        strRegFileCONTENT = String(LOF(fileNO), vbNullChar)
+        Get #fileNO, , strRegFileCONTENT 'Read reg contents
+        strRegFileCONTENT = Replace(strRegFileCONTENT, "HKEY_CLASSES_ROOT", strNewRegPATH) 'Change reg path
+        Put #fileNO, 1, strRegFileCONTENT 'Overwrite, always extends so no need to truncate
+    Close #fileNO
+    wS.Run "regedit.exe /s """ & LibraryPATH & ".reg""", 0, True  'Merge silently into registry
+    Kill LibraryPATH & ".reg" 'Clean up registry
+    Set wS = Nothing
+End Sub
+
+Public Sub UNREGISTER_DLL(DLLPath As String)
+    Dim RegasmPATH As String, LibraryPATH As String, strNewRegPATH As String, wS As WshShell, strRegFileCONTENT As String, fileNO As Integer, fileOutput As Integer
+    RegasmPATH = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
+    Set wS = New WshShell
+    #If Win64 Then
+        Const Win64 = True
+    #Else
+        Const Win64 = False
+    #End If
+    LibraryPATH = Left(DLLPath, Len(DLLPath) - 4)
+    If Dir(DLLPath) = "" Then 'Check if file exists
+        Err.Raise 1, Description:="Missing DLL!"
+        Exit Sub
+    End If
+    wS.Run """" & RegasmPATH & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
+        strNewRegPATH = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
+    Else
+        strNewRegPATH = "HKEY_CURRENT_USER\SOFTWARE\Classes" 'Default registry path
+    End If
+    fileNO = FreeFile
+    fileOutput = FreeFile + 1
+    Open LibraryPATH & ".reg" For Input As #fileNO
+    Open LibraryPATH & "remove.reg" For Output As #fileOutput
+        Line Input #fileNO, strRegFileCONTENT 'Read reg contents
+        Print #fileOutput, strRegFileCONTENT 'Copy first line blindly
+        Do While Not EOF(fileNO)
+            Line Input #fileNO, strRegFileCONTENT 'Read reg contents
+            strRegFileCONTENT = Replace(strRegFileCONTENT, "HKEY_CLASSES_ROOT", strNewRegPATH) 'Change reg path
+            If Left(strRegFileCONTENT, 1) = "[" Then 'If new key
+                Print #fileOutput, "[-" & Mid(strRegFileCONTENT, 2) 'Change to remove key
+            End If
+        Loop
+    Close #fileOutput
+    Close #fileNO
+    Kill LibraryPATH & ".reg" 'Remove create file
+    wS.Run "regedit.exe /s """ & LibraryPATH & "remove.reg"""  'Merge silently into registry
+    Kill LibraryPATH & "remove.reg" 'Remove delete file
+    Set wS = Nothing
+End Sub
+
+Public Sub ADD_REFERENCE_LIBRARY(ByVal oLibFullPath As String) ' ByVal dllFile As String
+    Dim objREF As Object, blnFOUND As Boolean
+    UNREGISTER_DLL Replace(oLibFullPath, "tlb", "dll")
+    REGISTER_DLL Replace(oLibFullPath, "tlb", "dll")
+    With ThisWorkbook
+        For Each objREF In .VBProject.References ' .Application.VBE.ActiveVBProject.References
+            blnFOUND = False
+            Select Case objREF.Name 'Debug.Print R.Name & ":" & R.GUID & " " & R.fullpath
+                Case "PdfClaimImageDetails"
+                    blnFOUND = True
+                   .VBProject.References.Remove .VBProject.References(objREF.Name)
+                    Exit For
+            End Select
+        Next objREF
+      '.VBProject.References.AddFromFile oLibFullPath
+    End With
+End Sub
