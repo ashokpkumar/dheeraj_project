@@ -1,0 +1,8 @@
+Private Sub Label1_Click()
+    If MsgBox("This will clear MED CALC SETTINGS info. Do you want to proceed?", _
+    vbQuestion + vbYesNo, ThisWorkbook.Name) <> vbYes Then Exit Sub
+    With ThisWorkbook.Worksheets("REFERENCE")
+        .Range("D3") = "TMP"
+        .Range("D3:H" & .Cells(.Rows.Count, "D").End(xlUp).Row).ClearContents
+    End With
+End Sub
