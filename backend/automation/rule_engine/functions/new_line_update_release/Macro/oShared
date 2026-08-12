@@ -1,0 +1,293 @@
+Option Explicit
+Public wSesApp As Object
+Public autECLConnList As Object
+Public autECLOIA As Object
+Public Declare Function URLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" _
+(ByVal pCaller As Long, ByVal szURL As String, ByVal _
+szFileName As String, ByVal dwReserved As Long, ByVal lpfnCB As Long) As Long
+
+Public Sub SESSION_AVAILABLE(ByVal bLN As Boolean)
+    Dim a As Integer, s As String
+    If bLN <> True Then Exit Sub
+    Set autECLConnList = CreateObject("PCOMM.autECLConnList")
+    autECLConnList.Refresh
+    With MN
+       .Range("E10:I10").ClearContents
+        With .Range("E10").Validation
+           .Delete: s = ""
+            For a = 1 To autECLConnList.Count
+                s = s & autECLConnList(a).Name & ","
+            Next a
+            s = Trim(Replace(s & ".", ",.", ""))
+            If Len(s) >= 0 Then
+                .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:=s
+                .IgnoreBlank = True: .InCellDropdown = True: .InputTitle = "": .ErrorTitle = ""
+                .InputMessage = "SELECT AVAILABLE SESSION": .ErrorMessage = "": .ShowInput = True: .ShowError = True
+            End If
+        End With
+    End With: Set autECLConnList = Nothing
+End Sub
+
+Public Sub AVAILABLE_EXTRAS(ByVal bLN As Boolean)
+    Dim objSystem As Object, objSessions As Object, a As Integer, s As String, OldSystemTimeout&, g_HostSettleTime
+    If bLN <> True Then Exit Sub
+    On Error Resume Next
+    Set objSystem = CreateObject("EXTRA.System")
+    OldSystemTimeout& = objSystem.TimeoutValue
+    If (g_HostSettleTime > OldSystemTimeout) Then objSystem.TimeoutValue = g_HostSettleTime
+    Set objSessions = objSystem.Sessions
+    s = ""
+    For a = 0 To objSessions.Count - 1
+        s = s & objSessions.Item(a).FullName & ","
+    Next a
+    s = Trim(Replace(s & ".", ",.", ""))
+    MN.Range("E10:E10").ClearContents
+    MN.Range("E10").Validation.Delete
+    If Len(s) > 1 Then
+        With MN.Range("E10").Validation
+            .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, Formula1:=s
+            .IgnoreBlank = True: .InCellDropdown = True: .InputTitle = "": .ErrorTitle = ""
+            .InputMessage = "SELECT AVAILABLE SESSION": .ErrorMessage = "": .ShowInput = True: .ShowError = False
+        End With
+    End If
+    Set objSystem = Nothing: Set objSessions = Nothing
+End Sub
+
+Public Function CURRENT_SESSION(ByVal SESSION_TYP As String) As Boolean
+    Dim objSystem As Object, objSessions As Object, msg As String, OldSystemTimeout&, g_HostSettleTime
+    On Error GoTo ErrHandler
+    CURRENT_SESSION = False
+    Select Case Trim(SESSION_TYP)
+        Case "REFLECTION"
+            g_HostSettleTime = 500
+            Set objSystem = CreateObject("EXTRA.System")
+            OldSystemTimeout& = objSystem.TimeoutValue
+            If (g_HostSettleTime > OldSystemTimeout) Then objSystem.TimeoutValue = g_HostSettleTime
+            If (objSystem Is Nothing) Then msg = "Could not create the EXTRA System object."
+            Set objSessions = objSystem.Sessions
+            If (objSessions Is Nothing) Then msg = "Could not create the Sessions collection object."
+            If Len(Trim(MN.Range("F3"))) > 0 Then _
+            Set wSesApp = objSessions.Item(Trim(MN.Range("E10"))) Else _
+            Set wSesApp = objSystem.ActiveSession
+            If (wSesApp Is Nothing) Then msg = "Could not create the Session object."
+        Case "IBM PCOMM"
+            Set wSesApp = CreateObject("PCOMM.autECLPS")
+            Set autECLOIA = CreateObject("PCOMM.autECLOIA")
+            autECLOIA.SetConnectionByName (Trim(MN.Range("E10")))
+            wSesApp.SetConnectionByName (Trim(MN.Range("E10")))
+    End Select
+    CURRENT_SESSION = True
+    Exit Function
+ErrHandler:
+    MsgBox "Unable to communicate with session." & vbNewLine & vbNewLine & msg & _
+    vbNewLine & vbNewLine & Err.Description, vbCritical, ThisWorkbook.Name
+    Set wSesApp = Nothing: Set objSystem = Nothing: Set objSessions = Nothing: Set autECLOIA = Nothing
+End Function
+
+Public Function SCREEN_TEXT(ByVal SESSION_TYP As String, ByVal r As Integer, ByVal C As Integer, ByVal L As Integer) As String
+    SCREEN_TEXT = ""
+    With wSesApp
+        Select Case Trim(SESSION_TYP)
+            Case "REFLECTION"
+                With .Screen
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    SCREEN_TEXT = UCase(Trim(.GetString(r, C, L)))
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End With
+            Case "IBM PCOMM"
+                autECLOIA.WaitForInputReady
+                SCREEN_TEXT = UCase(Trim(.GetText(r, C, L)))
+                autECLOIA.WaitForInputReady
+        End Select
+    End With
+End Function
+
+Public Function SENDTHIS_KEY(ByVal SESSION_TYP As String, ByVal KEY_VAL As String)
+    If Len(Trim(KEY_VAL)) < 1 Then Exit Function
+    With wSesApp
+        Select Case Trim(SESSION_TYP)
+            Case "REFLECTION"
+                With .Screen
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                   .SendKeys "<" & KEY_VAL & ">"
+                    Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End With
+            Case "IBM PCOMM"
+                autECLOIA.WaitForInputReady
+               .SendKeys "[" & KEY_VAL & "]"
+                autECLOIA.WaitForInputReady
+        End Select
+    End With
+End Function
+
+Public Function PLACEVALUE(ByVal SESSION_TYP As String, ByVal val As String, ByVal r As Integer, ByVal C As Integer)
+    If Len(Trim(val)) < 1 Then Exit Function
+    REMOVEVALUE SESSION_TYP, r, C
+    With wSesApp
+        Select Case Trim(SESSION_TYP)
+            Case "REFLECTION"
+                With .Screen
+                    .MoveTo r, C: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .PutString UCase(Trim(val)), r, C: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End With
+            Case "IBM PCOMM"
+                autECLOIA.WaitForInputReady
+               .SetText UCase(Trim(val)), r, C
+                autECLOIA.WaitForInputReady
+        End Select
+    End With
+End Function
+
+Public Function REMOVEVALUE(ByVal SESSION_TYP As String, ByVal r As Integer, ByVal C As Integer)
+    With wSesApp
+        Select Case Trim(SESSION_TYP)
+            Case "REFLECTION"
+                With .Screen
+                    .MoveTo r, C: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                End With
+            Case "IBM PCOMM"
+                autECLOIA.WaitForInputReady
+               .SetCursorPos r, C
+                autECLOIA.WaitForInputReady
+               .SendKeys "[eraseeof]"
+                autECLOIA.WaitForInputReady
+        End Select
+    End With
+End Function
+
+Public Function PGFWD(ByVal SESSION_TYP As String, ByVal KEY_VAL As String, ByVal pgCntr As Integer)
+    Dim pG As Integer
+    With wSesApp
+        For pG = 2 To pgCntr
+            Select Case UCase(Trim(SESSION_TYP))
+                Case "REFLECTION"
+                    SENDTHIS_KEY SESSION_TYP, KEY_VAL
+                Case "IBM PCOMM"
+                    SENDTHIS_KEY SESSION_TYP, KEY_VAL
+            End Select: DoEvents
+        Next pG
+    End With
+End Function
+
+Public Function ROW_CURSOR(ByVal SESSION_TYP As String) As Integer
+    With wSesApp
+        Select Case Trim(SESSION_TYP)
+            Case "REFLECTION": ROW_CURSOR = .Screen.Row
+            Case "IBM PCOMM": ROW_CURSOR = .CursorRow
+        End Select
+    End With
+End Function
+
+Public Function NORMALIZED_STRING_VALUE(ByVal val As String) As String
+    Dim i As Integer
+    NORMALIZED_STRING_VALUE = ""
+    If Len(val) < 1 Then Exit Function
+    For i = 0 To UBound(Split(val, " "))
+        If Len(Trim(Split(val, " ")(i))) > 0 Then NORMALIZED_STRING_VALUE = NORMALIZED_STRING_VALUE & Trim(Split(val, " ")(i)) & " "
+    Next i
+    NORMALIZED_STRING_VALUE = UCase(Trim(NORMALIZED_STRING_VALUE))
+End Function
+
+Public Sub CLEAR_WORKSHEETS(ByRef wS As Worksheet)
+    With ThisWorkbook.Worksheets(wS.Name)
+        If .AutoFilterMode Then .AutoFilterMode = False
+        .ACTIVATE
+        .Range("A5").Select
+        .Range("A5:AZ5") = "TEMP"
+        .Range("A5:AZ" & .UsedRange.Rows.Count + 1).ClearContents
+    End With
+    MN.ACTIVATE
+End Sub
+
+Public Function FORCE_EXCEL_TONEW_INSTANCE(ByVal bLN As Boolean)
+    Dim wS As New WshShell, sKey As String, KeyVal
+    If bLN <> False Then Exit Function
+    sKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\16.0\Excel\Options\DisableMergeInstance"
+    If REGKEY_EXISTS(sKey, KeyVal) = True Then
+        If KeyVal <> 1 Then
+            wS.RegDelete sKey: GoTo SAVE_KEY
+        End If
+    Else
+SAVE_KEY:
+        wS.RegWrite sKey, 1, "REG_DWORD"
+    End If: Set wS = Nothing
+End Function
+
+Private Function REGKEY_EXISTS(ByVal sKey As String, KeyVal) As Boolean
+    Dim wS As WshShell
+    On Error GoTo ErrHandler
+    Set wS = New WshShell
+    KeyVal = wS.RegRead(sKey)
+    REGKEY_EXISTS = True
+Rel_Obj:
+    Set wS = Nothing
+    Exit Function
+ErrHandler:
+    REGKEY_EXISTS = False
+    GoTo Rel_Obj
+End Function
+
+Public Sub CALCULATE_UHSS_REPRICED_AMTS()
+    Dim i As Long, rNG As Range, rNg2 As Range, j As Long, r As Integer, blnNegFnd As Boolean, valNegAmt As Double
+    Dim UHSS_GRPs As New Dictionary
+    UHSS_GRPs.RemoveAll
+    With RF
+        For i = 2 To .Cells(.Rows.Count, "E").End(xlUp).Row
+            If Not UHSS_GRPs.Exists(CStr(Trim(.Range("E" & i)))) Then _
+            UHSS_GRPs.Add CStr(Trim(.Range("E" & i))), CStr(Trim(.Range("F" & i)))
+        Next i
+    End With
+    With MN
+       .Range("M3") = "MACRO RUNNING: CALCULATING UHSS REPRICE AMOUNT..."
+        If .AutoFilterMode Then .AutoFilterMode = False
+        If SL.AutoFilterMode Then SL.AutoFilterMode = False
+        i = .Cells(.Rows.Count, "A").End(xlUp).Row
+        j = SL.Cells(SL.Rows.Count, "A").End(xlUp).Row
+       .Range("A4:Z" & .Cells(.Rows.Count, "A").End(xlUp).Row).AutoFilter Field:=2, Criteria1:="UB"
+       .Range("A4:Z" & .Cells(.Rows.Count, "A").End(xlUp).Row).AutoFilter Field:=3, Criteria1:="78*"
+        If .AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+            For Each rNG In .AutoFilter.Range.Columns(1).Offset(1, 0).Resize(i - 3, 1).SpecialCells(xlCellTypeVisible)
+                If SL.AutoFilterMode Then SL.AutoFilterMode = False
+                If UHSS_GRPs.Exists(CStr(Trim(.Range("C" & rNG.Row)))) Then
+                    SL.Range("A4:Y" & SL.Cells(SL.Rows.Count, "A").End(xlUp).Row).AutoFilter Field:=1, Criteria1:=Trim(.Range("A" & rNG.Row))
+                    If SL.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+                        RF.Range("H7:H106").ClearContents
+                        RF.Range("I2") = 0: RF.Range("I3") = 0
+                        If Len(Trim(.Range("Q" & rNG.Row))) > 0 Then
+                            r = 7
+                            RF.Range("I2") = .Range("Q" & rNG.Row).Value
+                            For Each rNg2 In SL.AutoFilter.Range.Columns(1).Offset(1, 0).Resize(j - 4, 1).SpecialCells(xlCellTypeVisible)
+                                RF.Range("I3") = RF.Range("I3") + SL.Range("I" & rNg2.Row).Value
+                                RF.Range("H" & r) = SL.Range("I" & rNg2.Row).Value
+                                r = r + 1
+                            Next rNg2
+                            r = 7: blnNegFnd = False
+                            For Each rNg2 In SL.AutoFilter.Range.Columns(1).Offset(1, 0).Resize(j - 4, 1).SpecialCells(xlCellTypeVisible)
+                                If CDbl(SL.Range("I" & rNg2.Row).Value) = CDbl(RF.Range("H" & r)) Then
+                                    If Format(Round(RF.Range("I" & r).Value, 2), "0.00") < 0 Then
+                                        blnNegFnd = True
+                                        valNegAmt = Format(Round(RF.Range("I" & r).Value, 2), "0.00")
+                                        SL.Range("Q" & rNg2.Row) = "'0"
+                                        GoTo NxtRng2
+                                    End If
+                                    SL.Range("Q" & rNg2.Row) = "'" & IIf(blnNegFnd <> True, Format(Round(RF.Range("I" & r).Value, 2), "0.00"), Format(Round(RF.Range("I" & r).Value, 2), "0.00") + valNegAmt)
+                                    blnNegFnd = False
+                                End If
+NxtRng2:
+                                r = r + 1
+                            Next rNg2
+                        End If
+                    End If
+                End If: DoEvents
+                If SL.AutoFilterMode Then SL.AutoFilterMode = False
+            Next rNG
+        End If
+       .Range("M3").ClearContents
+        If .AutoFilterMode Then .AutoFilterMode = False
+        If SL.AutoFilterMode Then SL.AutoFilterMode = False
+        Set rNG = Nothing
+    End With
+End Sub
+
