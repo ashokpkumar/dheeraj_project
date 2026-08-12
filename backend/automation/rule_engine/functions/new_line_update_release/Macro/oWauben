@@ -1,0 +1,715 @@
+Public HcfaCd As New Dictionary
+Public UbCd As New Dictionary
+Public ExCDs As New Dictionary 'ADDED 2026.06.17
+Public MdCalc As New Dictionary
+Public MruCalc As New Dictionary 'ADDED 2025.08.26
+Public PosIn As New Dictionary 'ADDED 2025.08.26
+
+Public Sub SetInelCdList()
+    Dim i As Integer
+    HcfaCd.RemoveAll: UbCd.RemoveAll: ExCDs.RemoveAll
+    With RF
+        For i = 3 To .Cells(.Rows.Count, "A").End(xlUp).Row
+            If Not HcfaCd.Exists(Trim(.Range("A" & i))) Then _
+            HcfaCd.Add IIf(Trim(.Range("A" & i)) = "BLANK", "", CStr(Trim(.Range("A" & i)))), CStr(Trim(.Range("A" & i)))
+        Next i
+        For i = 3 To .Cells(.Rows.Count, "B").End(xlUp).Row
+            If Not UbCd.Exists(Trim(.Range("B" & i))) Then _
+            UbCd.Add IIf(Trim(.Range("B" & i)) = "BLANK", "", CStr(Trim(.Range("B" & i)))), CStr(Trim(.Range("B" & i)))
+        Next i
+        For i = 3 To .Cells(.Rows.Count, "P").End(xlUp).Row 'ADDED 2026.06.17
+            If Not ExCDs.Exists(CStr(Trim(.Range("P" & i)))) Then _
+            ExCDs.Add CStr(Trim(.Range("P" & i))), CStr(Trim(.Range("P" & i)))
+        Next i
+    End With
+End Sub
+
+Public Function OOP_Claim(ByVal ClaimNo As String) As Boolean
+    Dim lRw As Long
+    OOP_Claim = False
+    With MN
+        If .AutoFilterMode Then .AutoFilterMode = False
+        lRw = .Cells(.Rows.Count, "G").End(xlUp).Row
+       .Range("A12:W" & lRw).AutoFilter Field:=7, Criteria1:=ClaimNo
+       .Range("A12:W" & lRw).AutoFilter Field:=14, Criteria1:="<0"
+        If .AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+            OOP_Claim = True
+        End If
+        If .AutoFilterMode Then .AutoFilterMode = False
+    End With
+End Function
+
+Public Sub Line_Update_Release(ByVal SESSION_TYP As String, ByVal rW As Long)
+    Dim tDrafts As Integer, i As Integer, p As Integer, DraftNo As Integer, pgCur As Integer, msg As String
+    If MN.AutoFilterMode Then MN.AutoFilterMode = False
+    MN.Range("I1") = rW: SetInelCdList
+    MN.Range(colDraft & rW & ":" & colExMsg & rW).ClearContents
+EntryPoint:
+    Select Case SCREEN_TEXT(SESSION_TYP, 1, 2, 10)
+        Case "CPS520.01"
+             MN.Range(colClmTyp & rW & ":" & colExMsg & rW).ClearContents
+             SENDTHIS_KEY SESSION_TYP, "PF9"
+             PLACEVALUE SESSION_TYP, Trim(MN.Range(colCCN1 & rW)), 8, 15
+             SENDTHIS_KEY SESSION_TYP, "ENTER"
+             If SCREEN_TEXT(SESSION_TYP, 1, 3, 10) <> "CPS520.01" Then
+                tDrafts = 0
+CountTotalDraft:
+                For i = 6 To 19 Step 2
+                    If Len(SCREEN_TEXT(SESSION_TYP, i, 2, 2)) < 1 Then Exit For
+                    tDrafts = tDrafts + 1
+                    DoEvents
+                Next i
+                If InStr(1, SCREEN_TEXT(SESSION_TYP, 20, 2, 60), "MORE DATA") > 0 Then
+                    SENDTHIS_KEY SESSION_TYP, "PF11"
+                    GoTo CountTotalDraft
+                End If
+             Else
+                MN.Range(colExMsg & rW) = SCREEN_TEXT(SESSION_TYP, 31, 2, 60)
+                GoTo NextRw
+             End If
+             MN.Range(colDraft & rW) = "'" & tDrafts
+             SENDTHIS_KEY SESSION_TYP, "PF9"
+             If OOP_Claim(Trim(MN.Range(colCCN1 & rW))) <> False Then
+                MN.Range(colExMsg & rW) = "POSSIBLE OUT-OF-NETWORK CLAIM"
+                GoTo NextRw
+             End If
+             DraftNo = 1: pgCur = 1
+             For i = 1 To tDrafts
+                SENDTHIS_KEY SESSION_TYP, "PF9"
+                PLACEVALUE SESSION_TYP, Trim(MN.Range(colCCN1 & rW)), 8, 15
+                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                If DraftNo > 7 Then
+                    DraftNo = 1: pgCur = pgCur + 1
+                End If
+                If pgCur > 1 Then
+                    For p = 1 To pgCur - 1
+                        SENDTHIS_KEY SESSION_TYP, "PF11"
+                    Next p
+                End If
+                If Not MN.OLEObjects("chkJustRelease").Object.Value Then 'ADDED 2024.11.07
+                    If MN.Range("G5") = "Y" Then
+                        If MN.OLEObjects("chkIgnorePndCd").Object.Value Then 'Added 2024.04.05
+                            If Len(Trim(MN.Range("U2"))) < 1 Then
+                                MsgBox "PEND CODE to IGNORE is MISSING. MACRO ABORT", vbExclamation, ThisWorkbook.Name
+                                End
+                            End If
+                            If RTN_PND_CODE(SESSION_TYP, Format(DraftNo, "00")) = Trim(MN.Range("U2")) Then
+                               GoTo NextDraft
+                            End If
+                            PLACEVALUE SESSION_TYP, Format(DraftNo, "00"), 3, 26
+                        Else
+                            PLACEVALUE SESSION_TYP, "01", 3, 26
+                        End If
+                    Else
+                        If MN.OLEObjects("chkLineDrft").Object.Value Then 'Added 2022.07.01
+                            'IMPORTANT NOTE =====================================================
+                            'WHEN CLAIM RE-PENDED SUCCESSFULLY
+                            'CURRENT DRAFT GOES AT THE BOTTOM OF THE LIST
+                            'DEFAULT TO 01 FOR DRAFT SELECTION REGARDLESS IF RELEASING OR PENDING
+                             PLACEVALUE SESSION_TYP, "01", 3, 26
+                            '====================================================================
+                        Else
+                            PLACEVALUE SESSION_TYP, Format(DraftNo, "00"), 3, 26 'REACTIVATE THIS LINE 2022.03.14
+                        End If
+                    End If
+                End If
+                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                If Not MN.OLEObjects("chkJustRelease").Object.Value Then 'ADDED 2024.11.07
+                    If MN.Range("K8") = "Y" Then 'PROVIDER CHANGE
+                        PLACEVALUE SESSION_TYP, "X", 29, 26 'PR FIELD
+                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                        REMOVEVALUE SESSION_TYP, 3, 27
+                        PLACEVALUE SESSION_TYP, Trim(MN.Range("M8")), 5, 69 'ZIP
+                        PLACEVALUE SESSION_TYP, Trim(MN.Range("M7")), 7, 30 'INT NBR
+                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                        If SCREEN_TEXT(SESSION_TYP, 1, 2, 10) <> "CPS310.01" Then
+                            MN.Range(colExMsg & rW) = "PROVIDER CHANGE FAILED."
+                            GoTo NextRw
+                        End If
+                    End If
+                End If
+                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                If Not MN.OLEObjects("chkJustRelease").Object.Value Then 'ADDED 2024.11.07
+                    Select Case SCREEN_TEXT(SESSION_TYP, 1, 2, 10)
+                        Case "CPS920.01"
+                            SENDTHIS_KEY SESSION_TYP, "ENTER"
+                            MN.Range(colExMsg & rW) = "NOT RELEASED." & SCREEN_TEXT(SESSION_TYP, 31, 2, 60)
+                            GoTo NextRw
+                        Case "BLX2460.01"
+                            MN.Range(colClmTyp & rW) = "UB"
+                            If Trim(MN.Range("E6")) = "Y" Then REMOVEVALUE SESSION_TYP, 22, 6  'PRV
+                            PLACEVALUE SESSION_TYP, Trim(MN.Range(colNwPV & rW)), 22, 6 'NEW PRV VAL
+                            ' === Added 2023.02.14 ===
+                            'If MN.chkRmvInel2.Value = True Then 'CHANGED CHKBOX to LIST 2023.08.08
+                            If MN.Range("N2") = "REMOVE INEL2 AMTCD" Then 'ADDED 2023.08.08
+                                For j = 12 To 15
+                                    REMOVEVALUE SESSION_TYP, j, 18
+                                    REMOVEVALUE SESSION_TYP, j, 30
+                                Next j
+                            End If
+                            ' ========================
+                            ' === Added 2023.07.17 === Remove OI ELIG/AMT
+                            If MN.chkRemOiEligAmt.Value = True Then
+                                For j = 18 To 21
+                                    REMOVEVALUE SESSION_TYP, j, 2
+                                    REMOVEVALUE SESSION_TYP, j, 14
+                                    REMOVEVALUE SESSION_TYP, j, 26
+                                Next j
+                            End If
+                            ' ========================
+                            If MN.Range("E7") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 71 'UC
+                           'If ws.Range("E8") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 78 'DPSV
+                        Case "CPS450.01"
+                            MN.Range(colClmTyp & rW) = "HCFA"
+                            If Trim(MN.Range("E6")) = "Y" Then REMOVEVALUE SESSION_TYP, 26, 9  'PRV
+                            PLACEVALUE SESSION_TYP, Trim(MN.Range(colNwPV & rW)), 26, 9 'NEW PRV VAL
+                            ' === Added 2023.02.14 ===
+                            'If MN.chkRmvInel2.Value = True Then 'CHANGED CHKBOX to LIST 2023.08.08
+                            If MN.Range("N2") = "REMOVE INEL2 AMTCD" Then 'ADDED 2023.08.08
+                                For j = 14 To 17
+                                    REMOVEVALUE SESSION_TYP, j, 18
+                                    REMOVEVALUE SESSION_TYP, j, 30
+                                Next j
+                            End If
+                            ' ========================
+                            ' === Added 2023.07.17 === Remove OI ELIG/AMT
+                            If MN.chkRemOiEligAmt.Value = True Then
+                                For j = 20 To 23
+                                    REMOVEVALUE SESSION_TYP, j, 4
+                                    REMOVEVALUE SESSION_TYP, j, 16
+                                    REMOVEVALUE SESSION_TYP, j, 28
+                                Next j
+                            End If
+                            ' ========================
+                            If MN.Range("E7") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 69 'UC
+                        Case Else
+                            MN.Range(colExMsg & rW) = "SCREEN NOT MAPPED."
+                            GoTo NextRw
+                    End Select
+                End If
+                If Not MN.OLEObjects("chkNoMatching").Object.Value Then 'Added 2023.04.13
+                    If No_SVCLn_Update(SESSION_TYP, Trim(MN.Range("P6")), rW, MN.Range(colClmTyp & rW)) <> True Then
+                         GoTo SvcLnUpdate
+                    Else 'Release
+                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                        GoTo rTry
+                    End If
+                    SENDTHIS_KEY SESSION_TYP, "ENTER"
+                    GoTo rTry
+                End If
+SvcLnUpdate:
+                If ClaimDraft_SVCLn_Update(SESSION_TYP, MN, MN.Range(colClmTyp & rW), rW, Trim(MN.Range(colCCN1 & rW))) <> True Then
+                    MN.Range(colExMsg & rW) = IIf(Len(MN.Range(colExMsg & rW)) > 0, MN.Range(colExMsg & rW), "FAILED")
+                    'GoTo NextRw
+                Else
+                    SENDTHIS_KEY SESSION_TYP, "ENTER"
+rTry:
+                    Select Case SCREEN_TEXT(SESSION_TYP, 1, 2, 10)
+                        Case "BLX2460.01"
+                            If MN.Range(colClmTyp & rW) = "HCFA" Then
+                                SENDTHIS_KEY SESSION_TYP, "PF8"
+                                PLACEVALUE SESSION_TYP, "450", 2, 37
+                                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                If MN.Range("E8") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 76 'DPSV
+                                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                GoTo rTry
+                            Else
+                                MN.Range(colExMsg & rW) = IIf(Len(SCREEN_TEXT(SESSION_TYP, 31, 2, 70)) < 1, SCREEN_TEXT(SESSION_TYP, 30, 2, 70), SCREEN_TEXT(SESSION_TYP, 31, 2, 70))
+                                If InStr(1, MN.Range(colExMsg & rW), "PRIOR TO CND ONSET", 0) > 0 Then 'ADDED 2026.06.17
+                                    If MN.Range("AA5") = "Y" Then
+                                        SENDTHIS_KEY SESSION_TYP, "PF8"
+                                        PLACEVALUE SESSION_TYP, "910", 2, 37
+                                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                        PLACEVALUE SESSION_TYP, Format(MN.Range("Y5"), "MMDDYY"), 5, 24 'DPSV
+                                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                        GoTo rTry
+                                    End If
+                                End If
+                                GoTo NextRw
+                            End If
+                        Case "CPS450.01"
+                            If MN.Range(colClmTyp & rW) = "UB" Then
+                                SENDTHIS_KEY SESSION_TYP, "PF8"
+                                PLACEVALUE SESSION_TYP, "460", 2, 37
+                                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                If MN.Range("E8") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 78 'DPSV
+                                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                GoTo rTry
+                            Else
+                                MN.Range(colExMsg & rW) = IIf(Len(SCREEN_TEXT(SESSION_TYP, 31, 2, 70)) < 1, SCREEN_TEXT(SESSION_TYP, 30, 2, 70), SCREEN_TEXT(SESSION_TYP, 31, 2, 70))
+                                If InStr(1, MN.Range(colExMsg & rW), "PRIOR TO CND ONSET", 0) > 0 Then 'ADDED 2026.06.17
+                                    If MN.Range("AA5") = "Y" Then
+                                        SENDTHIS_KEY SESSION_TYP, "PF8"
+                                        PLACEVALUE SESSION_TYP, "910", 2, 37
+                                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                        PLACEVALUE SESSION_TYP, Format(MN.Range("Y5"), "MMDDYY"), 5, 24 'DPSV
+                                        SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                        GoTo rTry
+                                    End If
+                                End If
+                                GoTo NextRw
+                            End If
+                        Case "CPS445.01"
+                            SENDTHIS_KEY SESSION_TYP, "ENTER"
+                            If MN.Range(colClmTyp & rW) = "HCFA" Then 'MODIFIED 2022.03.24
+                                If SCREEN_TEXT(SESSION_TYP, 1, 2, 10) = "BLX2460.01" Then 'UB SCREEN
+                                    SENDTHIS_KEY SESSION_TYP, "PF8"
+                                    PLACEVALUE SESSION_TYP, "450", 2, 37
+                                    SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                End If
+                               'If MN.Range("E7") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 69 'UC 'REMOVED 2026.03.12
+                                If MN.Range("E8") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 76 'DPSV
+                            End If
+                            If MN.Range(colClmTyp & rW) = "UB" Then 'MODIFIED 2022.03.24
+                                If SCREEN_TEXT(SESSION_TYP, 1, 2, 10) = "CPS450.01" Then 'HCFA SCREEN
+                                    SENDTHIS_KEY SESSION_TYP, "PF8"
+                                    PLACEVALUE SESSION_TYP, "460", 2, 37
+                                    SENDTHIS_KEY SESSION_TYP, "ENTER"
+                                End If
+                               'If MN.Range("E7") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 71 'UC 'REMOVED 2026.03.12
+                                If MN.Range("E8") = "Y" Then PLACEVALUE SESSION_TYP, "X", 29, 78 'DPSV
+                            End If
+                            SENDTHIS_KEY SESSION_TYP, "ENTER"
+                            GoTo rTry
+                        Case "CPS506.01"
+                            If SCREEN_TEXT(SESSION_TYP, 7, 8, 1) = "1" And Trim(MN.Range("K7")) = "0" Then
+                                MN.Range(colExMsg & rW) = "DRAFT:" & i & " CANCELLED: CHANGE PAYEE TO 1" 'ADDED 2024.05.09
+                                GoTo NextDraft
+                            Else
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("G4")), 3, 13 'RLS
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("G5")), 3, 39 'LST RLS FOR BILL
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("G6")), 3, 53 'PEND RSN
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("I4")), 4, 13 'OPID
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range(colRoute & rW)), 4, 13 'OPID
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("I5")), 4, 38 'FLUP DAYS
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("G7")), 4, 50 'NOTE
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("K4")), 5, 24 'EOB
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("K5")), 5, 31 'CK
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("K6")), 5, 39 'DCI
+                                PLACEVALUE SESSION_TYP, Trim(MN.Range("K7")), 7, 8 'PAYEE
+                                Place_EOB_Notes SESSION_TYP, Trim(MN.Range("G8"))
+                                If MN.OLEObjects("chkConfirm").Object.Value Then
+                                    If MsgBox("Would you like to continue?", vbQuestion + vbYesNo, "Review Entries") <> vbYes Then
+                                        MN.Range(colExMsg & rW) = "MACRO PROCESSING CANCELLED"
+                                        End
+                                    End If
+                                End If
+                                SENDTHIS_KEY SESSION_TYP, "ENTER"
+                            End If
+                        Case Else
+                            MN.Range(colExMsg & rW) = "SCREEN MAPPING ERROR"
+                            GoTo NextRw
+                    End Select
+                    msg = IIf(Trim(MN.Range("G5")) <> "Y", "PENDED", "RELEASED")
+                    If SCREEN_TEXT(SESSION_TYP, 1, 2, 10) = "CPS506.01" Then
+                        MN.Range(colExMsg & rW) = Trim("NOT" & msg & ":DRAFT:" & i & ":" & SCREEN_TEXT(SESSION_TYP, 2, 2, 48)) & ":" & _
+                        IIf(Len(SCREEN_TEXT(SESSION_TYP, 31, 2, 70)) < 1, SCREEN_TEXT(SESSION_TYP, 30, 2, 70), SCREEN_TEXT(SESSION_TYP, 31, 2, 70))
+                        GoTo NextRw
+                    Else
+                        MN.Range(colExMsg & rW) = MN.Range(colExMsg & rW) & msg & ":DRAFT:" & i
+                    End If
+                End If
+NextDraft:
+                DraftNo = DraftNo + 1
+                DoEvents
+             Next i
+        Case "CPS515.01"
+            SENDTHIS_KEY SESSION_TYP, "PF9"
+            GoTo EntryPoint
+        Case Else
+            SENDTHIS_KEY SESSION_TYP, "PF22"
+            PLACEVALUE SESSION_TYP, "i GJBB", 31, 15
+            SENDTHIS_KEY SESSION_TYP, "ENTER"
+            PLACEVALUE SESSION_TYP, "GJBB", 31, 15
+            SENDTHIS_KEY SESSION_TYP, "ENTER"
+            SENDTHIS_KEY SESSION_TYP, "PF9"
+            GoTo EntryPoint
+    End Select
+NextRw:
+    SENDTHIS_KEY SESSION_TYP, "PF9"
+End Sub
+
+Public Function Place_EOB_Notes(ByVal SESSION_TYP As String, ByVal Note As String)
+    Dim noteEntry As Variant, n As Integer, wordEntry As String, r As Integer
+    If Len(Trim(Note)) < 1 Then Exit Function
+    noteEntry = Split(Note, " "): r = 16
+    For n = 0 To UBound(noteEntry)
+        wordEntry = wordEntry & " " & noteEntry(n)
+        If Len(wordEntry) > 43 Then
+            wordEntry = Replace(wordEntry, noteEntry(n), "")
+            PLACEVALUE SESSION_TYP, Trim(wordEntry), r, 36
+            wordEntry = "": wordEntry = wordEntry & noteEntry(n)
+            r = r + 1
+        End If
+    Next n
+    If Len(Trim(wordEntry)) > 0 Then PLACEVALUE SESSION_TYP, Trim(wordEntry), r, 36
+End Function
+
+Public Function No_SVCLn_Update(ByVal SESSION_TYP As String, ByVal InelCode As String, ByVal rW As Long, ByVal ClaimType As String) As Boolean 'Added 2023.04.13
+    Dim i As Integer, L As Integer, cntRead As Integer
+    No_SVCLn_Update = True: cntRead = 0
+    Select Case ClaimType
+        Case "UB"
+            For i = 6 To 9
+                If Len(SCREEN_TEXT(SESSION_TYP, i, 3, 4)) < 1 Then Exit For
+                If SCREEN_TEXT(SESSION_TYP, i + 6, 14, 4) <> InelCode Then No_SVCLn_Update = False
+                cntRead = cntRead + 1
+            Next i
+        Case "HCFA"
+            L = 9
+            For i = 5 To 11 Step 2
+                If Len(SCREEN_TEXT(SESSION_TYP, i, 4, 6)) < 1 Then Exit For
+                If SCREEN_TEXT(SESSION_TYP, i + L, 14, 4) <> InelCode Then No_SVCLn_Update = False
+                cntRead = cntRead + 1
+            Next i
+    End Select
+    If cntRead < 1 Then No_SVCLn_Update = False
+End Function
+
+Public Function ClaimDraft_SVCLn_Update(ByVal SESSION_TYP As String, ByRef wS As Worksheet, ByVal ClaimType As String, ByVal rW As Long, ByVal ClaimNo As String) As Boolean
+    Dim rNG As Range, Ln As Range, i As Integer, BgDt As String, Cpt As String, L As Integer, a As Integer, p As Integer
+    Dim ChrgAmt As String, Units As String, Mod01 As String, Mod02 As String, AP As String, Mod03 As String
+    ClaimDraft_SVCLn_Update = False
+    If wS.AutoFilterMode Then wS.AutoFilterMode = False
+    lRw = wS.Cells(wS.Rows.Count, colCCN2).End(xlUp).Row + 1 'ADJUSTED 2022.03.24
+    wS.Range("G12:W" & lRw).AutoFilter Field:=1, Criteria1:=ClaimNo 'modified 2022.07.20
+    If wS.AutoFilter.Range.Columns(colCCN2).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+        Set rNG = wS.AutoFilter.Range.Columns(colCCN2).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible)
+        wS.AutoFilter.Range.Columns(colStat).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible).ClearContents 'Ajustted 2024.06.14 - Clear Macro Status "AE"
+        Select Case ClaimType
+            Case "UB"
+                If wS.OLEObjects("chkBp").Object.Value Then 'ADDED 2025.02.18
+                    PLACEVALUE SESSION_TYP, "RP", 2, 5
+                End If
+                a = 0
+                For i = 6 To 9
+                    If Len(SCREEN_TEXT(SESSION_TYP, i, 3, 4)) < 1 Then Exit For
+                   '====== ADDED 05.08.2023 ======
+                    If wS.OLEObjects("chkFrmTo").Object.Value Then
+                        FromDate = SCREEN_TEXT(SESSION_TYP, 2, 63, 6)
+                        ThruDate = SCREEN_TEXT(SESSION_TYP, 2, 75, 6)
+                        ServDate = SCREEN_TEXT(SESSION_TYP, 6, 17, 6)
+                        If FromDate <> ServDate Then
+                            PLACEVALUE SESSION_TYP, ServDate, 2, 63
+                        End If
+                        If ThruDate <> ServDate Then
+                            PLACEVALUE SESSION_TYP, ServDate, 2, 75
+                        End If
+                    End If
+                   '==============================
+                    For Each Ln In rNG
+                        If wS.Range("AA6") = "Y" Then 'ADDED 2026.06.17
+                            If ExCDs.Exists(CStr(SCREEN_TEXT(SESSION_TYP, i + 6, 14, 4))) Then
+                                ClaimDraft_SVCLn_Update = True
+                                GoTo uNxtRw 'ADDED 2026.06.17
+                            End If
+                        End If
+                        If UbCd.Exists(SCREEN_TEXT(SESSION_TYP, i + 6, 14, 4)) Then
+                            BgDt = Format(Trim(wS.Range(colBgnSvDt & Ln.Row)), "MMDDYY")
+                            Cpt = Trim(wS.Range(colCPT & Ln.Row))
+                            Units = Format(Trim(wS.Range(colUnit & Ln.Row)), "000")
+                            ChrgAmt = Format(Trim(wS.Range(colLnChgAmt & Ln.Row)), "#.00")
+                            Mod01 = Trim(wS.Range(colMod1 & Ln.Row))
+                            Mod02 = Trim(wS.Range(colMod2 & Ln.Row))
+                            Mod03 = Trim(wS.Range(colMod3 & Ln.Row)) 'ADDED 2026.03.10
+                            AP = Trim(wS.Range(colAP & Ln.Row)) 'Added 2022.07.20
+                            If Len(wS.Range(colStat & Ln.Row)) > 0 Then GoTo uNxtRw 'ADDED 2023.08.01
+                           'If Len(Trim(ws.Range(colStat & Ln.Row))) > 0 Then GoTo uNxtRw 'SKIP IF ALREADY HAS STATUS
+                            If Len(BgDt) < 1 Or Len(ChrgAmt) < 1 Then GoTo uNxtRw
+                            If IS_IT_MATCHING(BgDt, SCREEN_TEXT(SESSION_TYP, i, 17, 6)) <> True Then GoTo uNxtRw 'SERDT
+                            If Len(Cpt) > 0 Then _
+                            If IS_IT_MATCHING(Cpt, SCREEN_TEXT(SESSION_TYP, i, 8, 5)) <> True Then GoTo uNxtRw 'HCPCS ' 2023.07.27 FIXED
+                            If Len(Units) > 0 Then _
+                            If IS_IT_MATCHING(Units, Format(SCREEN_TEXT(SESSION_TYP, i, 32, 3), "000")) <> True Then GoTo uNxtRw 'BU 'Adjusted 2022.04.26 "000"
+                            If IS_IT_MATCHING(ChrgAmt, SCREEN_TEXT(SESSION_TYP, i, 40, 11)) <> True Then GoTo uNxtRw 'CHARGE
+                            If Len(Mod01) > 0 Then _
+                            If IS_IT_MATCHING(Mod01, SCREEN_TEXT(SESSION_TYP, i, 52, 3)) <> True Then GoTo uNxtRw 'MOD 01
+                            If Len(Mod02) > 0 Then _
+                            If IS_IT_MATCHING(Mod02, SCREEN_TEXT(SESSION_TYP, i, 56, 3)) <> True Then GoTo uNxtRw 'MOD 02
+                            If Len(Mod03) > 0 Then _
+                            If IS_IT_MATCHING(Mod03, SCREEN_TEXT(SESSION_TYP, i, 60, 3)) <> True Then GoTo uNxtRw 'MOD 03 'ADDED 2026.03.10
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewChrgAmt & Ln.Row)), i, 40 'ADDED 2024.06.14 NEW CHARGE AMT
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colAP & Ln.Row)), 10, 54 + a 'AP 'added 2022.07.20 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod1 & Ln.Row)), i, 52 'NEW MOD 01
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod2 & Ln.Row)), i, 56 'NEW MOD 02
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod3 & Ln.Row)), i, 60 'NEW MOD 03'ADDED 2026.03.10
+                            Select Case Trim(wS.Range("E4"))
+                                Case "1", ""
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + 6, 2 'INEL
+                                    If Len(Trim(wS.Range(colNwInel & Ln.Row))) > 0 Then _
+                                        PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + 6, 14 _
+                                    Else PLACEVALUE SESSION_TYP, Format(Trim(wS.Range("E5")), "000"), i + 6, 14
+                                Case "2"
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + 6, 18 'INEL
+                                    If Len(Trim(wS.Range(colNwInel & Ln.Row))) > 0 Then _
+                                        PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + 6, 30 _
+                                    Else PLACEVALUE SESSION_TYP, Format(Trim(wS.Range("E5")), "000"), i + 6, 30
+                                Case "BOTH" 'ADDED 2026.03.26
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + 6, 2 'INEL
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + 6, 14
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt2 & Ln.Row)), "#.00"), i + 6, 18
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel2 & Ln.Row)), "000"), i + 6, 30
+                                Case Else
+                            End Select
+                            If wS.Range("N2") = "APPLY 001 INELCD2" Then PLACEVALUE SESSION_TYP, "001", i + 6, 30 'ADDED 2023.08.08
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colProvRt & Ln.Row)), i + 6, 50 'PROV RATE 2023.04.06 'ADJUSTED COL FROM 50 to 53 - 2024.05.02
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colSMBAdjAmt & Ln.Row)), i + 6, 62 'SMB ADJ AMT 2022.06.22
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colSMBAdjRsn & Ln.Row)), i + 6, 74 'SMB ADJ REASON 2022.06.22
+                            If wS.Range("O7") = "Y" Then 'APPLY OI MED
+                                PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIEligAmt & Ln.Row)), i + 6 + 6, 2 'OI ELIG
+                                PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIPdAmt & Ln.Row)), i + 6 + 6, 14 'OI PAID
+                                Select Case Trim(wS.Range("N6"))
+                                    Case "TYPE B": PLACEVALUE SESSION_TYP, "B", i + 6 + 6, 26 'OI TYPE
+                                End Select
+                            End If
+                            If Trim(wS.Range(colOIType & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIType & Ln.Row)), i + 6 + 6, 26 'OI TYPE
+                            If Trim(wS.Range(colBU & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colBU & Ln.Row)), i, 32   'BU 'added 2022.12.13
+                            If Trim(wS.Range(colIU & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colIU & Ln.Row)), i, 36   'IU 'added 2022.12.13
+                            If Trim(wS.Range(colNewTOS & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewTOS & Ln.Row)), i, 14   'TOS 'added 2024.05.20
+                            wS.Range(colStat & Ln.Row) = "DONE"
+                            ClaimDraft_SVCLn_Update = True
+                            Exit For
+                        Else
+                            wS.Range(colExMsg & rW) = "CCN REJECTED:INELCODE NOT MATCHED"
+                            ClaimDraft_SVCLn_Update = False: GoTo JustExit
+                        End If
+uNxtRw:
+                        DoEvents
+                    Next Ln
+                    a = a + 3 'ADDED 2025.08.08
+                    DoEvents
+                Next i
+            Case "HCFA"
+                L = 9: p = 15
+                If Len(Trim(wS.Range("E9"))) > 0 Then 'ADDED 2025.04.15
+                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range("E9")), "00"), 2, 6
+                End If
+                For i = 5 To 11 Step 2
+                    If Len(SCREEN_TEXT(SESSION_TYP, i, 4, 6)) < 1 Then Exit For
+                    For Each Ln In rNG
+                        If wS.Range("AA6") = "Y" Then 'ADDED 2026.06.17
+                            If ExCDs.Exists(CStr(SCREEN_TEXT(SESSION_TYP, i + L, 14, 4))) Then
+                                ClaimDraft_SVCLn_Update = True
+                                GoTo hNxtRw 'ADDED 2026.06.17
+                            End If
+                        End If
+                        If HcfaCd.Exists(SCREEN_TEXT(SESSION_TYP, i + L, 14, 4)) Then
+                            BgDt = Format(Trim(wS.Range(colBgnSvDt & Ln.Row)), "MMDDYY")
+                            Cpt = Trim(wS.Range(colCPT & Ln.Row))
+                            Units = Format(Trim(wS.Range(colUnit & Ln.Row)), "00000")
+                            ChrgAmt = Format(Trim(wS.Range(colLnChgAmt & Ln.Row)), "#.00")
+                            Mod01 = Trim(wS.Range(colMod1 & Ln.Row))
+                            Mod02 = Trim(wS.Range(colMod2 & Ln.Row))
+                            Mod03 = Trim(wS.Range(colMod3 & Ln.Row)) 'ADDED 2026.03.10
+                            If Len(wS.Range(colStat & Ln.Row)) > 0 Then GoTo hNxtRw 'ADDED 2023.08.01
+                           'If Len(Trim(ws.Range(colStat & Ln.Row))) > 0 Then GoTo hNxtRw 'SKIP IF ALREADY HAS STATUS
+                            If Len(BgDt) < 1 Or Len(Cpt) < 1 Or Len(ChrgAmt) < 1 Then GoTo hNxtRw
+                            If IS_IT_MATCHING(BgDt, SCREEN_TEXT(SESSION_TYP, i, 4, 6)) <> True Then GoTo hNxtRw 'BGN
+                            If IS_IT_MATCHING(Cpt, SCREEN_TEXT(SESSION_TYP, i, 41, 5)) <> True Then GoTo hNxtRw 'PROC
+                            If Len(Units) > 0 Then _
+                            If IS_IT_MATCHING(Units, SCREEN_TEXT(SESSION_TYP, i, 33, 5)) <> True Then GoTo hNxtRw 'BU
+                            If IS_IT_MATCHING(ChrgAmt, SCREEN_TEXT(SESSION_TYP, i, 21, 11)) <> True Then GoTo hNxtRw 'CHARGE
+                            If Len(Mod01) > 0 Then _
+                            If IS_IT_MATCHING(Mod01, SCREEN_TEXT(SESSION_TYP, i, 47, 3)) <> True Then GoTo hNxtRw 'MOD 01
+                            If Len(Mod02) > 0 Then _
+                            If IS_IT_MATCHING(Mod02, SCREEN_TEXT(SESSION_TYP, i, 51, 3)) <> True Then GoTo hNxtRw 'MOD 02
+                            If Len(Mod03) > 0 Then _
+                            If IS_IT_MATCHING(Mod03, SCREEN_TEXT(SESSION_TYP, i, 55, 3)) <> True Then GoTo hNxtRw 'MOD 03 'ADDED 2026.03.10
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewChrgAmt & Ln.Row)), i, 21 'ADDED 2024.06.14 NEW CHARGE AMT
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colAP & Ln.Row)), i + p, 68 'AP 'added 2022.07.20 'ADJUSTED 2025.08.08
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod1 & Ln.Row)), i, 47 'NEW MOD 01
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod2 & Ln.Row)), i, 51 'NEW MOD 02
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colNwMod3 & Ln.Row)), i, 55 'NEW MOD 03 'ADDED 2026.03.10
+                            Select Case Trim(wS.Range("E4"))
+                                Case "1", ""
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + L, 2
+                                    If Len(Trim(wS.Range(colNwInel & Ln.Row))) > 0 Then _
+                                        PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + L, 14 _
+                                    Else PLACEVALUE SESSION_TYP, Format(Trim(wS.Range("E5")), "000"), i + L, 14
+                                Case "2"
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + L, 18
+                                    If Len(Trim(wS.Range(colNwInel & Ln.Row))) > 0 Then _
+                                        PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + L, 30 _
+                                    Else PLACEVALUE SESSION_TYP, Format(Trim(wS.Range("E5")), "000"), i + L, 30
+                                Case "BOTH" 'ADDED 2026.03.26
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt & Ln.Row)), "#.00"), i + L, 2
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel & Ln.Row)), "000"), i + L, 14
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwAmt2 & Ln.Row)), "#.00"), i + L, 18
+                                    PLACEVALUE SESSION_TYP, Format(Trim(wS.Range(colNwInel2 & Ln.Row)), "000"), i + L, 30
+                                Case Else
+                            End Select
+                            If wS.Range("N2") = "APPLY 001 INELCD2" Then PLACEVALUE SESSION_TYP, "001", i + L, 30 'ADDED 2023.08.08
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colProvRt & Ln.Row)), i + L, 50 'PROV RATE 2023.04.06 'CORRECTED ROW referecing 2024.05.02
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colSMBAdjAmt & Ln.Row)), i + L, 62 'SMB ADJ AMT 2022.06.22
+                            PLACEVALUE SESSION_TYP, Trim(wS.Range(colSMBAdjRsn & Ln.Row)), i + L, 74 'SMB ADJ REASON 2022.06.22
+                            If wS.Range("O7") = "Y" Then 'APPLY OI MED
+                                PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIEligAmt & Ln.Row)), i + L + 6, 5 'OI ELIG
+                                PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIPdAmt & Ln.Row)), i + L + 6, 16 'OI PAID
+                            End If
+                            If Trim(wS.Range(colBNQty & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colBNQty & Ln.Row)), i + L + 6, 31 'BN QTY 'ADDED 2025.04.15
+                            If Trim(wS.Range(colBNAmt & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colBNAmt & Ln.Row)), i + L + 6, 36 'BN AMT 'ADDED 2025.04.15
+                            
+                            If Trim(wS.Range(colOIType & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colOIType & Ln.Row)), i + L + 6, 28 'OI Type 'added 2022.07.20
+                            If Trim(wS.Range(colOC & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colOC & Ln.Row)), i, 33   'OC 'added 2024.08.26
+                            If Trim(wS.Range(colBU & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colBU & Ln.Row)), i, 74   'BU 'added 2022.12.13
+                            If Trim(wS.Range(colIU & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colIU & Ln.Row)), i, 78   'IU 'added 2022.12.13
+                            If Trim(wS.Range(colNewBgn & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewBgn & Ln.Row)), i, 4    'IU 'added 2024.01.17
+                            If Trim(wS.Range(colNewEnd & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewEnd & Ln.Row)), i, 11   'IU 'added 2024.01.17
+                            If Trim(wS.Range(colNewTOS & Ln.Row)) <> "" Then PLACEVALUE SESSION_TYP, Trim(wS.Range(colNewTOS & Ln.Row)), i, 18   'TOS 'added 2024.04.01
+                            wS.Range(colStat & Ln.Row) = "DONE"
+                            ClaimDraft_SVCLn_Update = True
+                            Exit For
+                        Else
+                            wS.Range(colExMsg & rW) = "CCN REJECTED:INELCODE NOT MATCHED"
+                            ClaimDraft_SVCLn_Update = False: GoTo JustExit
+                        End If
+hNxtRw:
+                        DoEvents
+                    Next Ln
+                    L = L - 1: p = p - 1
+                    DoEvents
+                Next i
+        End Select
+    Else
+        wS.Range(colExMsg & rW) = "FAILED:NO SERVICE LINE LISTED"
+    End If
+JustExit:
+    If wS.AutoFilterMode Then wS.AutoFilterMode = False
+End Function
+
+Public Function IS_IT_MATCHING(ByVal Value01 As String, ByVal Value02 As String) As Boolean
+    IS_IT_MATCHING = True
+    If Len(Trim(Value01)) < 1 Then Exit Function
+    If Trim(Value01) <> Trim(Value02) Then IS_IT_MATCHING = False
+End Function
+
+Public Sub MEDICARE_CALCULATION(ByRef wS As Worksheet, ByVal OiType As String, ByVal ClaimNo As String)
+    Dim lRw As Long, rNG As Range, tBilled As Double, Ln As Range, PctChrg As Double, i As Integer
+    Dim tMdDedCoin As Double, tMdPdB4Check As Double, tBilledLessMdPdB4Check As Double
+    Dim tBilledLessNonCov As Double
+    On Error GoTo ErrHandler
+    MED_CALC_SETTINGS
+    With wS 'MAIN SHEET
+       '.Application.ScreenUpdating = False
+        If .AutoFilterMode Then .AutoFilterMode = False
+        lRw = .Cells(wS.Rows.Count, colCCN2).End(xlUp).Row
+       .Range("A12:W" & lRw).AutoFilter Field:=.Columns(colCCN2).Column, Criteria1:=ClaimNo 'modified 2022.07.20
+        If .AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+            Set rNG = .AutoFilter.Range.Columns(colCCN2).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible)
+           .AutoFilter.Range.Columns(colOIEligAmt).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible).ClearContents 'U
+           .AutoFilter.Range.Columns(colOIPdAmt).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible).ClearContents  'V
+           .AutoFilter.Range.Columns(colOIType).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible).ClearContents 'W
+            
+            If Not MdCalc.Exists(ClaimNo) Then
+               .AutoFilter.Range.Columns(colStat).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible) = "NO MED CALC SET."
+                GoTo JustExit
+            End If
+            tBilled = .Application.WorksheetFunction.Subtotal(109, .Range(colLnChgAmt & "12:" & lRw))
+            tBilledLessNonCov = tBilled - Split(MdCalc(ClaimNo), ":")(2)
+            If tBilled <> tBilledLessNonCov Then
+                MsgBox "Claim Control Number: " & ClaimNo & vbNewLine & _
+                    "Total Billed DOES NOT EQUAL to Individual Services entered" & vbCrLf & _
+                    "Review Line Charge Amount Entered" & vbCrLf & _
+                    "Make sure the Non-Covered Charges were not entered" & vbNewLine & vbNewLine & _
+                    "REMINDER: Do not include non-covered charges in Medicare Deductible and Coinsurance from EOB" & vbNewLine & vbNewLine & _
+                    "See Medicare Calculation Worksheet for reference.", vbCritical, ThisWorkbook.Name
+                    .AutoFilter.Range.Columns(colStat).Offset(1, 0).Resize(lRw - 12, 1).SpecialCells(xlCellTypeVisible) = "MED CALC AMT FAILED."
+                GoTo JustExit
+            End If
+            tMdDedCoin = Format(Split(MdCalc(ClaimNo), ":")(0), "#.00")
+            PctChrg = Round(1 - (tMdDedCoin / tBilledLessNonCov), 9)
+            Select Case OiType
+                Case "TYPE B"
+                    For Each Ln In rNG
+                       .Range(colOIEligAmt & Ln.Row) = RTN_ELIG_AMT(.Range(colLnChgAmt & Ln.Row))
+                       'Debug.Print Round((.Range(colOIEligAmt & Ln.Row) * PctChrg), 2)
+                        tMdPdB4Check = tMdPdB4Check + Round((.Range(colOIEligAmt & Ln.Row) * PctChrg), 2)
+                    Next Ln
+                    tBilledLessMdPdB4Check = tBilled - tMdPdB4Check: i = 1
+                    For Each Ln In rNG
+                       .Range(colOIPdAmt & Ln.Row) = Round(RTN_OIPAID_AMT(tBilledLessMdPdB4Check, tMdDedCoin, PctChrg, .Range(colOIEligAmt & Ln.Row), i), 2)
+                        i = i + 1
+                    Next Ln
+            End Select
+        End If
+       '.Application.ScreenUpdating = True
+       'MsgBox "Medicare " & OiType & " Calculation finished.", vbInformation, ThisWorkbook.Name
+JustExit:
+        If .AutoFilterMode Then .AutoFilterMode = False
+        Exit Sub
+ErrHandler:
+        MsgBox Err.Description, vbCritical, "Unexpected error occured"
+        If .AutoFilterMode Then .AutoFilterMode = False
+       .Application.ScreenUpdating = True: End
+       'GoTo JustExit
+    End With
+End Sub
+
+Public Function RTN_PND_CODE(ByVal SESSION_TYP As String, ByVal LnNo As String) As String 'ADDED 2024.04.05
+    Dim i As Integer
+    RTN_PND_CODE = ""
+    For i = 6 To 18 Step 2
+        If SCREEN_TEXT(SESSION_TYP, i, 2, 2) = LnNo Then
+            RTN_PND_CODE = SCREEN_TEXT(SESSION_TYP, i, 6, 2)
+            Exit Function
+        End If
+    Next i
+End Function
+
+Public Function RTN_OIPAID_AMT(ByRef tBilledLessMdPdB4Check As Double, ByRef tMdDedCoin As Double, _
+ByRef PctChrg As Double, ByVal OiEligAmt As Double, ByVal i As Integer) As Double
+    If i > 1 Then
+        RTN_OIPAID_AMT = Round(OiEligAmt * PctChrg, 2)
+    Else
+        Select Case tBilledLessMdPdB4Check
+            Case Is = tMdDedCoin: RTN_OIPAID_AMT = Round(OiEligAmt * PctChrg, 2)
+            Case Is < tMdDedCoin: RTN_OIPAID_AMT = Round(OiEligAmt * PctChrg, 2) - (tMdDedCoin - tBilledLessMdPdB4Check)
+            Case Is > tMdDedCoin: RTN_OIPAID_AMT = Round(OiEligAmt * PctChrg, 2) + (tBilledLessMdPdB4Check - tMdDedCoin)
+        End Select
+    End If
+End Function
+
+Public Function RTN_ELIG_AMT(ByVal ChrgAmt As String) As Double
+    RTN_ELIG_AMT = 0
+    If Len(Trim(ChrgAmt)) < 1 Then Exit Function
+    RTN_ELIG_AMT = CDbl(ChrgAmt)
+End Function
+
+Public Sub MED_CALC_SETTINGS()
+    Dim i As Integer
+    MdCalc.RemoveAll
+    With RF
+        For i = 3 To .Cells(.Rows.Count, "D").End(xlUp).Row
+            If Not MdCalc.Exists(Trim(.Range("D" & i))) Then _
+            MdCalc.Add CStr(Trim(.Range("D" & i))), CStr(Trim(.Range("E" & i))) & ":" & CStr(Trim(.Range("F" & i))) & ":" & CStr(Trim(.Range("G" & i)))
+        Next i
+    End With
+End Sub
+
+Public Sub MRU_CALC_SETTINGS()
+    Dim i As Integer
+    MruCalc.RemoveAll: PosIn.RemoveAll
+    With RF
+        For i = 3 To .Cells(.Rows.Count, "J").End(xlUp).Row
+            If Not MruCalc.Exists(CStr(Trim(.Range("J" & i)) & Trim(.Range("K" & i)))) Then _
+            MruCalc.Add CStr(Trim(.Range("J" & i)) & Trim(.Range("K" & i))), CStr(Trim(.Range("L" & i))) & ":" & CStr(Trim(.Range("M" & i)))
+        Next i
+        For i = 3 To .Cells(.Rows.Count, "N").End(xlUp).Row
+            If Not MruCalc.Exists(CStr(Trim(.Range("N" & i)))) Then _
+            PosIn.Add CStr(Trim(.Range("N" & i))), CStr(Trim(.Range("N" & i)))
+        Next i
+    End With
+End Sub
+
+Public Sub CLEARLIST(ByVal Section As String)
+    With MN
+        Select Case Section
+            Case "CLAIM LEVEL"
+                .Range("A13") = "TMP"
+                .Range("A13:F" & .Cells(.Rows.Count, colCCN1).End(xlUp).Row).ClearContents
+            Case "SERVICE LINE"
+                .Range("G13") = "TMP"
+                .Range("G13:" & colStat & .Cells(.Rows.Count, colCCN2).End(xlUp).Row).ClearContents
+        End Select
+    End With
+End Sub
