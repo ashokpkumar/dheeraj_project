@@ -38,6 +38,19 @@ new_line_update_mru_repricing_calc ─┼─► new_line_update_release_run_batc
 
 ## 1. `new_line_update_medicare_oi_calc(reference_path, oi_type)` — `medicare_calc.py`
 
+**Registered as:** `new_line_update_medicare_oi_calc` · tag `New Line Update Release` · color `#e65100`
+
+| Inputs | Type | Options | Default |
+|--------|------|---------|---------|
+| `reference_path` | str | — | *(required)* |
+| `oi_type` | str | `TYPE B` | `TYPE B` |
+
+| Outputs | Type |
+|---------|------|
+| `success` | bool |
+| `df` | dataframe |
+| `result` | list |
+
 Pure calculation, no emulator. Groups `context['df']` by `CLAIM_NO`.
 
 **`_calc_claim(lines, oi_type, med_calc)`:**
@@ -63,6 +76,19 @@ Returns `{"success", "df": updated_df, "result": [{CLAIM CONTROL #, MACRO STATUS
 
 ## 2. `new_line_update_mru_repricing_calc(mru_info_path, reference_path)` — `mru_calc.py`
 
+**Registered as:** `new_line_update_mru_repricing_calc` · tag `New Line Update Release` · color `#e65100`
+
+| Inputs | Type | Options | Default |
+|--------|------|---------|---------|
+| `mru_info_path` | str | — | *(required)* |
+| `reference_path` | str | — | *(required)* |
+
+| Outputs | Type |
+|---------|------|
+| `success` | bool |
+| `df` | dataframe |
+| `result` | list |
+
 Pure calculation, no emulator. Reads the **MRU REPRICING INFO** table (`mru_info_path`: `CLAIM_NO`, `BGN_SV_DT`, `CPT`, `LINE_CHG_AMT`, `UNITS`, `MOD01-03`, `POS`, `PRV` — `PRV` is the 2-letter state code).
 
 **`_match_mru_rows(mru_rows, ln)`** — filters `mru_rows` to the ones matching `ln` on `CLAIM_NO` + whichever of `BGN_SV_DT` / `CPT` / `LINE_CHG_AMT` / `UNITS` / `MOD01-03` are populated on the line (blank = don't care, via `is_it_matching`).
@@ -78,6 +104,20 @@ Returns `{"success", "df": updated_df, "result": [{CLAIM CONTROL #, MACRO STATUS
 ---
 
 ## 3. `new_line_update_release_run_batch(reference_path, rule_code_ref_path)` — `script.py`
+
+**Registered as:** `new_line_update_release_run_batch` · tag `New Line Update Release` · color `#e65100`
+
+| Inputs | Type | Options | Default |
+|--------|------|---------|---------|
+| `reference_path` | str | — | `""` |
+| `rule_code_ref_path` | str | — | `""` |
+
+| Outputs | Type |
+|---------|------|
+| `success` | bool |
+| `result` | list |
+
+Also implicitly consumes `context['df']` (the service-line rows — see Input Shape above), which isn't a declared `@register_function` input since it's produced by an upstream pipeline node rather than configured directly on this node.
 
 ### Setup (runs once)
 
