@@ -1,0 +1,700 @@
+<title>Pend/Release Macro I/O Map</title>
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --surface: #FFFFFF;
+    --surface-alt: #F4F6F3;
+    --ink: #1B2420;
+    --ink-soft: #4B564F;
+    --ink-faint: #7C877E;
+    --line: #D3D9D2;
+    --line-strong: #B7C0B5;
+    --mono-tint: #E4E9E2;
+    --accent-input: #8F5E17;
+    --accent-input-bg: #F4E7D2;
+    --accent-output: #2E5266;
+    --accent-output-bg: #DEE9EE;
+    --accent-both-bg: #EDE6E0;
+    --accent-unused: #8A8F86;
+    --accent-unused-bg: #E7E9E5;
+    --shadow: 0 1px 2px rgba(27,36,32,0.06), 0 8px 24px rgba(27,36,32,0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #10140F;
+      --surface: #171C15;
+      --surface-alt: #1B2118;
+      --ink: #E7ECE3;
+      --ink-soft: #AEB8A8;
+      --ink-faint: #7E897A;
+      --line: #2A3227;
+      --line-strong: #3A4436;
+      --mono-tint: #1E2519;
+      --accent-input: #D9A755;
+      --accent-input-bg: #33291A;
+      --accent-output: #7FB2C8;
+      --accent-output-bg: #1B2C33;
+      --accent-both-bg: #2A2620;
+      --accent-unused: #7C8478;
+      --accent-unused-bg: #22271F;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #10140F;
+    --surface: #171C15;
+    --surface-alt: #1B2118;
+    --ink: #E7ECE3;
+    --ink-soft: #AEB8A8;
+    --ink-faint: #7E897A;
+    --line: #2A3227;
+    --line-strong: #3A4436;
+    --mono-tint: #1E2519;
+    --accent-input: #D9A755;
+    --accent-input-bg: #33291A;
+    --accent-output: #7FB2C8;
+    --accent-output-bg: #1B2C33;
+    --accent-both-bg: #2A2620;
+    --accent-unused: #7C8478;
+    --accent-unused-bg: #22271F;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  code, .mono, .cell-ref, .col-ref {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: var(--accent-output); }
+
+  h1, h2, h3 {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .layout {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Sidebar ---------- */
+  nav.rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 232px;
+    flex: 0 0 232px;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 18px 28px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .rail-brand {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .rail-title {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 22px;
+  }
+  .rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rail-list a {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 6px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .rail-list a:hover { background: var(--surface-alt); color: var(--ink); }
+  .rail-count { color: var(--ink-faint); font-weight: 500; font-size: 12px; }
+
+  .rail-legend {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rail-legend-title {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  /* ---------- Main ---------- */
+  main { flex: 1 1 auto; min-width: 0; padding: 40px 40px 100px; }
+
+  header.hero { max-width: 760px; margin-bottom: 30px; }
+  header.hero .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-output);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  header.hero h1 { font-size: 30px; margin-bottom: 12px; }
+  header.hero p { color: var(--ink-soft); font-size: 15.5px; max-width: 64ch; margin: 0; }
+
+  .example-callout {
+    margin-top: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-input);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    max-width: 64ch;
+  }
+  .example-callout b { color: var(--ink); }
+
+  .searchbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--paper);
+    padding: 14px 0 16px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .searchbar input {
+    flex: 1 1 340px;
+    max-width: 420px;
+    padding: 9px 13px;
+    border-radius: 7px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .searchbar input:focus-visible {
+    outline: 2px solid var(--accent-output);
+    outline-offset: 1px;
+  }
+  .searchbar .hint { font-size: 12.5px; color: var(--ink-faint); }
+  #match-count { font-weight: 700; color: var(--ink); }
+
+  section { margin-top: 52px; scroll-margin-top: 76px; }
+  section .section-head { margin-bottom: 6px; }
+  section h2 { font-size: 21px; }
+  section .section-sub { color: var(--ink-soft); font-size: 14px; max-width: 68ch; margin-top: 6px; }
+  section .group-eyebrow {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 700; margin: 26px 0 8px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.input  { background: var(--accent-input-bg); color: var(--accent-input); }
+  .badge.output { background: var(--accent-output-bg); color: var(--accent-output); }
+  .badge.both   { background: var(--accent-both-bg); color: var(--ink-soft); }
+  .badge.unused { background: var(--accent-unused-bg); color: var(--accent-unused); }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    background: var(--surface);
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 700;
+    background: var(--surface-alt);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    font-size: 13.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-alt); }
+  tbody tr.is-hidden { display: none; }
+
+  td.ref { white-space: nowrap; }
+  .chip {
+    display: inline-block;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: var(--mono-tint);
+    color: var(--ink);
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+  td.field-name { font-weight: 700; color: var(--ink); white-space: nowrap; }
+  td.values { color: var(--ink-soft); white-space: nowrap; }
+  td.effect { color: var(--ink-soft); max-width: 46ch; }
+  td.effect .flag { color: var(--ink); font-weight: 600; }
+
+  .outputs-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    max-width: 78ch;
+  }
+  .outputs-list li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-output);
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    list-style: none;
+  }
+  .outputs-list li b { color: var(--ink); }
+  .outputs-list { margin: 0; padding: 0; }
+
+  footer.page-footer {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-faint);
+    font-size: 12.5px;
+    max-width: 68ch;
+  }
+
+  @media (max-width: 880px) {
+    .layout { flex-direction: column; }
+    nav.rail { position: relative; width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 20px; }
+    main { padding: 28px 20px 80px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+
+<div class="layout">
+  <nav class="rail" aria-label="Section navigation">
+    <div class="rail-brand">NewPendRelease_Macro</div>
+    <div class="rail-title">Input / Output Map</div>
+    <ul class="rail-list">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#global-controls">Global Controls <span class="rail-count">78</span></a></li>
+      <li><a href="#row-columns">Per‑Row Columns <span class="rail-count">56</span></a></li>
+      <li><a href="#reference-files">Reference Files <span class="rail-count">2</span></a></li>
+      <li><a href="#outputs">Outputs Summary</a></li>
+    </ul>
+    <div class="rail-legend">
+      <div class="rail-legend-title">Legend</div>
+      <span class="badge input">input</span>
+      <span class="badge output">output</span>
+      <span class="badge both">input / output</span>
+      <span class="badge unused">unused</span>
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero" id="overview">
+      <div class="eyebrow">MAIN sheet · Sheet1 &amp; DxCodesRef · CPS450 / BLX2460 / CPS506 screens</div>
+      <h1>Every input and output in the Pend/Release macro</h1>
+      <p>NewPendRelease_Macro runs claims through HCFA (CPS450) and UB (BLX2460) mainframe release screens. Almost nothing is unconditional — most fields on the <code class="mono">MAIN</code> sheet are only read when a matching toggle cell is set to a specific value. This page maps every cell and column to the condition that makes it live, and to what the macro writes back.</p>
+      <div class="example-callout">
+        <b>Reading the tables:</b> row column <span class="chip">S</span> · BN $ QTY is listed as <b>input, only when</b> <span class="chip">Q6</span> Apply BN Code/$ Qty = <code>Y</code> — the pattern the whole reference follows: <i>“BN $ QTY is taken as input only when APPLY BN QTY = Y.”</i>
+      </div>
+    </header>
+
+    <div class="searchbar">
+      <input type="text" id="filter" placeholder="Filter by cell, column, name, or condition…" autocomplete="off" spellcheck="false" aria-label="Filter all tables">
+      <span class="hint"><span id="match-count">0</span> matching rows</span>
+    </div>
+
+    <section id="global-controls">
+      <div class="section-head">
+        <h2>Global control cells — Sheet1 “MAIN”</h2>
+        <p class="section-sub">One-time settings entered above the claim grid (rows 4–11). Most are Y/N or dropdown toggles that gate one or more per‑row columns below. Values shown are what <code class="mono">SET_DEFAULT</code> resets them to, where relevant.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-controls">
+          <thead>
+            <tr><th style="width:70px">Cell</th><th>Setting</th><th style="width:80px">Type</th><th style="width:150px">Values</th><th>Drives</th></tr>
+          </thead>
+          <tbody id="tbody-controls"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="row-columns">
+      <div class="section-head">
+        <h2>Per‑row claim columns — MAIN sheet, columns A–BD</h2>
+        <p class="section-sub">One row per claim/draft. Column letters follow <code class="mono">Modules_Columns_Mapping.txt</code>. “Condition” names the exact toggle and value that must be true for the macro to read (or write) that column on a given row.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-columns">
+          <thead>
+            <tr><th style="width:60px">Col</th><th style="width:160px">Field</th><th style="width:90px">Type</th><th>Condition</th></tr>
+          </thead>
+          <tbody id="tbody-columns"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="reference-files">
+      <div class="section-head">
+        <h2>Reference-file inputs</h2>
+        <p class="section-sub">Lookup lists loaded from workbook sheets and CSVs, not from the claim row itself.</p>
+      </div>
+
+      <div class="group-eyebrow">dx_code_ref.csv → “DxCodesRef” worksheet</div>
+      <div class="table-wrap">
+        <table id="table-dxref">
+          <thead>
+            <tr><th style="width:70px">Column</th><th style="width:200px">Contains</th><th>Read when</th></tr>
+          </thead>
+          <tbody id="tbody-dxref"></tbody>
+        </table>
+      </div>
+
+      <div class="group-eyebrow">denial_code_ref.csv (Macros\denial_code_ref.csv)</div>
+      <div class="table-wrap">
+        <table id="table-denialref">
+          <thead>
+            <tr><th style="width:120px">Field</th><th>Role</th></tr>
+          </thead>
+          <tbody id="tbody-denialref"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="outputs">
+      <div class="section-head">
+        <h2>Outputs summary</h2>
+        <p class="section-sub">What the macro actually writes back — to the MAIN sheet, and beyond it.</p>
+      </div>
+      <ul class="outputs-list" id="outputs-list"></ul>
+    </section>
+
+    <footer class="page-footer">
+      Compiled from Modules_oHCFA, Modules_0UB, Modules_oTOD, Modules_oShared, Modules_Columns_Mapping, Modules_MGCUtilizationLog and dx_code_ref.csv in <code class="mono">release_pend_macro/NewPendRelease_Macro</code>. “Input” = read from the sheet/CSV into the macro; “Output” = written by the macro back into the sheet (mainframe screen field writes are the macro’s real end product but aren’t Excel outputs, so they’re called out separately in Global Controls / Row Columns instead).
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var CONTROLS = [
+    ["B4","Session Path","input","text/path","Attaches to the named EXTRA! session (Current_Session); falls back to the active session if blank."],
+    ["C11","Start Row","input","integer","First MAIN row processed by Get_Claim_Details and Release_or_Pend_Claim."],
+    ["E11","End Row","input","integer","Last MAIN row processed."],
+    ["G11","Current Row","output","integer","Set by the macro each loop iteration — internal bookkeeping, not user input."],
+    ["D6","Release Code (RLS)","input","e.g. 10, 71","Written to the Rls field on CPS506 every claim. = \"71\" is also one leg of the denial‑code‑ref auto‑mode gate (with D7 &amp; K9)."],
+    ["D7","Last Release For Bill","input","Y / N","Written to Lst Rls; changes per‑draft “retrieve line” logic; with D6=\"71\" and K9=\"Y\" enables denial_code_ref.csv lookup per row."],
+    ["D8","Pend Reason","input","code","Written to Pend Rsn — meaningful only when not releasing (D7 ≠ Y)."],
+    ["D9","Pend Op Id","input","text","Written to Opid field."],
+    ["F6","Follow Up Days","input","number","Written to Flup Dys field."],
+    ["F7","Distribution Unit","input","text","Written to Dist Unit field."],
+    ["F8","EOB","input","code","Written to EOB field."],
+    ["F9","CK","input","code","Written to CK field."],
+    ["H6","Note","input","text","Written to Note field."],
+    ["H7","Payee","input","0 / 1 / 2 / 3","Written to Payee field. 1 prompts to confirm; 2 activates row cols AL–AP; 3 activates row cols AR–AS."],
+    ["H8","EOB Note","input","text","Wrapped onto the EOB note lines, only when row col AT is blank for that row."],
+    ["H9","Verify","input","Y / N","When Y, shows a confirmation prompt before every release."],
+    ["K6","Apply UC","input","Y / N","Marks the UC field (\"X\") on HCFA/UB entry screens."],
+    ["K7","Remove OI Elig/Amt","input","Y / N","Clears OI Elig / OI Amt (and related field) on other‑insurance lines."],
+    ["K8","Apply 001","input","1 ONLY / ALL LINES / N/A","Forces Inel Code 001 onto line 1 only, or every line; \"N/A\" + M8=\"N/A\" blocks release if 001 already present."],
+    ["K9","Deny Claim","input","Y / N","Runs the full denial branch, applying M9 Denial Code (honoring CSV exceptions/overrides)."],
+    ["K10","Add Time","input","Y / N","Adds row col Y (Time Unit) to the existing time field; result/status written to row col Z."],
+    ["M6","Validate Amt Paid (Inel)","input","Y / N","Blocks release unless Is_It_Fully_Paid(\"InelCodes\") passes."],
+    ["M7","Remove PRV","input","Y / N","Clears the PRV code field."],
+    ["M8","Remove Inel Amt/Cd","input","INEL/CD1 · CD2 · ALL · SPECIFIC · N/A","Selects which inel amount/code pair(s) clear; \"SPECIFIC\" reads row col AH."],
+    ["M9","Denial Code","input","3‑digit code","Used by K9 and AC7 branches; overwritten per row by denial‑code‑ref auto mode when active."],
+    ["M10","Apply Inel Cd Specific Removal","input","Y / N","When Y, M8's removal only fires if the existing code = O10."],
+    ["O6","Apply Dx","input","Y / N","Checks service‑line Dx against DxCodesRef col A before placing AP code."],
+    ["O7","Apply Lab","input","Y / N","Checks CPT against DxCodesRef col B (Lab CPT) before placing AP code."],
+    ["O8","Apply Dx + Lab/Rev Check","input","Y / N","Places \"#\" when both Rev/Lab (col C/B) and Dx (col A) match."],
+    ["O9","Apply BN $ Threshold","input","Y / N","Replaces manual BN $ Qty with a computed remaining‑charge amount when inel 908 present."],
+    ["O10","Inel Code To Remove","input","3‑digit code","Read only when M10 = Y; the code M8's removal matches against."],
+    ["Q6","Apply BN Code/$ Qty","input","Y / N","Gate for row cols R (BN CODE) and S (BN $ QTY)."],
+    ["Q7","Change Dx Code","input","Y / N","Gate for row col T (DX CD)."],
+    ["Q8","New OI Elig/Paid Line","input","N/A / 1ST…4TH LINE / ALL LINES","Selects which OI line row cols U (New OI Elig) and V (New OI Pd) write to."],
+    ["Q9","New OI Indicator/Type Line","input","N/A / 1ST…4TH LINE / ALL LINES","Selects which OI line row col H (New OI Ind) writes to."],
+    ["Q10","Inel Switch","input","Y / N","Gate for row col AU — only applied when existing line inel code = 908."],
+    ["S6","Apply Dx Exception","input","Y / N","Flags claim lines \"E\" on \"INVALID DX FOR SERVICE\" edits."],
+    ["S7","Apply Condition Note","input","Y / N","Gate for row col W (COND NT)."],
+    ["S8","Apply Grid Price","input","Y / N","Compares billed charge to DxCodesRef grid price (col E/F); applies 997 inel + \"PRICE MISMATCH\" status."],
+    ["S9","Update From/Thru Date","input","Y / N","UB only — syncs From/Thru dates to service date when they differ."],
+    ["S10","Apply TOD Update","input","Y / N","Gate for row col X (TOD); runs TOD_Update before entry screens."],
+    ["U6","Remove AP Code","input","Y / N","Clears the existing AP code field."],
+    ["U7","Apply Internal Zip","input","Y / N","Gate for row cols AA (INT NO) and AB (ZIP)."],
+    ["U8","Apply Condition AFV","input","Y / N","Gate for row col AC (AFV)."],
+    ["U9","Apply 850 Note","input","APPEND ON CURRENT NOTE / 2ND LINE ONLY / DO NOT APPLY NOTE","Gate for row col AD (850 NOTE)."],
+    ["U10","Remove Code Set","input","Y / N","Clears the CS (code set) field."],
+    ["W6","Apply Modifier (by list)","input","Y / N","Swaps AP code only on lines whose modifier matches Sheet8 col J; otherwise falls back to unconditional rules using row col I."],
+    ["W7","Ineligibility Code","input","3‑digit code","Consumed by IneligiblityCodes() only when DxCodesRef col K (CPT Denial list) has entries."],
+    ["W8","Remove Prov Rate","input","Y / N","Clears PROVRATE on all service lines."],
+    ["W9","Remove Modifier","input","Y / N","Clears any modifier matching Sheet8 col J list."],
+    ["W10","Apply Two AP Codes","input","Y / N","Gate for row cols AE (1ST AP CD) and AF (2ND AP CD)."],
+    ["Y6","Remove Precert Bypass","input","Y / N","On \"PC# NOT VALID FOR PATIENT\"/\"8803\" edits, switches release type to \"RP\"."],
+    ["Y7","858 Amount Inquiry","input","Y / N","Adds Total_Amt_858 into row col AG (858 AMT) instead of continuing normal entry."],
+    ["Y8","Bond Clinic","input","Y / N","HCFA only — applies the $10‑ceiling discount calc (Apply_BondClinic) per line."],
+    ["Y9","Update OC For 700","input","Y / N","HCFA — flags OC \"00010\" on lines carrying inel 700 (via CollectInel700)."],
+    ["Y10","Update HIC","input","Y / N","Gate for row cols AI (SEQ NO) + AJ (NEW PLAN ID); result written to row col AK (HIC STAT)."],
+    ["AA6","Remove Adj Code","input","Y / N","UB only — clears the OI adjustment code field."],
+    ["AA7","Apply 631 Inel","input","Y / N","Stamps \"631\" inel code on populated lines; bypasses duplicate‑inel‑code edit."],
+    ["AA8","Apply State Type","input","BY SAD ERR / ALL LINES / N/A","UB only — gate for row col AV (STATE TYPE)."],
+    ["AA9","Apply DPSV","input","Y / N (default Y)","≠ \"N\" auto‑confirms DPSV prompt; \"N\" flags \"POSSIBLE DUP\" and stops the row."],
+    ["AA10","Check Inel Code","input","Y / N","Scans CPS408 detail for DxCodesRef col P codes; blocks release + flags \"CHECK INEL CODE:…\" on match."],
+    ["AC6","Check/Apply Per Diem","input","Y / N","UB only — reroutes the row through UB_Per_Diem_Process, consuming row cols AW/AX."],
+    ["AC7","Discount After Denial","input","Y / N","Changes the K9 branch from flat denial to a discount‑style entry."],
+    ["AC8","Sequence Order Dedup","input","Y / N","Skips a row when row col AY (CERT NO) matches the previous processed row."],
+    ["AC9","Remove IU","input","Y / N","UB only — clears the IU field."],
+    ["AC10","Remove TU","input","Y / N","HCFA only — clears the TU field."],
+    ["AE6","Apply OPI","input","Y / D / N","\"Y\" writes row col AZ (NEW OPI); \"D\" removes current OPI. Row col BA (CODED OPI) is captured either way."],
+    ["AE7","Delete BN","input","Y / N","Clears BN code/qty fields instead of writing them."],
+    ["AE8","Apply Denial After Medicare","input","Y / N","Copies OI Elig into Inel Amt 2 with M9 Denial Code on release‑screen mismatch edits."],
+    ["AE9","Flip Modifier","input","Y / N","HCFA only — swaps P3/P4/P5 modifiers into the primary slot (SWITCH_MOD)."],
+    ["AE10","Apply Discount After Flip","input","Y / N","Read only inside AE9's flip logic — reapplies the post‑flip discount as inel 908/930."],
+    ["AG6","Remove Discount Amount","input","Y / Y‑DON'T READ OITYPE / N","Clears Inel Amt 1 on lines whose inel code is in DxCodesRef col T."],
+    ["AG7","FAIE Adjust Inel","input","Y / N","Gate for row col BB — only when existing Inel Code 2 = 908."],
+    ["AG8","Apply 034 Inel","input","Y / N","Same behavior as AA7 (631) but stamps \"034\"."],
+    ["AG9","Deny S9451","input","Y / N (default Y)","Auto‑denies any S9451 CPT line with inel code 947."],
+    ["AG10","Identify Possible HCR","input","Y / N (default Y)","Flags \"POSSIBLE HCR\" and halts a row on DxCodesRef col V CPT + inel 947/200/750/751/800/804."],
+    ["AI6","Apply 2nd Inel 001","input","Y / N","Gate for row col Q (NEW INEL CD) applied to Inel Code 2."],
+    ["AI7","Validate Amt Paid (CPT)","input","Y / N","Blocks release unless Is_It_Fully_Paid(\"CPTCodes\") passes, per DxCodesRef col X."]
+  ];
+
+  var COLUMNS = [
+    ["A","Claim No","input","Always — key used to pull up each claim."],
+    ["B","Status/Edit","output","Macro‑written status, error text, or \"DONE.\" / \"Released.\" / \"Not Released.\" per row."],
+    ["C","Claim Type","output","Set to HCFA or UB by GridPriceCheck / Get_Claim_Details after reading the claim screen."],
+    ["D","Pend Code","output","Captured pending code read from the claim screen during Get_Claim_Details."],
+    ["E","REL","output","2‑character release value read off the detail screen during GridPriceCheck."],
+    ["F","Drafts","output","Draft / line count captured during Get_Claim_Details."],
+    ["G","New OV/AJ","input","Written whenever non‑blank — no separate toggle."],
+    ["H","New OI Ind","input","Only when Q9 selects this line, or \"ALL LINES\"."],
+    ["I","New AP Cd","input","Consumed under W6 / O6–O7 / O8 AP‑code toggles, depending on which is active."],
+    ["J","Old Prv Cd","output","Captured during GridPriceCheck (reference only)."],
+    ["K","New Prv Cd","both","Written whenever non‑blank; also back‑filled by denial‑code‑ref lookup (see BD) when a matching rule supplies a PRV code."],
+    ["L","Old POS","output","Captured during GridPriceCheck."],
+    ["M","New POS","input","Written whenever non‑blank, at the start of every HCFA/UB entry."],
+    ["N","Old TOS","input","Reference value compared to the existing line TOS to decide whether to swap in column O."],
+    ["O","New TOS","input","Used in HCFA_TOS_Entry / UB_TOS_Entry only when a POS/TOS mainframe edit fires."],
+    ["P","Old Inel Cd","input","Reference value compared during TOS entry to trigger the swap to column Q."],
+    ["Q","New Inel Cd","input","Used during TOS‑entry code swap, and (separately) when AI6 = Y for 2nd‑inel‑001 handling."],
+    ["R","BN Code","input","Only when Q6 (Apply BN Code/$ Qty) = Y."],
+    ["S","BN $ Qty","input","Only when Q6 (Apply BN Code/$ Qty) = Y — the reference example."],
+    ["T","Dx Cd","input","Only when Q7 (Change Dx Code) = Y."],
+    ["U","New OI Elig","input","Only when Q8 (New OI Elig/Paid Line) ≠ N/A."],
+    ["V","New OI Pd","input","Only when Q8 (New OI Elig/Paid Line) ≠ N/A."],
+    ["W","Cond Nt","input","Only when S7 (Apply Condition Note) = Y."],
+    ["X","TOD","input","Only when S10 (Apply TOD Update) = Y."],
+    ["Y","Tme Unit","input","Only when K10 (Add Time) = Y."],
+    ["Z","Tme Unt Stat","output","Written by the macro (only when K10 = Y) with the time‑unit update result."],
+    ["AA","Int No","input","Only when U7 (Apply Internal Zip) = Y."],
+    ["AB","Zip","input","Only when U7 (Apply Internal Zip) = Y."],
+    ["AC","AFV","input","Only when U8 (Apply Condition AFV) = Y."],
+    ["AD","850 Note","input","Only when U9 (Apply 850 Note) = APPEND ON CURRENT NOTE or 2ND LINE ONLY."],
+    ["AE","1st AP Cd","input","Only when W10 (Apply Two AP Codes) = Y."],
+    ["AF","2nd AP Cd","input","Only when W10 (Apply Two AP Codes) = Y and this cell is non‑blank."],
+    ["AG","858 Amt","output","Accumulates Total_Amt_858 only when Y7 (858 Amount Inquiry) = Y."],
+    ["AH","Remv Spcfc Inel","input","Only when M8 (Remove Inel Amt/Cd) = SPECIFIC — semicolon‑delimited code list."],
+    ["AI","Seq No","input","Only when Y10 (Update HIC) = Y, AJ is non‑blank, and AK is blank."],
+    ["AJ","New Plan Id","input","Same condition as AI."],
+    ["AK","Hic Stat","output","Written by Plan_ID_UpdateByClaimNo only when Y10 = Y."],
+    ["AL","Prov Name","input","Only when H7 (Payee) = 2."],
+    ["AM","Prov Addr","input","Only when H7 (Payee) = 2."],
+    ["AN","City","input","Only when H7 (Payee) = 2."],
+    ["AO","State","input","Only when H7 (Payee) = 2."],
+    ["AP","Zip2","input","Only when H7 (Payee) = 2."],
+    ["AQ","IRS","unused","Declared as a column constant but not referenced in the reviewed macro logic."],
+    ["AR","Split EE","input","Only when H7 (Payee) = 3."],
+    ["AS","Split PR","input","Only when H7 (Payee) = 3."],
+    ["AT","Eob Per Clm","both","If non‑blank, used instead of H8 (EOB Note) for this row; if blank, may be back‑filled by denial‑code‑ref lookup with an EOB comment."],
+    ["AU","Inel Switch","input","Only when Q10 (Inel Switch) = Y and the existing line inel code = 908."],
+    ["AV","State Type","input","Only when AA8 (Apply State Type) ≠ N/A."],
+    ["AW","T Bill","input","UB only, only when AC6 (Check/Apply Per Diem) = Y — charge for the generated per‑diem line."],
+    ["AX","T Disc","input","UB only, only when AC6 (Check/Apply Per Diem) = Y — inel amount for the per‑diem line."],
+    ["AY","Cert No","input","Only read when AC8 (Sequence Order Dedup) = Y, to detect duplicate rows."],
+    ["AZ","New Opi","input","Only when AE6 (Apply OPI) = Y."],
+    ["BA","Coded Opi","output","Captured from the CPS850 screen whenever that screen is reached."],
+    ["BB","Faie Inel Cd","input","Only when AG7 (FAIE Adjust Inel) = Y and existing Inel Code 2 = 908."],
+    ["BC","PreCert No","input","Only used if the mainframe returns \"MULTIPLE PRE-CERTS FOUND\" during UB release — edit‑driven fallback, not toggle‑gated."],
+    ["BD","Denial Rule","input","Only used in denial‑code‑ref auto mode (D6 = 71, D7 = Y, K9 = Y) — key looked up in denial_code_ref.csv."]
+  ];
+
+  var DXREF = [
+    ["A","ICD10‑CM Dx Codes","Loaded every run; actively checked when O6 (Apply Dx) or O8 (Dx+Lab/Rev) = Y."],
+    ["B","Lab CPT Codes","Checked when O7 (Apply Lab) or O8 = Y, and inside the default AP‑code fallback path."],
+    ["C","UB Rev Code","Checked when O8 (Dx+Lab/Rev) = Y — UB only."],
+    ["E / F","CPT Code / Grid (Allowed) Amount","Checked when S8 (Apply Grid Price) = Y."],
+    ["H","Rejected Inel Codes","Checked when M6 (Validate Amt Paid) = Y."],
+    ["K","CPT Denial List","Checked when W7 (Ineligibility Code) is set, and inside the AC7 (Discount After Denial) branch."],
+    ["N","Denial Inel Code Exceptions","Always loaded; excludes matching lines from K9 (Deny Claim) overwrite."],
+    ["P","Check‑Inel Watch List","Checked when AA10 (Check Inel Code) = Y."],
+    ["R","Apply‑Discount‑After‑Denial List","Checked inside the K9 + AC7 branch."],
+    ["T","Remove‑Discount‑Amount Inel List","Checked when AG6 (Remove Discount Amount) ≠ N."],
+    ["V","Possible‑HCR CPT List","Checked when AG10 (Identify Possible HCR) = Y."],
+    ["X","Fully‑Paid‑by‑CPT List","Checked when AI7 (Validate Amt Paid by CPT) = Y."]
+  ];
+
+  var DENIALREF = [
+    ["Rule name (col 1)","Key — matched (uppercased) against row column BD Denial Rule."],
+    ["Denial code (col 2)","Overrides cell M9 per row. \"0\" disables K9 denial and forces a plain 71/Y release instead."],
+    ["PRV code (col 3)","Overrides row column K (New Prv Cd) when supplied."],
+    ["EOB comment (col 4)","Back‑fills row column AT (Eob Per Clm) only if that cell is currently blank."]
+  ];
+
+  var OUTPUTS = [
+    ["Row column B — Status/Edit", "Every processing outcome, mainframe edit message, and release/pend result, for every row."],
+    ["Row columns C, D, E, F, J, L", "Claim metadata captured while scanning the claim: claim type, pend code, release value, draft count, old PRV code, old POS."],
+    ["Row column Z — Time Unit Status", "Result of the time‑unit add, written only when K10 (Add Time) = Y."],
+    ["Row column AG — 858 Amt", "Running total of the 858 inquiry amount, written only when Y7 (858 Amount Inquiry) = Y."],
+    ["Row column AK — Hic Stat", "Result of the HIC / Plan ID update, written only when Y10 (Update HIC) = Y."],
+    ["Row column BA — Coded Opi", "OPI value captured from the CPS850 screen whenever that screen is reached."],
+    ["Row columns K, AT (auto mode)", "PRV code and EOB comment may be back‑filled from denial_code_ref.csv when the denial‑code‑ref auto mode is active (D6=71, D7=Y, K9=Y)."],
+    ["Mainframe / CPS screen fields", "The macro's real end product: POS, TOS, inel codes and amounts, notes, release and denial codes typed directly into the CPS450 / BLX2460 / CPS506 / CPS850 terminal screens. Not stored back to Excel except where captured above."],
+    ["MGC Utilization Log entry", "One usage record per run (macro name/version, team code, start/end time, NTID, machine name) posted to the Data API by Create_MGC_Utilization_Log_Entry at the end of Get_Claim_Details and Release_or_Pend_Claim."]
+  ];
+
+  function badge(type) {
+    var label = type === "both" ? "input / output" : type;
+    return '<span class="badge ' + type + '">' + label + '</span>';
+  }
+
+  function fillControls() {
+    var tbody = document.getElementById("tbody-controls");
+    var rows = "";
+    CONTROLS.forEach(function (r) {
+      rows += "<tr data-search=\"" + (r[0] + " " + r[1] + " " + r[3] + " " + r[4]).toLowerCase() + "\">" +
+        '<td class="ref"><span class="chip">' + r[0] + "</span></td>" +
+        '<td class="field-name">' + r[1] + "</td>" +
+        "<td>" + badge(r[2]) + "</td>" +
+        '<td class="values">' + r[3] + "</td>" +
+        '<td class="effect">' + r[4] + "</td>" +
+        "</tr>";
+    });
+    tbody.innerHTML = rows;
+  }
+
+  function fillColumns() {
+    var tbody = document.getElementById("tbody-columns");
+    var rows = "";
+    COLUMNS.forEach(function (r) {
+      rows += "<tr data-search=\"" + (r[0] + " " + r[1] + " " + r[3]).toLowerCase() + "\">" +
+        '<td class="ref"><span class="chip">' + r[0] + "</span></td>" +
+        '<td class="field-name">' + r[1] + "</td>" +
+        "<td>" + badge(r[2]) + "</td>" +
+        '<td class="effect">' + r[3] + "</td>" +
+        "</tr>";
+    });
+    tbody.innerHTML = rows;
+  }
+
+  function fillDxRef() {
+    var tbody = document.getElementById("tbody-dxref");
+    var rows = "";
+    DXREF.forEach(function (r) {
+      rows += "<tr data-search=\"" + (r[0] + " " + r[1] + " " + r[2]).toLowerCase() + "\">" +
+        '<td class="ref"><span class="chip">' + r[0] + "</span></td>" +
+        '<td class="field-name">' + r[1] + "</td>" +
+        '<td class="effect">' + r[2] + "</td>" +
+        "</tr>";
+    });
+    tbody.innerHTML = rows;
+  }
+
+  function fillDenialRef() {
+    var tbody = document.getElementById("tbody-denialref");
+    var rows = "";
+    DENIALREF.forEach(function (r) {
+      rows += "<tr data-search=\"" + (r[0] + " " + r[1]).toLowerCase() + "\">" +
+        '<td class="field-name">' + r[0] + "</td>" +
+        '<td class="effect">' + r[1] + "</td>" +
+        "</tr>";
+    });
+    tbody.innerHTML = rows;
+  }
+
+  function fillOutputs() {
+    var list = document.getElementById("outputs-list");
+    var html = "";
+    OUTPUTS.forEach(function (r) {
+      html += "<li><b>" + r[0] + ":</b> " + r[1] + "</li>";
+    });
+    list.innerHTML = html;
+  }
+
+  fillControls();
+  fillColumns();
+  fillDxRef();
+  fillDenialRef();
+  fillOutputs();
+
+  var input = document.getElementById("filter");
+  var countEl = document.getElementById("match-count");
+  var allRows = document.querySelectorAll("tbody tr[data-search]");
+  var totalRows = allRows.length;
+
+  function applyFilter() {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    allRows.forEach(function (row) {
+      var match = q === "" || row.getAttribute("data-search").indexOf(q) !== -1;
+      row.classList.toggle("is-hidden", !match);
+      if (match) visible++;
+    });
+    countEl.textContent = q === "" ? totalRows : visible;
+  }
+
+  input.addEventListener("input", applyFilter);
+  countEl.textContent = totalRows;
+})();
+</script>
