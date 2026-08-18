@@ -1,0 +1,733 @@
+<title>Claim Split HCFA I/O Map</title>
+<style>
+  :root {
+    --paper: #EEF1EE;
+    --surface: #FFFFFF;
+    --surface-alt: #F4F6F3;
+    --ink: #1B2420;
+    --ink-soft: #4B564F;
+    --ink-faint: #7C877E;
+    --line: #D3D9D2;
+    --line-strong: #B7C0B5;
+    --mono-tint: #E4E9E2;
+    --accent-input: #8F5E17;
+    --accent-input-bg: #F4E7D2;
+    --accent-output: #2E5266;
+    --accent-output-bg: #DEE9EE;
+    --accent-both-bg: #EDE6E0;
+    --accent-unused: #8A8F86;
+    --accent-unused-bg: #E7E9E5;
+    --accent-flag: #7A3B2E;
+    --accent-flag-bg: #F3E1DB;
+    --shadow: 0 1px 2px rgba(27,36,32,0.06), 0 8px 24px rgba(27,36,32,0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #10140F;
+      --surface: #171C15;
+      --surface-alt: #1B2118;
+      --ink: #E7ECE3;
+      --ink-soft: #AEB8A8;
+      --ink-faint: #7E897A;
+      --line: #2A3227;
+      --line-strong: #3A4436;
+      --mono-tint: #1E2519;
+      --accent-input: #D9A755;
+      --accent-input-bg: #33291A;
+      --accent-output: #7FB2C8;
+      --accent-output-bg: #1B2C33;
+      --accent-both-bg: #2A2620;
+      --accent-unused: #7C8478;
+      --accent-unused-bg: #22271F;
+      --accent-flag: #E19A87;
+      --accent-flag-bg: #302019;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #10140F;
+    --surface: #171C15;
+    --surface-alt: #1B2118;
+    --ink: #E7ECE3;
+    --ink-soft: #AEB8A8;
+    --ink-faint: #7E897A;
+    --line: #2A3227;
+    --line-strong: #3A4436;
+    --mono-tint: #1E2519;
+    --accent-input: #D9A755;
+    --accent-input-bg: #33291A;
+    --accent-output: #7FB2C8;
+    --accent-output-bg: #1B2C33;
+    --accent-both-bg: #2A2620;
+    --accent-unused: #7C8478;
+    --accent-unused-bg: #22271F;
+    --accent-flag: #E19A87;
+    --accent-flag-bg: #302019;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  code, .mono, .cell-ref, .col-ref {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a { color: var(--accent-output); }
+
+  h1, h2, h3 {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  .layout {
+    display: flex;
+    align-items: flex-start;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  nav.rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 240px;
+    flex: 0 0 240px;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 18px 28px 24px;
+    border-right: 1px solid var(--line);
+  }
+  .rail-brand {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .rail-title {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 22px;
+  }
+  .rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .rail-list a {
+    display: block;
+    padding: 7px 10px;
+    border-radius: 6px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .rail-list a:hover { background: var(--surface-alt); color: var(--ink); }
+  .rail-count { color: var(--ink-faint); font-weight: 500; font-size: 12px; }
+
+  .rail-legend {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rail-legend-title {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  main { flex: 1 1 auto; min-width: 0; padding: 40px 40px 100px; }
+
+  header.hero { max-width: 780px; margin-bottom: 30px; }
+  header.hero .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent-output);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  header.hero h1 { font-size: 30px; margin-bottom: 12px; }
+  header.hero p { color: var(--ink-soft); font-size: 15.5px; max-width: 66ch; margin: 0; }
+
+  .example-callout {
+    margin-top: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-input);
+    border-radius: 8px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    max-width: 66ch;
+  }
+  .example-callout b { color: var(--ink); }
+
+  .searchbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--paper);
+    padding: 14px 0 16px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .searchbar input {
+    flex: 1 1 340px;
+    max-width: 420px;
+    padding: 9px 13px;
+    border-radius: 7px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .searchbar input:focus-visible {
+    outline: 2px solid var(--accent-output);
+    outline-offset: 1px;
+  }
+  .searchbar .hint { font-size: 12.5px; color: var(--ink-faint); }
+  #match-count { font-weight: 700; color: var(--ink); }
+
+  section { margin-top: 52px; scroll-margin-top: 76px; }
+  section .section-head { margin-bottom: 6px; }
+  section h2 { font-size: 21px; }
+  section .section-sub { color: var(--ink-soft); font-size: 14px; max-width: 70ch; margin-top: 6px; }
+  section .group-eyebrow {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 700; margin: 26px 0 8px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.input  { background: var(--accent-input-bg); color: var(--accent-input); }
+  .badge.output { background: var(--accent-output-bg); color: var(--accent-output); }
+  .badge.both   { background: var(--accent-both-bg); color: var(--ink-soft); }
+  .badge.unused { background: var(--accent-unused-bg); color: var(--accent-unused); }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    background: var(--surface);
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 700;
+    background: var(--surface-alt);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    font-size: 13.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-alt); }
+  tbody tr.is-hidden { display: none; }
+
+  td.ref { white-space: nowrap; }
+  .chip {
+    display: inline-block;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: var(--mono-tint);
+    color: var(--ink);
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+  td.field-name { font-weight: 700; color: var(--ink); white-space: nowrap; }
+  td.values { color: var(--ink-soft); white-space: normal; }
+  td.effect { color: var(--ink-soft); max-width: 46ch; }
+
+  .outputs-list, .flags-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    max-width: 80ch;
+    margin: 0;
+    padding: 0;
+  }
+  .outputs-list li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-output);
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    list-style: none;
+  }
+  .outputs-list li b { color: var(--ink); }
+  .flags-list li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-flag);
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    list-style: none;
+  }
+  .flags-list li b { color: var(--accent-flag); }
+
+  .note-box {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    max-width: 80ch;
+    box-shadow: var(--shadow);
+  }
+
+  footer.page-footer {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-faint);
+    font-size: 12.5px;
+    max-width: 70ch;
+  }
+
+  @media (max-width: 880px) {
+    .layout { flex-direction: column; }
+    nav.rail { position: relative; width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 20px; }
+    main { padding: 28px 20px 80px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+
+<div class="layout">
+  <nav class="rail" aria-label="Section navigation">
+    <div class="rail-brand">CLAIM.SPLIT.MACRO.HCFA</div>
+    <div class="rail-title">Input / Output Map</div>
+    <ul class="rail-list">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#global-controls">Global Controls <span class="rail-count">15</span></a></li>
+      <li><a href="#claim-block">MAIN · Claim Block <span class="rail-count">18</span></a></li>
+      <li><a href="#detail-grid">MAIN · Service‑Line Grid <span class="rail-count">17</span></a></li>
+      <li><a href="#claiminfo">ClaimInfo Sheet <span class="rail-count">56</span></a></li>
+      <li><a href="#servicelines">ClaimServiceLInes Sheet <span class="rail-count">28</span></a></li>
+      <li><a href="#reference-sheet">Reference Sheet</a></li>
+      <li><a href="#constants">Fixed Values</a></li>
+      <li><a href="#outputs">Outputs Summary</a></li>
+      <li><a href="#flags">Worth Confirming</a></li>
+    </ul>
+    <div class="rail-legend">
+      <div class="rail-legend-title">Legend</div>
+      <span class="badge input">input</span>
+      <span class="badge output">output</span>
+      <span class="badge both">input / output</span>
+      <span class="badge unused">unused</span>
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero" id="overview">
+      <div class="eyebrow">MAIN · ClaimInfo · ClaimServiceLInes · REFERENCE sheets — EXTRA! CPS screens</div>
+      <h1>Every input and output in the Claim Split HCFA macro</h1>
+      <p>CLAIM.SPLIT.MACRO.HCFA pulls a repriced claim's data out of its PDF (or the WebClaims API), lays it across the <code class="mono">MAIN</code> grid, then keys it back into the mainframe as new split drafts — via one of three routines (Scratch, Scratch Not Online, Non‑Scratch) picked by a single dropdown. Almost every column downstream of "02.GET EDI DETAILS" is auto‑extracted output that later gets re‑read as split input; this page traces each cell through that round trip.</p>
+      <div class="example-callout">
+        <b>Reading the tables:</b> row column <span class="chip">N</span> · New Cert # is <b>input, only when</b> <span class="chip">Z2</span> Claim Split Option = <code>SCRATCH</code> or <code>SCRATCH NOT ONLINE</code> — same pattern as the release/pend macro reference: a cell only matters once its gating toggle says so.
+      </div>
+    </header>
+
+    <div class="searchbar">
+      <input type="text" id="filter" placeholder="Filter by cell, column, name, or condition…" autocomplete="off" spellcheck="false" aria-label="Filter all tables">
+      <span class="hint"><span id="match-count">0</span> matching rows</span>
+    </div>
+
+    <section id="global-controls">
+      <div class="section-head">
+        <h2>Global control cells &amp; checkboxes — MAIN sheet</h2>
+        <p class="section-sub">The header area above the claim grid, plus the OLE checkboxes scattered around it. <code class="mono">I1</code> (Action) is the master switch — it decides which of the three branches in <code class="mono">cmdRun_Click</code> runs.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-controls">
+          <thead>
+            <tr><th style="width:110px">Cell / Control</th><th>Setting</th><th style="width:80px">Type</th><th style="width:170px">Values</th><th>Drives</th></tr>
+          </thead>
+          <tbody id="tbody-controls"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="claim-block">
+      <div class="section-head">
+        <h2>MAIN sheet — claim block, columns A–R</h2>
+        <p class="section-sub">One row per claim being split. Columns N–Q are hidden entirely unless <span class="chip">Z2</span> is one of the SCRATCH modes.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-claimblock">
+          <thead>
+            <tr><th style="width:60px">Col</th><th style="width:190px">Field</th><th style="width:90px">Type</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="tbody-claimblock"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="detail-grid">
+      <div class="section-head">
+        <h2>MAIN sheet — service‑line detail grid, columns S–AI</h2>
+        <p class="section-sub">One row per extracted service line (not 1:1 with the claim rows above — <span class="chip">L</span> XLRW LOC points to where a claim's lines start here). Populated by <code class="mono">POPULATE_MAIN_SHEET</code> after "02.GET EDI DETAILS", then re‑read line‑by‑line while keying "03.SPLIT CLAIM".</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-detailgrid">
+          <thead>
+            <tr><th style="width:60px">Col</th><th style="width:190px">Field</th><th style="width:90px">Type</th><th>Notes</th></tr>
+          </thead>
+          <tbody id="tbody-detailgrid"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="claiminfo">
+      <div class="section-head">
+        <h2>ClaimInfo sheet — HCFA‑1500 box‑by‑box extraction</h2>
+        <p class="section-sub">One row per claim. Every column here is output from <code class="mono">CLAIM_DEMOGRAPHICS_INFORMATION</code>, <code class="mono">CLAIM_REPRICING_INFORMATION</code> and <code class="mono">Medicare_Medicaid_Cob_Information</code> — nothing in this sheet is hand‑entered.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-claiminfo">
+          <thead>
+            <tr><th style="width:70px">Column</th><th>Field</th></tr>
+          </thead>
+          <tbody id="tbody-claiminfo"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="servicelines">
+      <div class="section-head">
+        <h2>ClaimServiceLInes sheet — per‑line extraction</h2>
+        <p class="section-sub">One row per service line per claim. All output, from <code class="mono">CLAIM_SERVICELINES_INFORMATION</code>, <code class="mono">CLAIM_REPRICING_INFORMATION</code> and <code class="mono">Medicare_Cob_Information</code> — this is the sheet <code class="mono">POPULATE_MAIN_SHEET</code> copies onto MAIN columns S–AI.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-servicelines">
+          <thead>
+            <tr><th style="width:70px">Column</th><th>Field</th></tr>
+          </thead>
+          <tbody id="tbody-servicelines"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="reference-sheet">
+      <div class="section-head">
+        <h2>REFERENCE sheet — HCA → CPS POS lookup</h2>
+        <p class="section-sub">A static two‑column table (col A "HCA POS", col B "CPS POS") maintained by hand, not per‑run.</p>
+      </div>
+      <div class="note-box">Loaded into the <code class="mono">HCFACol</code> dictionary by <b>HCFA_POS_Collection</b>, and consulted only by <b>HCFA_Scratch_NotOnline</b> — it translates a service line's extracted place‑of‑service (detail‑grid column <span class="chip">AH</span>) into the CPS mainframe POS code before that value is keyed onto the new draft. The other two split modes (Scratch, Non‑Scratch) don't use this table — they carry the POS forward from the original claim's existing 450 screen instead.</div>
+    </section>
+
+    <section id="constants">
+      <div class="section-head">
+        <h2>Fixed values written to every generated draft</h2>
+        <p class="section-sub">Hard‑coded constants in <code class="mono">oShared</code> — not read from any sheet, but written onto the CPS506 release screen (and the inel fields) for every draft any of the three split routines create.</p>
+      </div>
+      <div class="table-wrap">
+        <table id="table-constants">
+          <thead>
+            <tr><th style="width:140px">Constant</th><th style="width:90px">Value</th><th>Placed as</th></tr>
+          </thead>
+          <tbody id="tbody-constants"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="outputs">
+      <div class="section-head">
+        <h2>Outputs summary</h2>
+        <p class="section-sub">What the macro actually produces — on the workbook, on disk, and on the mainframe.</p>
+      </div>
+      <ul class="outputs-list" id="outputs-list"></ul>
+    </section>
+
+    <section id="flags">
+      <div class="section-head">
+        <h2>Worth confirming</h2>
+        <p class="section-sub">A few spots where the code's behavior doesn't quite match its own labels — flagged while tracing inputs/outputs, not verified against intent.</p>
+      </div>
+      <ul class="flags-list" id="flags-list"></ul>
+    </section>
+
+    <footer class="page-footer">
+      Compiled from Main, oShared, oScratch, oNonScratch, oScratchNotOnline, oReadPdf, oWebClaim, oRegistry, AAIUtilization and ThisWorkbook in <code class="mono">claim_split_hcfa/Macro</code>. “Input” = read from a sheet into the macro or onto a mainframe screen; “Output” = written by the macro back into a sheet; “both” = a value the macro writes for one step and reads back for another.
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var CONTROLS = [
+    ["B3","Session Path","input","text","EXTRA! session name to attach to (CURRENT_SESSION); falls back to the active session if blank."],
+    ["I1","Action","input","01.CLEAN ALL SHEETS / 02.GET EDI DETAILS / 03.SPLIT CLAIM","Master switch for cmdRun_Click. Changing it resets chkWbClaim/chkImg visibility (Worksheet_Change)."],
+    ["F1","Begin Row","input","integer","First MAIN row processed by the selected action."],
+    ["F2","End Row","input","integer","Last MAIN row processed."],
+    ["G2","Current Row","output","integer","Set to the row currently being processed, each loop iteration."],
+    ["E3","Status Message","output","text","Shows \"MACRO IS CURRENTLY RUNNING….\" while processing; cleared when the action finishes."],
+    ["O2","Newborn Type","input","NEW BORN / NON-NEW BORN / (blank)","Selects how Ind Seq No is chosen on CPS220: IN/SP + sex match, row col Q (Non‑Newborn Seq No), or name/DOB match."],
+    ["Z2","Claim Split Option","input","SCRATCH / SCRATCH NOT ONLINE / NON SCRATCH","Selects which split routine runs. Also toggles visibility of row cols N:R and the chkByPass/chkCPSDisc checkboxes."],
+    ["Z3","Split Grouping","input","BY DATE OF SERVICE / BY DIAGNOSIS","Decides when the current draft's lines end and a new draft starts, during Scratch/Non‑Scratch split."],
+    ["chkDetails","Show Claim Details","input","checkbox","UI only — shows/hides the ClaimInfo and ClaimServiceLInes tabs. No effect on processing."],
+    ["chkWbClaim","Use Web Claim","input","checkbox","Visible only for 02.GET EDI DETAILS. Checked = fetch via the JSON WebClaims API; unchecked = scrape the legacy PDF claim viewer."],
+    ["chkImg","Image Version","input","checkbox","Visible only for 02.GET EDI DETAILS. Picks most‑recent vs oldest claim image/version when more than one exists."],
+    ["chk2Lines","2 Lines/Draft","input","checkbox","Caps every generated draft at 2 service lines, across all three split routines."],
+    ["chkCPSDisc","Get CPS Discount","input","checkbox","Visible only when Z2 = NON SCRATCH. Pulls existing CPS inel/discount amounts into row col AA before splitting."],
+    ["chkByPass","Bypass","input","checkbox","Visible only when Z2 = SCRATCH. Stamps an extra \"001\" bypass code on Inel Code 2 while placing discount data."]
+  ];
+
+  var CLAIMBLOCK = [
+    ["A","Macro Status","output","\"CANCELLED.\" / \"DONE.\" / claim‑type‑not‑supported message, etc."],
+    ["B","Other Notes","output","Detail/edit message alongside the status — draft count, mainframe edit text, cancellation reason."],
+    ["C","*CCN (Required)","input","The claim to look up / split. Must be exactly 11 characters or the row is skipped during 02.GET EDI DETAILS."],
+    ["D","Claim Type","output","Set to HCFA / UB / an error string during 02.GET EDI DETAILS; read back during 03.SPLIT CLAIM — only HCFA rows are split."],
+    ["E","Patient's Name","output","Looked up from ClaimInfo by CCN."],
+    ["F","From SVDT","output","Computed minimum service date. Also read as DtFrom in Non‑Scratch split, but that value isn't placed on any screen there."],
+    ["G","Thru SVDT","output","Computed maximum service date. Same unused‑read note as F."],
+    ["H","Total Charge","output","Sum of Box 24 charges across the claim's service lines."],
+    ["I","Total Repriced","output","From the repricing/COB section of the PDF."],
+    ["J","Total Discount","output","From the repricing/COB section of the PDF."],
+    ["K","No. of SV Lines","both","Output: count of service‑line rows. Also read back as the loop bound (totSvcLns) in all three split routines."],
+    ["L","XLRW LOC","both","Output: row index where this claim's lines start in the S:AI grid. Also read back as the walking pointer (xlLoc) during split."],
+    ["M","(scratch)","internal","Transient MATCH‑formula result used to find the claim's ClaimInfo row; cleared immediately after use."],
+    ["N","New Cert #","input","Only shown/used when Z2 = SCRATCH or SCRATCH NOT ONLINE."],
+    ["O","New CCN","input","Same visibility as N. Distinct from cell O2 (Newborn Type) — same letter, different row."],
+    ["P","New Date Of Service","input","Same visibility as N. Required — row is cancelled (\"NEW DATE OF SERVICE REQUIRED\") if blank."],
+    ["Q","Non‑Newborn Seq No","input","Only read when O2 = NON-NEW BORN; required in that case."],
+    ["R","(unused)","unused","Hidden alongside N:Q but not referenced anywhere in the reviewed split logic."]
+  ];
+
+  var DETAILGRID = [
+    ["S","Claim Control #","both","Output: CCN for this line (SVL col A). Gates 03.SPLIT CLAIM (must be 11 chars) and marks the end of a claim's line block during split."],
+    ["T","Dt Svc From","both","Output (SVL col B). Input: keyed to the BGN field; also drives \"BY DATE OF SERVICE\" draft grouping."],
+    ["U","Dt Svc To","both","Output (SVL col C). Input: keyed to the END field."],
+    ["V","CPT/HCPCS","both","Output (SVL col F). Input: keyed to the HCPCS field."],
+    ["W","TOS","input only","Not auto‑populated by POPULATE_MAIN_SHEET, unlike every neighboring column — must be typed in before 03.SPLIT CLAIM. Keyed to the TOS field."],
+    ["X","Days or Units","both","Output (SVL col M). Input: keyed onto the field the split code comments label \"OC\" — worth confirming against the column header."],
+    ["Y","Charges","both","Output (SVL col L). Input: keyed to the CHARGE field."],
+    ["Z","Allowed/Repriced","output","Display only in the reviewed split code."],
+    ["AA","Discount/Ineligible","both","Output (SVL col W) as a plain amount. Input format varies by split mode — see note below."],
+    ["AB","Mod 01","both","Output (SVL col G). Input: keyed to MOD1."],
+    ["AC","Mod 02","both","Output (SVL col H). Input: keyed to MOD2."],
+    ["AD","Mod 03","both","Output (SVL col I). Input: keyed to MOD3."],
+    ["AE","Mod 04","both","Output (SVL col J). Input: keyed to MOD4."],
+    ["AF","Dx Codes","both","Output: Dx code resolved from the pointer against ClaimInfo Box 21 A–L. Input: keyed to the diagnosis field; drives \"BY DIAGNOSIS\" grouping."],
+    ["AG","Dx Pointer","output","First character of the Box 24 diagnosis pointer — intermediate value used to compute AF, not placed on any screen."],
+    ["AH","Place of Service","input (Scratch Not Online only)","Output (SVL col D). Only Scratch‑Not‑Online consumes it, via the REFERENCE sheet's HCA→CPS POS table."],
+    ["AI","Resubmission Code","output","Box 22 resubmission code, looked up from ClaimInfo. Display only in the reviewed split code."]
+  ];
+
+  var AA_NOTE = "Column AA's expected input format changes by split mode: Scratch expects a pipe‑delimited Inel/OI bundle it builds for itself mid‑run (GetClaim_Inel_OI); Non‑Scratch accepts that same bundle (via GetCPS_Discounts, if chkCPSDisc = Y) or a plain amount; Scratch‑Not‑Online only ever treats it as a plain amount, always paired with inel code 908.";
+
+  var CLAIMINFO = [
+    ["A","Claim Control Number"],["C","Box 1 — Insured's ID Number"],["D","Box 2 — Patient Name"],
+    ["E","Box 3 — Patient DOB"],["F","Box 3 — Patient Sex (M/F)"],["G","Box 4 — Insured Name"],
+    ["H","Box 5 — Patient Address"],["I","Box 5 — Patient City"],["J","Box 5 — Patient State"],
+    ["K","Box 5 — Patient Zip"],["L","Box 5 — Patient Telephone"],["M","Box 6 — Patient Rel to Insured (SELF/SPOUSE/CHILD/OTHER)"],
+    ["N","Box 7 — Insured Address"],["O","Box 7 — Insured City"],["P","Box 7 — Insured State"],
+    ["Q","Box 7 — Insured Zip"],["R","Box 7 — Insured Telephone"],["S","Box 11 — Insured Policy Group"],
+    ["T","Box 11 — Insured DOB"],["U","Box 11 — Insured Sex"],["V","Box 17 — Referring Provider Name"],
+    ["W","Box 17a"],["X","Box 17b (NPI) — read from the same PDF coordinates as W"],
+    ["Y","Box 18 — Hospitalization Date From"],["Z","Box 18 — Hospitalization Date To"],
+    ["AA–AL","Box 21 — Diagnosis A through L (12 columns)"],["AM","Box 25 — Federal Tax ID"],
+    ["AN","Box 26 — Patient Account No"],["AO","Box 28 — Total Charge (as printed)"],
+    ["AP","Box 31 — Supplier / Physician Signature Name"],["AQ","Box 32 — Service Facility Location (raw, parsed into AR:AW)"],
+    ["AR–AW","Service Facility Name / Addr1 / Addr2 / City / State / Zip"],["AX","Box 32a — Service Facility NPI"],
+    ["AY","Box 32b"],["AZ","Box 33 — Billing Provider (raw, parsed into BA:BF)"],
+    ["BA–BF","Billing Provider Name / Addr1 / Addr2 / City / State / Zip"],["BG","Box 33a — Billing NPI"],
+    ["BH","Box 33b"],["BI","Total Charges — summed from service lines (cmdRun_Click)"],
+    ["BJ","Total Repriced — from the repricing/COB section"],["BK","Total Discounts — from the repricing/COB section"],
+    ["BL","Re‑Priced Ind"],["BM","Box 22 — Resubmission Code"],["BN","HIC / Member No"],
+    ["BO","Box 29 — Amount Paid"],["BP","Read on the CPS325 screen (Scratch Not Online) — no extraction routine writes to it, see Worth Confirming"],
+    ["BQ","Re‑Priced By"],["BR","Deductible (COB)"],["BS","Coinsurance (COB)"],["BT","Calculated Approved Amount (COB)"],
+    ["BU","Paid (COB)"],["BV","Patient Responsibility (COB)"],["BW","Non‑Covered (COB)"],["BX","Contractual (COB)"],
+    ["BY","Adjustment detail — concatenated SEQ/GRP/CD/ADJ RSN/AMT string"],["BZ","Medicare ID (COB)"],
+    ["CA","HIC Number (COB) — dead code, see Worth Confirming"],["CB","Other Insurance Type (COB)"],
+    ["CC","Claim NTE"],["CD","Timely Filing"],["CE","Method Info"]
+  ];
+
+  var SERVICELINES = [
+    ["A","Claim Control Number"],["B","Box 24 — Date of Service From"],["C","Box 24 — Date of Service To"],
+    ["D","Box 24 — POS"],["E","Box 24 — EMG"],["F","Box 24 — CPT/HCPCS"],["G","Box 24 — Mod A"],
+    ["H","Box 24 — Mod B"],["I","Box 24 — Mod C"],["J","Box 24 — Mod D"],["K","Box 24 — Diagnosis Pointer"],
+    ["L","Box 24 — Charges"],["M","Box 24 — Days/Units"],["N","Box 24 — EPSDT Family Plan"],
+    ["O","Box 24 — I.D. Qual"],["P","Box 24 — Rendering Provider I.D."],["Q","Reprice — Date From"],
+    ["R","Reprice — Date To"],["S","Reprice — CPT/HCPCS"],["T","Reprice — Charges"],["U","Reprice — Units"],
+    ["V","Allowed / Repriced Amount"],["W","Discount / Ineligible Amount"],["X","Discount / Ineligible Reason Code"],
+    ["Y","iCES/EDC Remark Code"],["Z","Medicare/Medicaid COB — Appvd Amount"],["AA","Medicare/Medicaid COB — Paid Amount"],
+    ["AB","NDC #"]
+  ];
+
+  var CONSTANTS = [
+    ["ByPassCode","001","Inel Code 2, when the Scratch bypass checkbox is on"],
+    ["InelCode","908","Default inel code paired with a plain discount amount"],
+    ["RlsCode","60","CPS506 Rls field, every draft"],
+    ["LstRls","N","CPS506 Lst Rls field, every draft"],
+    ["PendRsn","o99","CPS506 Pend Rsn field, every draft"],
+    ["FlupDays","001","CPS506 Flup Dys field, every draft"],
+    ["Payee","0","CPS506 Payee field, every draft"]
+  ];
+
+  var OUTPUTS = [
+    ["MAIN columns A / B", "Per‑row processing status and detail message, for every action."],
+    ["MAIN column D, and E:L", "Claim metadata captured or computed during \"02.GET EDI DETAILS\" (patient name, service dates, totals, line count, detail‑grid pointer)."],
+    ["MAIN columns S:AI", "One row per service line, populated from ClaimServiceLInes plus ClaimInfo lookups — except column W (TOS), which stays manual."],
+    ["ClaimInfo sheet, A:CE", "The full box‑by‑box HCFA‑1500 extraction, one row per claim."],
+    ["ClaimServiceLInes sheet, A:AB", "One row per service line per claim."],
+    ["Downloaded claim PDF", "%TEMP%\\&lt;CCN&gt;.pdf — fetched then deleted per claim during \"02.GET EDI DETAILS\" (DEL_EXISTING_FILE)."],
+    ["Mainframe / CPS screens", "The macro's real end product: new split claim drafts keyed across CPS520 / 500 / 850 / 310 / 325 / 920 / 450 / 445 / 506 / 910 / BLX2460 in the EXTRA! session."],
+    ["AAI usage log", "One entry per run (macro name/version, asset ID, start/end time, transaction count, comments) posted via Usage_Log_AAI → AAI_TrackingScript.vbs."],
+    ["Local machine setup", "On Workbook_Open: creates %LocalAppData%\\Macros\\VBS, copies the macro asset list and PdfClaimImageDetails utility from the network share, and registers that COM DLL."]
+  ];
+
+  var FLAGS = [
+    ["Detail‑grid column W (TOS)", "Not auto‑populated by POPULATE_MAIN_SHEET, unlike every column around it — it silently stays blank unless someone fills it in by hand before running 03.SPLIT CLAIM."],
+    ["ClaimInfo column BP", "Read as an input on the CPS325 screen in Scratch‑Not‑Online mode, but no routine in oReadPdf.txt writes to it — it will be blank unless populated some other way."],
+    ["ClaimInfo column CA (HIC Number)", "Its Select Case branch in Medicare_Medicaid_Cob_Information checks for \"HIC Number\", but the pattern actually searched on the page is \"Medicare ID\" — that branch can never fire."],
+    ["ClaimInfo columns W and X (Box 17a / 17b)", "Both are read from the exact same PDF coordinates — likely capturing the same text into both instead of two distinct values."],
+    ["Detail‑grid column X (\"Days or Units\")", "Keyed onto the mainframe field the split code comments label \"OC\" during HCFA_Scratch_Split / HCFA_NonScratch_Split — worth confirming that's the intended target given the column's header."]
+  ];
+
+  function badge(type) {
+    var label = type === "both" ? "input / output" : type;
+    var cls = (type === "input only" || type.indexOf("input") === 0) ? "input" : type;
+    if (type.indexOf("input (") === 0) { cls = "input"; label = type; }
+    if (type === "internal") { cls = "unused"; label = "internal"; }
+    return '<span class="badge ' + cls + '">' + label + '</span>';
+  }
+
+  function fillSimple(id, rows, cols) {
+    var tbody = document.getElementById(id);
+    var html = "";
+    rows.forEach(function (r) {
+      html += "<tr data-search=\"" + r.join(" ").toLowerCase() + "\">";
+      cols.forEach(function (c) { html += c(r); });
+      html += "</tr>";
+    });
+    tbody.innerHTML = html;
+  }
+
+  fillSimple("tbody-controls", CONTROLS, [
+    function (r) { return '<td class="ref"><span class="chip">' + r[0] + "</span></td>"; },
+    function (r) { return '<td class="field-name">' + r[1] + "</td>"; },
+    function (r) { return "<td>" + badge(r[2]) + "</td>"; },
+    function (r) { return '<td class="values">' + r[3] + "</td>"; },
+    function (r) { return '<td class="effect">' + r[4] + "</td>"; }
+  ]);
+
+  fillSimple("tbody-claimblock", CLAIMBLOCK, [
+    function (r) { return '<td class="ref"><span class="chip">' + r[0] + "</span></td>"; },
+    function (r) { return '<td class="field-name">' + r[1] + "</td>"; },
+    function (r) { return "<td>" + badge(r[2]) + "</td>"; },
+    function (r) { return '<td class="effect">' + r[3] + "</td>"; }
+  ]);
+
+  fillSimple("tbody-detailgrid", DETAILGRID, [
+    function (r) { return '<td class="ref"><span class="chip">' + r[0] + "</span></td>"; },
+    function (r) { return '<td class="field-name">' + r[1] + "</td>"; },
+    function (r) { return "<td>" + badge(r[2]) + "</td>"; },
+    function (r) { return '<td class="effect">' + r[3] + (r[0] === "AA" ? " " + AA_NOTE : "") + "</td>"; }
+  ]);
+
+  fillSimple("tbody-claiminfo", CLAIMINFO, [
+    function (r) { return '<td class="ref"><span class="chip">' + r[0] + "</span></td>"; },
+    function (r) { return '<td class="field-name">' + r[1] + "</td>"; }
+  ]);
+
+  fillSimple("tbody-servicelines", SERVICELINES, [
+    function (r) { return '<td class="ref"><span class="chip">' + r[0] + "</span></td>"; },
+    function (r) { return '<td class="field-name">' + r[1] + "</td>"; }
+  ]);
+
+  fillSimple("tbody-constants", CONSTANTS, [
+    function (r) { return '<td class="field-name">' + r[0] + "</td>"; },
+    function (r) { return '<td class="ref"><span class="chip">' + r[1] + "</span></td>"; },
+    function (r) { return '<td class="effect">' + r[2] + "</td>"; }
+  ]);
+
+  (function fillOutputs() {
+    var list = document.getElementById("outputs-list");
+    var html = "";
+    OUTPUTS.forEach(function (r) { html += "<li><b>" + r[0] + ":</b> " + r[1] + "</li>"; });
+    list.innerHTML = html;
+  })();
+
+  (function fillFlags() {
+    var list = document.getElementById("flags-list");
+    var html = "";
+    FLAGS.forEach(function (r) { html += "<li><b>" + r[0] + ":</b> " + r[1] + "</li>"; });
+    list.innerHTML = html;
+  })();
+
+  var input = document.getElementById("filter");
+  var countEl = document.getElementById("match-count");
+  var allRows = document.querySelectorAll("tbody tr[data-search]");
+  var totalRows = allRows.length;
+
+  function applyFilter() {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    allRows.forEach(function (row) {
+      var match = q === "" || row.getAttribute("data-search").indexOf(q) !== -1;
+      row.classList.toggle("is-hidden", !match);
+      if (match) visible++;
+    });
+    countEl.textContent = q === "" ? totalRows : visible;
+  }
+
+  input.addEventListener("input", applyFilter);
+  countEl.textContent = totalRows;
+})();
+</script>
