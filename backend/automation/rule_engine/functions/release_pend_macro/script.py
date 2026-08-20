@@ -24,6 +24,70 @@ from .utils import (
 
 
 # ---------------------------------------------------------------------------
+# rule_code_ref_template.csv columns (from BX onward) -> claim-row key
+# ---------------------------------------------------------------------------
+# Same "seed the claim row from the rule, unless the row already has its own
+# value" pattern as the pre-existing new_ap_cd / new_prv_cd handling below,
+# extended to the rest of the per-row static-value columns added to
+# rule_code_ref_template.csv. Right-hand side is the exact UPPER_SNAKE key
+# hcfa.py / ub.py / utils.py / tod.py actually call row.get(...) with — a few
+# differ from the CSV header's spelling (e.g. cond_nt -> COND_NOTE,
+# prov_addr -> PROV_ADD), so this mapping is the source of truth, not a
+# mechanical uppercase of the column name.
+#
+# Deliberately NOT included:
+#   - tme_unt_stat, amt_858_val, hic_stat, coded_opi: these are OUTPUTS the
+#     macro itself writes back onto the row while running (TIME_UNIT_STATUS,
+#     AMT_858_TOTAL, HIC_STATUS, CODED_OPI). Seeding them from the rule would
+#     make the "only do this if not already set" checks in hcfa.py/ub.py/
+#     utils.py think the step already ran and skip it.
+#   - irs: not read anywhere in this Python port (same as the VBA).
+#   - denial_rule: its denial_code_ref.csv lookup (VBA LoadDenialCodeRef /
+#     ApplyDenialRefValues) was never ported to this engine, so there's no
+#     consumer for it yet.
+_RULE_SEED_COLUMNS = {
+    "new_ov_aj": "NEW_OV_AJ",
+    "new_oi_ind": "NEW_OI_IND",
+    "new_pos": "NEW_POS",
+    "new_tos": "NEW_TOS",
+    "new_inel_cd": "NEW_INEL_CD",
+    "bn_code": "BN_CODE",
+    "bn_qty": "BN_QTY",
+    "dx_cd": "DX_CD",
+    "new_oi_elig": "NEW_OI_ELIG",
+    "new_oi_pd": "NEW_OI_PD",
+    "cond_nt": "COND_NOTE",
+    "tod": "TOD",
+    "tme_unit": "TIME_UNITS",
+    "int_no": "INT_NO",
+    "zip": "ZIP",
+    "afv": "AFV",
+    "note_850": "NOTE_850",
+    "ap_cd_1st": "AP_CD_1ST",
+    "ap_cd_2nd": "AP_CD_2ND",
+    "remv_spcfc_inel": "REMV_SPCFC_INEL",
+    "seq_no": "SEQ_NO",
+    "new_plan_id": "NEW_PLAN_ID",
+    "prov_name": "PROV_NAME",
+    "prov_addr": "PROV_ADD",
+    "prov_city": "CITY",
+    "prov_state": "STATE",
+    "prov_zip": "ZIP2",
+    "split_ee": "SPLIT_EE",
+    "split_pr": "SPLIT_PR",
+    "eob_per_clm": "EOB_PER_CLM",
+    "inel_switch_val": "INEL_SWITCH_VAL",
+    "state_type": "STATE_TYPE",
+    "t_bill": "T_BILL",
+    "t_disc": "T_DISC",
+    "cert_no": "CERT_NO",
+    "new_opi": "NEW_OPI",
+    "faie_inel_cd": "FAIE_INEL_CD",
+    "precert_no": "PRE_CERT_NO",
+}
+
+
+# ---------------------------------------------------------------------------
 # Helper: load rule_code_ref CSV
 # ---------------------------------------------------------------------------
 def _load_rule_code_ref(path: str) -> dict:
@@ -98,6 +162,17 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
         if row_settings.get("new_prv_cd", "") and not row.get("NEW_PRV_CD", ""):
             row["NEW_PRV_CD"] = row_settings["new_prv_cd"]
             print(f"[{claim_no}] NEW_PRV_CD set from rule CSV: {row['NEW_PRV_CD']!r}")
+
+        # ── Seed the remaining per-row static values from rule CSV ────
+        # Same "don't override a value the claim row already carries" rule
+        # as NEW_AP_CD/NEW_PRV_CD above, just table-driven for the rest of
+        # the columns added to rule_code_ref_template.csv (see
+        # _RULE_SEED_COLUMNS for what's included/excluded and why).
+        for _csv_col, _row_key in _RULE_SEED_COLUMNS.items():
+            _seed_val = row_settings.get(_csv_col, "")
+            if _seed_val and not row.get(_row_key, ""):
+                row[_row_key] = _seed_val
+                print(f"[{claim_no}] {_row_key} set from rule CSV ({_csv_col}): {_seed_val!r}")
 
         # ── Final decision summary ────────────────────────────────────
         _deny = row_settings.get("deny_clm", "N") == "Y"
