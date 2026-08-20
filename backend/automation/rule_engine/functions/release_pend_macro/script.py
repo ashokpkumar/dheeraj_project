@@ -35,16 +35,25 @@ from .utils import (
 # prov_addr -> PROV_ADD), so this mapping is the source of truth, not a
 # mechanical uppercase of the column name.
 #
-# Deliberately NOT included:
-#   - tme_unt_stat, amt_858_val, hic_stat, coded_opi: these are OUTPUTS the
-#     macro itself writes back onto the row while running (TIME_UNIT_STATUS,
-#     AMT_858_TOTAL, HIC_STATUS, CODED_OPI). Seeding them from the rule would
-#     make the "only do this if not already set" checks in hcfa.py/ub.py/
-#     utils.py think the step already ran and skip it.
+# Deliberately NOT included (checked each one's actual gating, not just its
+# "output" label):
+#   - tme_unt_stat -> TIME_UNIT_STATUS, hic_stat -> HIC_STATUS: both are read
+#     behind an explicit "only do this if not already set" check
+#     (`if tu_str and not tu_status`, `if not row.get("HIC_STATUS")`) that
+#     gates a real action (adding time / updating the plan ID). Seeding
+#     either from the rule would make that check think the step already ran
+#     and silently skip it for every claim on that rule.
 #   - irs: not read anywhere in this Python port (same as the VBA).
-#   - denial_rule: its denial_code_ref.csv lookup (VBA LoadDenialCodeRef /
-#     ApplyDenialRefValues) was never ported to this engine, so there's no
-#     consumer for it yet.
+#
+# coded_opi -> CODED_OPI and amt_858_val -> AMT_858_TOTAL ARE included below
+# even though the macro also writes them: neither is gated by a "not already
+# set" check (CODED_OPI is unconditionally overwritten whenever CPS850 is
+# reached; AMT_858_TOTAL is additive, so a seeded value just becomes the
+# starting balance), so seeding them can't cause a step to be skipped.
+# denial_rule -> DENIAL_RULE is included too — its denial_code_ref.csv
+# lookup (VBA LoadDenialCodeRef/ApplyDenialRefValues) was never ported to
+# this engine, so it's a no-op today, but wiring it up now costs nothing and
+# means it "just works" once that lookup is ported.
 _RULE_SEED_COLUMNS = {
     "new_ov_aj": "NEW_OV_AJ",
     "new_oi_ind": "NEW_OI_IND",
@@ -84,6 +93,9 @@ _RULE_SEED_COLUMNS = {
     "new_opi": "NEW_OPI",
     "faie_inel_cd": "FAIE_INEL_CD",
     "precert_no": "PRE_CERT_NO",
+    "coded_opi": "CODED_OPI",
+    "amt_858_val": "AMT_858_TOTAL",
+    "denial_rule": "DENIAL_RULE",
 }
 
 
