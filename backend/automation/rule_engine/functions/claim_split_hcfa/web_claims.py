@@ -21,6 +21,15 @@ need it.
 
 Needs `requests` and `beautifulsoup4` (not yet in requirements.txt — see
 the note left at the end of this file's module docstring in script.py).
+
+TLS verification is disabled for every request in this module (see
+VERIFY_TLS below) — the corporate network this runs on terminates TLS to
+*.optum.com through an inspecting proxy whose root cert isn't in Python's
+bundled CA list (though Windows itself trusts it), which otherwise fails
+every request with CERTIFICATE_VERIFY_FAILED / self-signed certificate in
+certificate chain. This was a deliberate choice over the safer fix (trusting
+the Windows cert store, e.g. via pip-system-certs) — flip VERIFY_TLS back to
+True if that ever changes.
 """
 
 from __future__ import annotations
@@ -30,7 +39,12 @@ import re
 from dataclasses import dataclass, field
 
 import requests
+import urllib3
 from bs4 import BeautifulSoup
+
+# See the module docstring above for why this is off.
+VERIFY_TLS = False
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 LEGACY_WEBCLAIMS_URL = "https://umrwebclaims.optum.com/webclaims/index.php"
 NEW_WEBCLAIMS_DOMAIN = "https://umrwebclaims-prod.optum.com"
@@ -45,7 +59,7 @@ def download_file(url: str, local_path: str, session: "requests.Session | None" 
     """Mirrors DownloadFile (URLDownloadToFile) VBA, via a streamed HTTP GET."""
     http = session or requests
     try:
-        resp = http.get(url, timeout=60, stream=True)
+        resp = http.get(url, timeout=60, stream=True, verify=VERIFY_TLS)
         resp.raise_for_status()
         os.makedirs(os.path.dirname(local_path) or ".", exist_ok=True)
         with open(local_path, "wb") as f:
@@ -86,7 +100,7 @@ def get_pdf_claim_legacy(claim_control_number: str, dest_dir: str, most_recent: 
     }
 
     try:
-        resp = requests.post(LEGACY_WEBCLAIMS_URL, data=params, timeout=60)
+        resp = requests.post(LEGACY_WEBCLAIMS_URL, data=params, timeout=60, verify=VERIFY_TLS)
         resp.raise_for_status()
     except requests.RequestException as exc:
         return f"WebClaims request failed: {exc}", ""
@@ -146,6 +160,11 @@ class WebClaimsSession:
 
     authenticated: bool = False
     _http: "requests.Session" = field(default_factory=requests.Session)
+
+    def __post_init__(self):
+        # Applies to every request made through this session, including the
+        # download_file(session=self._http) call in fetch_claim() below.
+        self._http.verify = VERIFY_TLS
 
     def fetch_claim(self, claim_control_number: str, dest_dir: str, most_recent: bool = True) -> tuple[str, str]:
         """Returns (claim_type_or_error_message, local_pdf_path)."""
