@@ -81,6 +81,7 @@ class ClaimsData(models.Model):
     status = models.CharField(max_length=255)
     rule_engine_id =  models.CharField(max_length=255)
     decision = models.CharField(max_length=500, blank=True, default="",null=True)
+    details = models.JSONField(null=True, blank=True, default=dict)
 
     class Meta:
         db_table = "claims_data"

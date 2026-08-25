@@ -26,6 +26,7 @@ import csv
 import os
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from queue import Queue
 
 from rule_engine.registry import register_function
@@ -44,6 +45,31 @@ from .web_claims import WebClaimsSession, get_pdf_claim_legacy
 # PART 1 — claim_split_get_edi_details (web_claims.py + pdf_extract.py)
 # ---------------------------------------------------------------------------
 
+def _write_rows_csv(rows: list[dict], path: str) -> str:
+    """
+    Writes *rows* (a list of flat dicts, one row's columns not necessarily
+    matching the next — e.g. a skipped/invalid claim only has CLAIM_NO/
+    MACRO_STATUS/CLAIM_TYPE while a fully-extracted one has every ClaimInfo/
+    ClaimServiceLInes column) out to *path* as CSV. The header is the union
+    of every key seen, in first-seen order, so no column gets silently
+    dropped; missing keys on a given row are written blank.
+    """
+    fieldnames: list[str] = []
+    seen = set()
+    for row in rows:
+        for key in row.keys():
+            if key not in seen:
+                seen.add(key)
+                fieldnames.append(key)
+
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        if fieldnames:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, restval="")
+            writer.writeheader()
+            writer.writerows(rows)
+    return path
+
+
 @register_function(
     name="claim_split_get_edi_details",
     tag="Claim Split HCFA",
@@ -58,6 +84,8 @@ from .web_claims import WebClaimsSession, get_pdf_claim_legacy
         {"name": "success", "type": "bool"},
         {"name": "claims_df", "type": "dataframe"},
         {"name": "service_lines_df", "type": "dataframe"},
+        {"name": "claims_csv_path", "type": "str"},
+        {"name": "service_lines_csv_path", "type": "str"},
     ],
 )
 def claim_split_get_edi_details(
@@ -73,6 +101,11 @@ def claim_split_get_edi_details(
     claim's repriced PDF and parses it. UB claims are reported and skipped
     (this macro only supports HCFA, same as the VBA — see the "UB CLAIM NOT
     SUPPORTED BY THIS MACRO." case in Main.txt).
+
+    Also writes claims_df / service_lines_df to CSV in *dest_dir* once the
+    fetch completes — the same two-sheet split (ClaimInfo / ClaimServiceLInes)
+    the VBA produces on the workbook, just as CSV files instead. Their paths
+    come back as claims_csv_path / service_lines_csv_path.
     """
     print("[claim_split_get_edi_details] Starting...")
     if context is None:
@@ -81,7 +114,10 @@ def claim_split_get_edi_details(
     df = context.get("df")
     if df is None or df.empty:
         print("[claim_split_get_edi_details] WARNING: context['df'] is empty — nothing to fetch")
-        return {"success": True, "claims_df": [], "service_lines_df": []}
+        return {
+            "success": True, "claims_df": [], "service_lines_df": [],
+            "claims_csv_path": "", "service_lines_csv_path": "",
+        }
 
     dest_dir = dest_dir or os.environ.get("TEMP", ".")
     os.makedirs(dest_dir, exist_ok=True)
@@ -161,7 +197,21 @@ def claim_split_get_edi_details(
 
     print(f"[claim_split_get_edi_details] Done. Fetched {len(claims_results)} claim(s), "
           f"{len(service_lines_results)} service line(s).")
-    return {"success": True, "claims_df": claims_results, "service_lines_df": service_lines_results}
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    claims_csv_path = _write_rows_csv(claims_results, os.path.join(dest_dir, f"ClaimInfo_{timestamp}.csv"))
+    service_lines_csv_path = _write_rows_csv(
+        service_lines_results, os.path.join(dest_dir, f"ClaimServiceLInes_{timestamp}.csv")
+    )
+    print(f"[claim_split_get_edi_details] Wrote CSV output: {claims_csv_path}, {service_lines_csv_path}")
+
+    return {
+        "success": True,
+        "claims_df": claims_results,
+        "service_lines_df": service_lines_results,
+        "claims_csv_path": claims_csv_path,
+        "service_lines_csv_path": service_lines_csv_path,
+    }
 
 
 # ---------------------------------------------------------------------------

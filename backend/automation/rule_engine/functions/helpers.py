@@ -20,13 +20,18 @@ def bulk_upsert_claims(data_list: list[dict],rule_name:str,manual:bool,rule_engi
     - 1 query to fetch existing keys
     - 1 bulk_create for new
     - 1 bulk_update for existing
+
+    Optional "DETAILS" key on a row (dict) is stored as-is in
+    ClaimsData.details (JSONField) — lets a caller capture everything it
+    extracted for a claim, not just status/decision. Callers that don't pass
+    it get the field's default ({}), same as before this was added.
     """
-    
+
 
     to_create = []
 
     for row in data_list:
-    
+
         to_create.append(
             ClaimsData(
                 claims_id=row['CLAIM CONTROL #'],
@@ -35,6 +40,7 @@ def bulk_upsert_claims(data_list: list[dict],rule_name:str,manual:bool,rule_engi
                 status=row["MACRO STATUS"],
                 rule_engine_id =  rule_engine_id,
                 decision=row.get("DECISION", ""),
+                details=row.get("DETAILS") or {},
 
             )
         )
