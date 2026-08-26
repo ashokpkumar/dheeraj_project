@@ -185,46 +185,79 @@ class WebClaimsSession:
         search_url = f"{NEW_WEBCLAIMS_DOMAIN}/Search"
         gen_pdf_url = f"{NEW_WEBCLAIMS_DOMAIN}/PDFGeneration"
 
+        log = lambda msg: print(f"[WebClaimsSession {claim_control_number}] {msg}")
+
         try:
             if self.authenticated:
+                log("already authenticated (session reused) — posting straight to /Search")
                 resp = self._http.post(search_url, json=payload, timeout=60)
+                log(f"/Search -> HTTP {resp.status_code}")
             else:
+                log(f"not authenticated yet — probing POST {NEW_WEBCLAIMS_DOMAIN}")
                 resp = self._http.post(NEW_WEBCLAIMS_DOMAIN, json=payload, timeout=60)
+                log(f"probe -> HTTP {resp.status_code}, {len(resp.text)} byte(s), "
+                    f"looks like HTML={'<head>' in resp.text.lower()}")
                 if resp.status_code == 200 and "<head>" in resp.text.lower():
                     # OIDC-style sign-in redirect: response is a login form
                     # whose hidden inputs carry the code/state to post back.
                     soup = BeautifulSoup(resp.text, "html.parser")
+                    code_val = _hidden_value(soup, "code")
+                    state_val = _hidden_value(soup, "state")
+                    session_val = _hidden_value(soup, "session_state")
+                    log(f"got login page — hidden fields found: code={bool(code_val)}, "
+                        f"state={bool(state_val)}, session_state={bool(session_val)}"
+                        + ("" if (code_val and state_val and session_val)
+                           else " <-- one or more MISSING, sign-in will likely fail; "
+                                "the portal's login page markup may not match what "
+                                "_hidden_value() expects (check input names)"))
                     resp = self._http.post(
                         f"{NEW_WEBCLAIMS_DOMAIN}/signin-oidc?action=submit",
                         data={
-                            "code": _hidden_value(soup, "code"),
-                            "state": _hidden_value(soup, "state"),
-                            "session_state": _hidden_value(soup, "session_state"),
+                            "code": code_val,
+                            "state": state_val,
+                            "session_state": session_val,
                         },
                         timeout=60,
                     )
+                    log(f"signin-oidc POST -> HTTP {resp.status_code}")
                     if resp.status_code != 200:
                         self.authenticated = False
+                        log("AUTH FAILED at signin-oidc step")
                         return f"WEBCLAIM: UNEXPECTED ERROR OCCURRED (sign-in, HTTP {resp.status_code})", ""
                     self.authenticated = True
+                    log("AUTH OK — replaying /Search")
                     resp = self._http.post(search_url, json=payload, timeout=60)
+                    log(f"/Search (post-auth) -> HTTP {resp.status_code}")
                 elif resp.status_code == 405:
+                    log("probe returned 405 (Method Not Allowed) — treating as already-authenticated "
+                        "path and retrying directly against /Search")
                     resp = self._http.post(search_url, json=payload, timeout=60)
                     self.authenticated = True
+                    log(f"/Search (405 path) -> HTTP {resp.status_code}")
                 elif resp.status_code != 200:
                     self.authenticated = False
+                    log(f"AUTH FAILED: probe returned unexpected HTTP {resp.status_code} "
+                        f"(not 200, not 405). Body preview: {resp.text[:300]!r}")
                     return f"WEBCLAIM: UNEXPECTED ERROR OCCURRED (HTTP {resp.status_code})", ""
+                else:
+                    log("probe returned 200 with no <head> — treating response as the real "
+                        "search result (no sign-in needed)")
         except requests.RequestException as exc:
             self.authenticated = False
+            log(f"REQUEST EXCEPTION during auth/search: {exc}")
             return f"WebClaims API request failed: {exc}", ""
 
         body = resp.text
+        log(f"final response body preview: {body[:300]!r}")
         if body == '{"Authorized":[],"Unauthorized":[]}':
             self.authenticated = False
+            log("AUTH FAILED: server returned empty Authorized/Unauthorized — session was not "
+                "actually accepted despite earlier 200s")
             return "PDF Claim not found.", ""
 
         self.authenticated = True
         row_id, ctype, err_msg = _parse_search_result(body)
+        log(f"parsed search result: row_id={row_id!r}, claim_type={ctype!r}, err_msg={err_msg!r}")
 
         if err_msg and err_msg != "NULL":
             return err_msg, ""
