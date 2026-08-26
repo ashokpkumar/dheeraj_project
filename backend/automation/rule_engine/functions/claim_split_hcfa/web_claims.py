@@ -197,6 +197,7 @@ class WebClaimsSession:
                 resp = self._http.post(NEW_WEBCLAIMS_DOMAIN, json=payload, timeout=60)
                 log(f"probe -> HTTP {resp.status_code}, {len(resp.text)} byte(s), "
                     f"looks like HTML={'<head>' in resp.text.lower()}")
+                log(f"session cookies after probe: {list(self._http.cookies.keys())}")
                 if resp.status_code == 200 and "<head>" in resp.text.lower():
                     # OIDC-style sign-in redirect: response is a login form
                     # whose hidden inputs carry the code/state to post back.
@@ -210,16 +211,32 @@ class WebClaimsSession:
                            else " <-- one or more MISSING, sign-in will likely fail; "
                                 "the portal's login page markup may not match what "
                                 "_hidden_value() expects (check input names)"))
+                    # NOTE: sent as a raw, NOT urlencoded body — matching the
+                    # VBA's `"&code=" & reCode & "&state=" & re_STATE & ...`
+                    # exactly, byte for byte. requests.post(..., data={...})
+                    # would run code_val/state_val/session_val through
+                    # urlencode() first, which percent-encodes characters
+                    # (+, /, =) that OIDC code/session_state values commonly
+                    # contain. If the endpoint does anything naive with the
+                    # body, that "correctly encoded" value is actually a
+                    # DIFFERENT value than what VBA sends — plausible cause
+                    # of a 500 in Python that the macro doesn't hit. If this
+                    # turns out not to be it, switch back to
+                    # data={"code": code_val, "state": state_val,
+                    # "session_state": session_val} and dig into the
+                    # response body logged below instead.
+                    raw_body = f"&code={code_val}&state={state_val}&session_state={session_val}"
+                    log(f"signin-oidc POST body (raw, unencoded): {raw_body!r}")
                     resp = self._http.post(
                         f"{NEW_WEBCLAIMS_DOMAIN}/signin-oidc?action=submit",
-                        data={
-                            "code": code_val,
-                            "state": state_val,
-                            "session_state": session_val,
-                        },
+                        data=raw_body.encode("utf-8"),
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
                         timeout=60,
                     )
                     log(f"signin-oidc POST -> HTTP {resp.status_code}")
+                    log(f"signin-oidc response headers: {dict(resp.headers)}")
+                    log(f"signin-oidc response body ({len(resp.text)} chars): {resp.text[:2000]!r}")
+                    log(f"session cookies after signin-oidc: {list(self._http.cookies.keys())}")
                     if resp.status_code != 200:
                         self.authenticated = False
                         log("AUTH FAILED at signin-oidc step")
