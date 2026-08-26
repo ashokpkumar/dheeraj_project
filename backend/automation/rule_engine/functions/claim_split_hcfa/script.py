@@ -9,7 +9,11 @@ release_pend_macro/script.py:
   claim_split_get_edi_details()  — PART 1 (web_claims.py + pdf_extract.py):
       fetches each claim's PDF from the web and parses it into two
       DataFrames, mirroring the VBA's two-sheet split (ClaimInfo /
-      ClaimServiceLInes). Pure I/O — no emulator session needed.
+      ClaimServiceLInes). Pure I/O — no emulator session needed. Runs
+      claims one at a time (no ThreadPoolExecutor) — it used to fan out
+      across worker threads, but that made the WebClaims sign-in handshake
+      (see web_claims.py's WebClaimsSession) harder to debug, so it was
+      simplified back to a plain sequential loop.
 
   claim_split_run_batch()        — PART 2 (cps_entry.py): keys the split
       drafts into the CPS mainframe, across up to 4 emulator sessions in
@@ -78,7 +82,6 @@ def _write_rows_csv(rows: list[dict], path: str) -> str:
         {"name": "dest_dir", "type": "str", "default": ""},
         {"name": "use_new_api", "type": "str", "options": ["Y", "N"], "default": "N"},
         {"name": "most_recent_image", "type": "str", "options": ["Y", "N"], "default": "Y"},
-        {"name": "max_workers", "type": "int", "default": 4},
     ],
     outputs=[
         {"name": "success", "type": "bool"},
@@ -92,7 +95,6 @@ def claim_split_get_edi_details(
     dest_dir: str = "",
     use_new_api: str = "N",
     most_recent_image: str = "Y",
-    max_workers: int = 4,
     context=None,
 ):
     """
@@ -101,6 +103,13 @@ def claim_split_get_edi_details(
     claim's repriced PDF and parses it. UB claims are reported and skipped
     (this macro only supports HCFA, same as the VBA — see the "UB CLAIM NOT
     SUPPORTED BY THIS MACRO." case in Main.txt).
+
+    Runs sequentially, one claim at a time — no worker threads. There's one
+    ClaimPdfReader and one WebClaimsSession for the whole run, so the
+    WebClaims sign-in handshake (see web_claims.py) only ever happens on a
+    single connection: easier to reason about and to read the
+    `[WebClaimsSession ...]` debug output for, and each claim's print
+    output stays in order in the log.
 
     Also writes claims_df / service_lines_df to CSV in *dest_dir* once the
     fetch completes — the same two-sheet split (ClaimInfo / ClaimServiceLInes)
@@ -130,70 +139,54 @@ def claim_split_get_edi_details(
     ]
     print(f"[claim_split_get_edi_details] {len(rows)} row(s) to fetch, use_new_api={web_api!r}")
 
-    out_q: Queue = Queue()
+    claims_results: list[dict] = []
+    service_lines_results: list[dict] = []
 
-    def _worker(worker_idx: int, items: list[tuple[int, dict]]):
-        reader = ClaimPdfReader()
-        web_session = WebClaimsSession() if web_api else None
-        try:
-            for pos, row in items:
-                claim_no = row.get("CLAIM_NO", "")
-                claims_row = {"CLAIM_NO": claim_no, "MACRO_STATUS": "", "CLAIM_TYPE": ""}
-                svl_rows: list[dict] = []
-                try:
-                    if len(claim_no) != 11:
-                        claims_row["MACRO_STATUS"] = "INVALID CLAIM NUMBER (must be 11 characters)"
-                        out_q.put((pos, claims_row, svl_rows))
-                        continue
+    reader = ClaimPdfReader()
+    web_session = WebClaimsSession() if web_api else None
+    try:
+        for i, row in enumerate(rows):
+            claim_no = row.get("CLAIM_NO", "")
+            print(f"[claim_split_get_edi_details] ({i + 1}/{len(rows)}) fetching {claim_no!r}")
+            claims_row = {"CLAIM_NO": claim_no, "MACRO_STATUS": "", "CLAIM_TYPE": ""}
+            svl_rows: list[dict] = []
+            try:
+                if len(claim_no) != 11:
+                    claims_row["MACRO_STATUS"] = "INVALID CLAIM NUMBER (must be 11 characters)"
+                    claims_results.append(claims_row)
+                    continue
 
-                    if web_api:
-                        claim_type, pdf_path = web_session.fetch_claim(claim_no, dest_dir, most_recent)
-                    else:
-                        claim_type, pdf_path = get_pdf_claim_legacy(claim_no, dest_dir, most_recent)
+                if web_api:
+                    claim_type, pdf_path = web_session.fetch_claim(claim_no, dest_dir, most_recent)
+                else:
+                    claim_type, pdf_path = get_pdf_claim_legacy(claim_no, dest_dir, most_recent)
 
-                    if claim_type == "UB":
-                        claims_row["CLAIM_TYPE"] = "UB"
-                        claims_row["MACRO_STATUS"] = "CANCELLED: UB CLAIM NOT SUPPORTED BY THIS MACRO."
-                    elif not pdf_path or not os.path.exists(pdf_path):
-                        claims_row["MACRO_STATUS"] = f"CANCELLED: {claim_type or 'FILE NOT EXISTS'}"
-                    else:
-                        claims_row["CLAIM_TYPE"] = "HCFA"
-                        extracted = extract_claim(reader, pdf_path, claim_no)
-                        demographics = extracted["demographics"]
-                        demographics["CLAIM_TYPE"] = "HCFA"
-                        claims_row = demographics
-                        claims_row["MACRO_STATUS"] = ""
-                        svl_rows = extracted["service_lines"]
-                        reader.close(pdf_path)
-                        try:
-                            os.remove(pdf_path)
-                        except OSError:
-                            pass
-                except Exception as exc:
-                    print(f"[claim_split_get_edi_details] Worker {worker_idx} error on {claim_no}: {exc}")
-                    traceback.print_exc()
-                    claims_row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
-                out_q.put((pos, claims_row, svl_rows))
-        finally:
-            reader.close()
-
-    worker_count = max(1, int(max_workers))
-    buckets = [[] for _ in range(worker_count)]
-    for pos, row in enumerate(rows):
-        buckets[pos % worker_count].append((pos, row))
-
-    with ThreadPoolExecutor(max_workers=worker_count) as pool:
-        for i in range(worker_count):
-            pool.submit(_worker, i, buckets[i])
-
-        claims_results: list = [None] * len(rows)
-        service_lines_results: list[dict] = []
-        collected = 0
-        while collected < len(rows):
-            pos, claims_row, svl_rows = out_q.get()
-            claims_results[pos] = claims_row
+                if claim_type == "UB":
+                    claims_row["CLAIM_TYPE"] = "UB"
+                    claims_row["MACRO_STATUS"] = "CANCELLED: UB CLAIM NOT SUPPORTED BY THIS MACRO."
+                elif not pdf_path or not os.path.exists(pdf_path):
+                    claims_row["MACRO_STATUS"] = f"CANCELLED: {claim_type or 'FILE NOT EXISTS'}"
+                else:
+                    claims_row["CLAIM_TYPE"] = "HCFA"
+                    extracted = extract_claim(reader, pdf_path, claim_no)
+                    demographics = extracted["demographics"]
+                    demographics["CLAIM_TYPE"] = "HCFA"
+                    claims_row = demographics
+                    claims_row["MACRO_STATUS"] = ""
+                    svl_rows = extracted["service_lines"]
+                    reader.close(pdf_path)
+                    try:
+                        os.remove(pdf_path)
+                    except OSError:
+                        pass
+            except Exception as exc:
+                print(f"[claim_split_get_edi_details] error on {claim_no}: {exc}")
+                traceback.print_exc()
+                claims_row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
+            claims_results.append(claims_row)
             service_lines_results.extend(svl_rows)
-            collected += 1
+    finally:
+        reader.close()
 
     print(f"[claim_split_get_edi_details] Done. Fetched {len(claims_results)} claim(s), "
           f"{len(service_lines_results)} service line(s).")
