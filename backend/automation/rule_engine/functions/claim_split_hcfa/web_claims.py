@@ -30,6 +30,22 @@ every request with CERTIFICATE_VERIFY_FAILED / self-signed certificate in
 certificate chain. This was a deliberate choice over the safer fix (trusting
 the Windows cert store, e.g. via pip-system-certs) — flip VERIFY_TLS back to
 True if that ever changes.
+
+WebClaimsSession's sign-in also needs Windows Integrated Authentication:
+umrwebclaims-prod.optum.com's "not authenticated yet" path redirects out to
+Microsoft Entra ID (the .AspNetCore.OpenIdConnect.Nonce.*/buid/fpc/esctx/
+stsservicecookie cookies it sets are Microsoft's login-server cookies, not
+this app's), which on a domain-joined Windows machine normally completes
+silently via Kerberos/Seamless SSO — that's what lets the VBA macro (riding
+on WinINet through MSXML2.XMLHTTP) get an already-signed-in code/state/
+session_state callback page straight away. Plain `requests` doesn't
+negotiate that on its own and instead lands on Microsoft's real interactive
+sign-in page (no code/state/session_state to find there), so
+`requests_negotiate_sspi.HttpNegotiateAuth` is attached to the session
+below to do that negotiation the same way WinINet does. Needs `pywin32` +
+`requests-negotiate-sspi` (Windows-only — degrades to no SSO auth, with a
+warning, if either import fails, e.g. when this module is imported on a
+non-Windows dev box).
 """
 
 from __future__ import annotations
@@ -41,6 +57,11 @@ from dataclasses import dataclass, field
 import requests
 import urllib3
 from bs4 import BeautifulSoup
+
+try:
+    from requests_negotiate_sspi import HttpNegotiateAuth
+except Exception:
+    HttpNegotiateAuth = None
 
 # See the module docstring above for why this is off.
 VERIFY_TLS = False
@@ -165,6 +186,17 @@ class WebClaimsSession:
         # Applies to every request made through this session, including the
         # download_file(session=self._http) call in fetch_claim() below.
         self._http.verify = VERIFY_TLS
+        # Windows Integrated Auth (Kerberos/NTLM via SSPI) — see the module
+        # docstring for why this is needed to reach the same
+        # already-signed-in code/state/session_state page WinINet gets the
+        # VBA macro. Without it, the domain-root probe in fetch_claim()
+        # below lands on Microsoft's real interactive sign-in page instead.
+        if HttpNegotiateAuth is not None:
+            self._http.auth = HttpNegotiateAuth()
+        else:
+            print("[WebClaimsSession] WARNING: requests_negotiate_sspi not available — "
+                  "sign-in will land on Microsoft's interactive login page and fail. "
+                  "Install pywin32 + requests-negotiate-sspi (Windows only).")
 
     def fetch_claim(self, claim_control_number: str, dest_dir: str, most_recent: bool = True) -> tuple[str, str]:
         """Returns (claim_type_or_error_message, local_pdf_path)."""
@@ -186,6 +218,7 @@ class WebClaimsSession:
         gen_pdf_url = f"{NEW_WEBCLAIMS_DOMAIN}/PDFGeneration"
 
         log = lambda msg: print(f"[WebClaimsSession {claim_control_number}] {msg}")
+        log(f"SSPI Negotiate auth attached: {self._http.auth is not None}")
 
         try:
             if self.authenticated:
