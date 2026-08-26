@@ -230,6 +230,22 @@ class WebClaimsSession:
                 resp = self._http.post(NEW_WEBCLAIMS_DOMAIN, json=payload, timeout=60)
                 log(f"probe -> HTTP {resp.status_code}, {len(resp.text)} byte(s), "
                     f"looks like HTML={'<head>' in resp.text.lower()}")
+                log(f"final landed URL: {resp.url}")
+                if resp.history:
+                    log(f"redirect chain ({len(resp.history)} hop(s)):")
+                    for hop in resp.history:
+                        log(f"  {hop.status_code} {hop.url} -> "
+                            f"Location: {hop.headers.get('Location', '')!r}, "
+                            f"Authorization header sent: {'Authorization' in hop.request.headers}")
+                    log(f"  (final) {resp.status_code} {resp.url} -> "
+                        f"Authorization header sent: {'Authorization' in resp.request.headers}")
+                else:
+                    log(f"no redirects — Authorization header sent on this request: "
+                        f"{'Authorization' in resp.request.headers}")
+                title_match = re.search(r"<title[^>]*>(.*?)</title>", resp.text, re.IGNORECASE | re.DOTALL)
+                log(f"response <title>: {title_match.group(1).strip() if title_match else '(none found)'}")
+                log("looks like a REAL Microsoft interactive sign-in form "
+                    f"(has id=\"i0116\" username field): {'i0116' in resp.text}")
                 log(f"session cookies after probe: {list(self._http.cookies.keys())}")
                 if resp.status_code == 200 and "<head>" in resp.text.lower():
                     # OIDC-style sign-in redirect: response is a login form
