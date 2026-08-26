@@ -83,6 +83,13 @@ try:
 except Exception:
     sync_playwright = None
 
+try:
+    import win32con
+    import win32file
+except Exception:
+    win32con = None
+    win32file = None
+
 # See the module docstring above for why this is off.
 VERIFY_TLS = False
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -189,6 +196,41 @@ def get_pdf_claim_legacy(claim_control_number: str, dest_dir: str, most_recent: 
 # Edge SSO bridge — not in the VBA, added to reach what WinINet gets for free
 # ---------------------------------------------------------------------------
 
+def _copy_maybe_locked_file(src: str, dst: str) -> None:
+    """
+    Copies *src* to *dst*, tolerating Edge holding it open without
+    read-sharing — plain shutil.copy2 (built on Python's normal open())
+    fails on Edge's live cookie DB with WinError 32
+    (ERROR_SHARING_VIOLATION), since a running Edge doesn't grant read
+    sharing on it. Reads it via the Win32 API instead, explicitly
+    requesting read/write/delete sharing regardless of what Edge asked
+    for — the same trick browser cookie-extraction/forensics tools use to
+    read a live Chromium profile without closing the browser. Falls back
+    to a plain shutil.copy2 if pywin32 isn't available (e.g. a non-Windows
+    dev box) or this trick fails for some other reason — that fallback is
+    expected to hit the same WinError 32 while Edge is open, but costs
+    nothing to try.
+    """
+    if win32file is not None:
+        try:
+            size = os.path.getsize(src)
+            handle = win32file.CreateFile(
+                src, win32con.GENERIC_READ,
+                win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+                None, win32con.OPEN_EXISTING, 0, None,
+            )
+            try:
+                _, data = win32file.ReadFile(handle, size)
+            finally:
+                handle.Close()
+            with open(dst, "wb") as f:
+                f.write(data)
+            return
+        except Exception:
+            pass  # fall through to the plain copy below
+    shutil.copy2(src, dst)
+
+
 def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
     """
     Launches a real Microsoft Edge (via Playwright, against a disposable
@@ -224,8 +266,18 @@ def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
     cookies = None
     try:
         os.makedirs(os.path.join(tmp_root, "Default", "Network"), exist_ok=True)
-        shutil.copy2(src_state, os.path.join(tmp_root, "Local State"))
-        shutil.copy2(src_cookies, os.path.join(tmp_root, "Default", "Network", "Cookies"))
+        _copy_maybe_locked_file(src_state, os.path.join(tmp_root, "Local State"))
+        _copy_maybe_locked_file(src_cookies, os.path.join(tmp_root, "Default", "Network", "Cookies"))
+        # Edge's cookie DB is SQLite in WAL mode — a recent cookie write can
+        # still be sitting in these sidecar files rather than the main one.
+        # Best-effort only: fine if they don't exist.
+        for sidecar in ("Cookies-wal", "Cookies-journal"):
+            src_sidecar = os.path.join(src_root, "Default", "Network", sidecar)
+            if os.path.exists(src_sidecar):
+                try:
+                    _copy_maybe_locked_file(src_sidecar, os.path.join(tmp_root, "Default", "Network", sidecar))
+                except Exception as exc:
+                    log(f"Edge SSO bridge: couldn't copy sidecar {sidecar} (non-fatal): {exc}")
 
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(tmp_root, channel="msedge", headless=True)
