@@ -49,23 +49,32 @@ starts empty and has no way to see that.
 
 So `_bridge_edge_sso()` below launches a real Edge (via Playwright,
 `channel="msedge"` — the system-installed Edge, not a separate download)
-against a disposable copy of your actual Edge profile, lets it sign in
-silently exactly like your everyday Edge does, and hands the resulting
-cookies to this session. Needs the `playwright` package (`pip install
-playwright`; no `playwright install` browser download needed since
-channel="msedge" drives your installed Edge directly) and Edge itself
-installed and already signed into your M365 session. Falls back to the
+against a DEDICATED profile directory that only this automation ever
+touches (NOT your everyday Edge profile — an earlier version tried
+reusing that directly and hit a hard OS-level wall: Windows file sharing
+is mutual, so if Edge has a file open exclusively, no amount of
+permissive sharing requested on our end can read it while Edge is
+running; the only real fixes are a Volume Shadow Copy snapshot, which
+needs admin rights, or just not touching the live file at all). The first
+time this runs (no saved session in that dedicated profile yet, or an
+expired one), it opens a real, visible browser window and waits for you
+to sign in by hand once — MFA and all. Playwright persists that session
+to disk in the dedicated profile, so every run after that reuses it
+silently and headlessly, with zero prompts, until it eventually expires.
+
+Needs the `playwright` package (`pip install playwright`; no `playwright
+install` browser download needed since channel="msedge" drives your
+installed Edge directly) and Edge itself installed. Falls back to the
 manual OIDC-probe/signin-oidc dance (and SSPI) below if the bridge can't
-run or doesn't yield a session — that fallback is expected to keep landing
-on the interactive sign-in page per the analysis above, but it's left in
-place as a diagnostic trail and in case that ever changes.
+run at all (e.g. playwright not installed) — that fallback is expected to
+keep landing on the interactive sign-in page per the analysis above, but
+it's left in place as a diagnostic trail and in case that ever changes.
 """
 
 from __future__ import annotations
 
 import os
 import re
-import shutil
 import tempfile
 from dataclasses import dataclass, field
 
@@ -82,13 +91,6 @@ try:
     from playwright.sync_api import sync_playwright
 except Exception:
     sync_playwright = None
-
-try:
-    import win32con
-    import win32file
-except Exception:
-    win32con = None
-    win32file = None
 
 # See the module docstring above for why this is off.
 VERIFY_TLS = False
@@ -196,57 +198,64 @@ def get_pdf_claim_legacy(claim_control_number: str, dest_dir: str, most_recent: 
 # Edge SSO bridge — not in the VBA, added to reach what WinINet gets for free
 # ---------------------------------------------------------------------------
 
-def _copy_maybe_locked_file(src: str, dst: str) -> None:
+# A profile directory ONLY this automation ever opens — never your everyday
+# Edge profile. That's the point: nothing else contends for it, so there's
+# no live-file-locking problem to work around (see the module docstring for
+# why reusing your real Edge profile turned out to be a dead end). Persists
+# across runs under %LOCALAPPDATA% so a signed-in session survives restarts
+# of the script, same as your regular Edge profile would.
+EDGE_SSO_PROFILE_DIR = os.path.join(
+    os.environ.get("LOCALAPPDATA") or tempfile.gettempdir(),
+    "ClaimSplitHCFA", "EdgeSSOProfile",
+)
+
+SIGN_IN_WAIT_MS = 5 * 60 * 1000  # how long a first-time interactive sign-in gets
+
+
+def _launch_edge_sso_profile(headless: bool, log) -> "list[dict] | None":
     """
-    Copies *src* to *dst*, tolerating Edge holding it open without
-    read-sharing — plain shutil.copy2 (built on Python's normal open())
-    fails on Edge's live cookie DB with WinError 32
-    (ERROR_SHARING_VIOLATION), since a running Edge doesn't grant read
-    sharing on it. Reads it via the Win32 API instead, explicitly
-    requesting read/write/delete sharing regardless of what Edge asked
-    for — the same trick browser cookie-extraction/forensics tools use to
-    read a live Chromium profile without closing the browser. Falls back
-    to a plain shutil.copy2 if pywin32 isn't available (e.g. a non-Windows
-    dev box) or this trick fails for some other reason — that fallback is
-    expected to hit the same WinError 32 while Edge is open, but costs
-    nothing to try.
+    Launches Playwright against EDGE_SSO_PROFILE_DIR and navigates to
+    NEW_WEBCLAIMS_DOMAIN. Returns the resulting cookies if that lands
+    somewhere other than Microsoft's sign-in page, else None. When
+    headless=False and sign-in is still needed, waits (up to
+    SIGN_IN_WAIT_MS) for you to complete it by hand in the visible window
+    before giving up.
     """
-    if win32file is not None:
+    os.makedirs(EDGE_SSO_PROFILE_DIR, exist_ok=True)
+    with sync_playwright() as p:
+        context = p.chromium.launch_persistent_context(
+            EDGE_SSO_PROFILE_DIR, channel="msedge", headless=headless,
+        )
         try:
-            size = os.path.getsize(src)
-            handle = win32file.CreateFile(
-                src, win32con.GENERIC_READ,
-                win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
-                None, win32con.OPEN_EXISTING, 0, None,
-            )
-            try:
-                _, data = win32file.ReadFile(handle, size)
-            finally:
-                handle.Close()
-            with open(dst, "wb") as f:
-                f.write(data)
-            return
-        except Exception:
-            pass  # fall through to the plain copy below
-    shutil.copy2(src, dst)
+            page = context.new_page()
+            page.goto(NEW_WEBCLAIMS_DOMAIN, wait_until="networkidle", timeout=30000)
+            log(f"Edge SSO bridge ({'headless' if headless else 'visible'}) landed on: {page.url}")
+            if "login.microsoftonline.com" in page.url:
+                if headless:
+                    return None
+                log(f"Edge SSO bridge: a browser window has opened — please sign in "
+                    f"(waiting up to {SIGN_IN_WAIT_MS // 60000} minute(s))...")
+                try:
+                    page.wait_for_url(lambda url: "login.microsoftonline.com" not in url, timeout=SIGN_IN_WAIT_MS)
+                except Exception:
+                    log("Edge SSO bridge: timed out waiting for you to sign in")
+                    return None
+                log(f"Edge SSO bridge: signed in, landed on: {page.url}")
+            return context.cookies()
+        finally:
+            context.close()
 
 
 def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
     """
-    Launches a real Microsoft Edge (via Playwright, against a disposable
-    copy of your actual Edge profile) at NEW_WEBCLAIMS_DOMAIN, so whatever
-    Azure AD session Edge already has completes sign-in silently — same as
-    it does every day in your browser, and the same session WinINet lets
-    the VBA macro reuse. Returns the resulting cookies as a
+    Gets an authenticated Azure AD session for NEW_WEBCLAIMS_DOMAIN via a
+    dedicated, automation-only Edge profile (see EDGE_SSO_PROFILE_DIR):
+    tries headlessly first (silent — works once you've signed in at least
+    once before and that session hasn't expired), and if that lands on
+    Microsoft's sign-in page, opens a real visible window and waits for you
+    to sign in by hand once. Returns the resulting cookies as a
     RequestsCookieJar for `requests` to reuse, or None (after logging why)
-    if playwright isn't installed, no Edge profile is found, or Edge itself
-    isn't currently signed into an M365 session either.
-
-    A COPY, not your live profile directory: Chromium locks the real one
-    while Edge is open. Only the two files needed to inherit the session —
-    `Local State` (holds the DPAPI-tied key Chromium decrypts cookies
-    with) and the Default profile's cookie DB — are copied into a throwaway
-    temp dir, which is deleted again once this returns.
+    if playwright isn't installed or sign-in doesn't complete.
     """
     if sync_playwright is None:
         log("Edge SSO bridge unavailable: `playwright` is not installed "
@@ -254,48 +263,15 @@ def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
             "Edge directly, no `playwright install` browser download needed)")
         return None
 
-    src_root = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "Edge", "User Data")
-    src_state = os.path.join(src_root, "Local State")
-    src_cookies = os.path.join(src_root, "Default", "Network", "Cookies")
-    if not (os.path.exists(src_state) and os.path.exists(src_cookies)):
-        log(f"Edge SSO bridge unavailable: no Edge profile found at {src_root!r} "
-            "(expected 'Local State' and 'Default\\Network\\Cookies')")
-        return None
-
-    tmp_root = tempfile.mkdtemp(prefix="edge_sso_bridge_")
     cookies = None
     try:
-        os.makedirs(os.path.join(tmp_root, "Default", "Network"), exist_ok=True)
-        _copy_maybe_locked_file(src_state, os.path.join(tmp_root, "Local State"))
-        _copy_maybe_locked_file(src_cookies, os.path.join(tmp_root, "Default", "Network", "Cookies"))
-        # Edge's cookie DB is SQLite in WAL mode — a recent cookie write can
-        # still be sitting in these sidecar files rather than the main one.
-        # Best-effort only: fine if they don't exist.
-        for sidecar in ("Cookies-wal", "Cookies-journal"):
-            src_sidecar = os.path.join(src_root, "Default", "Network", sidecar)
-            if os.path.exists(src_sidecar):
-                try:
-                    _copy_maybe_locked_file(src_sidecar, os.path.join(tmp_root, "Default", "Network", sidecar))
-                except Exception as exc:
-                    log(f"Edge SSO bridge: couldn't copy sidecar {sidecar} (non-fatal): {exc}")
-
-        with sync_playwright() as p:
-            context = p.chromium.launch_persistent_context(tmp_root, channel="msedge", headless=True)
-            try:
-                page = context.new_page()
-                page.goto(NEW_WEBCLAIMS_DOMAIN, wait_until="networkidle", timeout=30000)
-                log(f"Edge SSO bridge landed on: {page.url}")
-                if "login.microsoftonline.com" in page.url:
-                    log("Edge SSO bridge: still landed on Microsoft's sign-in page — "
-                        "not currently signed into an M365 session in Edge either")
-                else:
-                    cookies = context.cookies()
-            finally:
-                context.close()
+        cookies = _launch_edge_sso_profile(headless=True, log=log)
+        if cookies is None:
+            log("Edge SSO bridge: no valid saved session yet in the dedicated profile — "
+                "opening a visible window for a one-time interactive sign-in")
+            cookies = _launch_edge_sso_profile(headless=False, log=log)
     except Exception as exc:
         log(f"Edge SSO bridge failed: {type(exc).__name__}: {exc}")
-    finally:
-        shutil.rmtree(tmp_root, ignore_errors=True)
 
     if not cookies:
         return None
