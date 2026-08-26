@@ -31,27 +31,42 @@ certificate chain. This was a deliberate choice over the safer fix (trusting
 the Windows cert store, e.g. via pip-system-certs) — flip VERIFY_TLS back to
 True if that ever changes.
 
-WebClaimsSession's sign-in also needs Windows Integrated Authentication:
-umrwebclaims-prod.optum.com's "not authenticated yet" path redirects out to
-Microsoft Entra ID (the .AspNetCore.OpenIdConnect.Nonce.*/buid/fpc/esctx/
-stsservicecookie cookies it sets are Microsoft's login-server cookies, not
-this app's), which on a domain-joined Windows machine normally completes
-silently via Kerberos/Seamless SSO — that's what lets the VBA macro (riding
-on WinINet through MSXML2.XMLHTTP) get an already-signed-in code/state/
-session_state callback page straight away. Plain `requests` doesn't
-negotiate that on its own and instead lands on Microsoft's real interactive
-sign-in page (no code/state/session_state to find there), so
-`requests_negotiate_sspi.HttpNegotiateAuth` is attached to the session
-below to do that negotiation the same way WinINet does. Needs `pywin32` +
-`requests-negotiate-sspi` (Windows-only — degrades to no SSO auth, with a
-warning, if either import fails, e.g. when this module is imported on a
-non-Windows dev box).
+WebClaimsSession's sign-in needs an already-authenticated Azure AD/Entra ID
+session: umrwebclaims-prod.optum.com's "not authenticated yet" path is a
+plain 302 (not a 401) straight to login.microsoftonline.com, which returns
+a JS-rendered sign-in SPA shell (no static code/state/session_state to
+scrape — those only appear after real sign-in completes). That's confirmed
+NOT the same as a classic Windows-Integrated 401 challenge:
+requests_negotiate_sspi.HttpNegotiateAuth (still attached below, harmless)
+never even gets a chance to negotiate, because there's no 401 to react to.
+
+What actually lets the VBA macro (riding on WinINet through MSXML2.XMLHTTP)
+sail through with zero prompts is that WinINet shares the same cookie/SSO
+state as Edge — by the time the macro runs, Edge already carries a live
+Azure AD session (Desktop SSO, or just an existing signed-in M365 session)
+that login.microsoftonline.com recognizes immediately. `requests.Session()`
+starts empty and has no way to see that.
+
+So `_bridge_edge_sso()` below launches a real Edge (via Playwright,
+`channel="msedge"` — the system-installed Edge, not a separate download)
+against a disposable copy of your actual Edge profile, lets it sign in
+silently exactly like your everyday Edge does, and hands the resulting
+cookies to this session. Needs the `playwright` package (`pip install
+playwright`; no `playwright install` browser download needed since
+channel="msedge" drives your installed Edge directly) and Edge itself
+installed and already signed into your M365 session. Falls back to the
+manual OIDC-probe/signin-oidc dance (and SSPI) below if the bridge can't
+run or doesn't yield a session — that fallback is expected to keep landing
+on the interactive sign-in page per the analysis above, but it's left in
+place as a diagnostic trail and in case that ever changes.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import shutil
+import tempfile
 from dataclasses import dataclass, field
 
 import requests
@@ -62,6 +77,11 @@ try:
     from requests_negotiate_sspi import HttpNegotiateAuth
 except Exception:
     HttpNegotiateAuth = None
+
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:
+    sync_playwright = None
 
 # See the module docstring above for why this is off.
 VERIFY_TLS = False
@@ -166,6 +186,76 @@ def get_pdf_claim_legacy(claim_control_number: str, dest_dir: str, most_recent: 
 
 
 # ---------------------------------------------------------------------------
+# Edge SSO bridge — not in the VBA, added to reach what WinINet gets for free
+# ---------------------------------------------------------------------------
+
+def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
+    """
+    Launches a real Microsoft Edge (via Playwright, against a disposable
+    copy of your actual Edge profile) at NEW_WEBCLAIMS_DOMAIN, so whatever
+    Azure AD session Edge already has completes sign-in silently — same as
+    it does every day in your browser, and the same session WinINet lets
+    the VBA macro reuse. Returns the resulting cookies as a
+    RequestsCookieJar for `requests` to reuse, or None (after logging why)
+    if playwright isn't installed, no Edge profile is found, or Edge itself
+    isn't currently signed into an M365 session either.
+
+    A COPY, not your live profile directory: Chromium locks the real one
+    while Edge is open. Only the two files needed to inherit the session —
+    `Local State` (holds the DPAPI-tied key Chromium decrypts cookies
+    with) and the Default profile's cookie DB — are copied into a throwaway
+    temp dir, which is deleted again once this returns.
+    """
+    if sync_playwright is None:
+        log("Edge SSO bridge unavailable: `playwright` is not installed "
+            "(pip install playwright — channel=msedge drives your installed "
+            "Edge directly, no `playwright install` browser download needed)")
+        return None
+
+    src_root = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "Edge", "User Data")
+    src_state = os.path.join(src_root, "Local State")
+    src_cookies = os.path.join(src_root, "Default", "Network", "Cookies")
+    if not (os.path.exists(src_state) and os.path.exists(src_cookies)):
+        log(f"Edge SSO bridge unavailable: no Edge profile found at {src_root!r} "
+            "(expected 'Local State' and 'Default\\Network\\Cookies')")
+        return None
+
+    tmp_root = tempfile.mkdtemp(prefix="edge_sso_bridge_")
+    cookies = None
+    try:
+        os.makedirs(os.path.join(tmp_root, "Default", "Network"), exist_ok=True)
+        shutil.copy2(src_state, os.path.join(tmp_root, "Local State"))
+        shutil.copy2(src_cookies, os.path.join(tmp_root, "Default", "Network", "Cookies"))
+
+        with sync_playwright() as p:
+            context = p.chromium.launch_persistent_context(tmp_root, channel="msedge", headless=True)
+            try:
+                page = context.new_page()
+                page.goto(NEW_WEBCLAIMS_DOMAIN, wait_until="networkidle", timeout=30000)
+                log(f"Edge SSO bridge landed on: {page.url}")
+                if "login.microsoftonline.com" in page.url:
+                    log("Edge SSO bridge: still landed on Microsoft's sign-in page — "
+                        "not currently signed into an M365 session in Edge either")
+                else:
+                    cookies = context.cookies()
+            finally:
+                context.close()
+    except Exception as exc:
+        log(f"Edge SSO bridge failed: {type(exc).__name__}: {exc}")
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
+
+    if not cookies:
+        return None
+
+    jar = requests.cookies.RequestsCookieJar()
+    for c in cookies:
+        jar.set(c["name"], c["value"], domain=c.get("domain", ""), path=c.get("path", "/"))
+    log(f"Edge SSO bridge succeeded — imported {len(cookies)} cookie(s)")
+    return jar
+
+
+# ---------------------------------------------------------------------------
 # New JSON API — mirrors NEW_WEBLCLAIM
 # ---------------------------------------------------------------------------
 
@@ -181,6 +271,7 @@ class WebClaimsSession:
 
     authenticated: bool = False
     _http: "requests.Session" = field(default_factory=requests.Session)
+    _tried_edge_bridge: bool = field(default=False, repr=False)
 
     def __post_init__(self):
         # Applies to every request made through this session, including the
@@ -220,13 +311,23 @@ class WebClaimsSession:
         log = lambda msg: print(f"[WebClaimsSession {claim_control_number}] {msg}")
         log(f"SSPI Negotiate auth attached: {self._http.auth is not None}")
 
+        if not self.authenticated and not self._tried_edge_bridge:
+            self._tried_edge_bridge = True
+            jar = _bridge_edge_sso(log)
+            if jar is not None:
+                self._http.cookies.update(jar)
+                self.authenticated = True
+                log("Edge SSO bridge cookies imported into this session")
+
         try:
             if self.authenticated:
                 log("already authenticated (session reused) — posting straight to /Search")
                 resp = self._http.post(search_url, json=payload, timeout=60)
                 log(f"/Search -> HTTP {resp.status_code}")
             else:
-                log(f"not authenticated yet — probing POST {NEW_WEBCLAIMS_DOMAIN}")
+                log(f"not authenticated yet, Edge SSO bridge unavailable — falling back to "
+                    f"the manual OIDC probe (expected to hit the interactive sign-in page — "
+                    f"see module docstring); probing POST {NEW_WEBCLAIMS_DOMAIN}")
                 resp = self._http.post(NEW_WEBCLAIMS_DOMAIN, json=payload, timeout=60)
                 log(f"probe -> HTTP {resp.status_code}, {len(resp.text)} byte(s), "
                     f"looks like HTML={'<head>' in resp.text.lower()}")
