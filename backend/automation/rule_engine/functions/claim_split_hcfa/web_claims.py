@@ -339,6 +339,8 @@ class WebClaimsSession:
         log = lambda msg: print(f"[WebClaimsSession {claim_control_number}] {msg}")
         log(f"SSPI Negotiate auth attached: {self._http.auth is not None}")
 
+        log("=== PHASE 1: AUTH === (must complete, and self.authenticated must be True, "
+            "before PHASE 2 sends anything claim-specific below)")
         if not self.authenticated and not self._tried_edge_bridge:
             self._tried_edge_bridge = True
             jar = _bridge_edge_sso(log)
@@ -346,7 +348,9 @@ class WebClaimsSession:
                 self._http.cookies.update(jar)
                 self.authenticated = True
                 log("Edge SSO bridge cookies imported into this session")
+        log(f"=== PHASE 1 DONE === self.authenticated={self.authenticated}")
 
+        log("=== PHASE 2: SEARCH ===")
         try:
             if self.authenticated:
                 log("already authenticated (session reused) — posting straight to /Search")
@@ -442,8 +446,11 @@ class WebClaimsSession:
             log(f"REQUEST EXCEPTION during auth/search: {exc}")
             return f"WebClaims API request failed: {exc}", ""
 
+        log("=== PHASE 3: PARSE + DOWNLOAD ===")
         body = resp.text
-        log(f"final response body preview: {body[:300]!r}")
+        log(f"/Search response: HTTP {resp.status_code}, {len(body)} byte(s), "
+            f"Content-Type: {resp.headers.get('Content-Type', '')!r}")
+        log(f"/Search FULL response body: {body!r}")
         if body == '{"Authorized":[],"Unauthorized":[]}':
             self.authenticated = False
             log("AUTH FAILED: server returned empty Authorized/Unauthorized — session was not "
@@ -457,6 +464,11 @@ class WebClaimsSession:
         if err_msg and err_msg != "NULL":
             return err_msg, ""
         if not row_id:
+            log("PDF Claim not found — but the body above was NOT the canned empty-result "
+                "string, and this reached the search successfully (authenticated). If that "
+                "body actually contains this claim's data, _parse_search_result()'s regex "
+                "isn't matching this response's real JSON shape — compare the body above "
+                "against what _parse_search_result() expects (ROWID/CLAIMTYPE/ERRORMSG keys).")
             return "PDF Claim not found.", ""
 
         pdf_url = f"{gen_pdf_url}?rowid={row_id}&ccn={claim_control_number}"
