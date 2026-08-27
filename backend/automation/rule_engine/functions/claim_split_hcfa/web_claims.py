@@ -73,6 +73,7 @@ it's left in place as a diagnostic trail and in case that ever changes.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import tempfile
@@ -484,20 +485,45 @@ def _hidden_value(soup: "BeautifulSoup", name: str) -> str:
 
 def _parse_search_result(body: str) -> tuple[str, str, str]:
     """
-    Mirrors the VBA's own manual slicing of the search response — it isn't
-    parsed as real JSON there either; it hand-splits around
-    `"Unauthorized":` and reads KEY:VALUE pairs out with string functions.
-    This is a regex approximation of that, so it's exposed to the same
-    fragility as the original: it assumes flat `"KEY":"VALUE"` pairs and
-    will miss anything nested. *** Validate against a real API response. ***
+    Parses the /Search response's real shape, confirmed against a live
+    response (2026-08-26):
+
+        {"Authorized":[{"RowID":9593990523,"SearchTerm":"...",
+          "ClaimType":"HCFA", ..., "CentralSecurity":{"isAuthenticated":
+          "YES","ccn":"...","errorMsg":null}}],"Unauthorized":[]}
+
+    This USED to be a regex approximation of the VBA's own manual
+    string-slicing (it doesn't parse real JSON there either — it
+    hand-splits around `"Unauthorized":` and reads KEY:VALUE pairs with
+    string functions). That regex had a real, confirmed bug: matching
+    `"KEY":` pairs with an optional trailing quote on the value
+    (`"?([^",}]*)"?`) means that whenever a value is unquoted — like
+    `"Authorized":[{` above, where `[{` isn't a quoted scalar — the
+    trailing `"?` greedily swallows the *next* key's opening quote,
+    corrupting `re.findall`'s position enough that the immediately
+    following key (here, `RowID` — the one field this function most
+    needs) gets silently skipped. That's exactly what was happening:
+    `ClaimType` parsed fine (nothing before it ate its opening quote),
+    `RowID` came back empty every time despite being right there in the
+    body. Real JSON, now that its shape is confirmed, has no such
+    ambiguity — parse it properly instead of patching the regex further.
+
+    Falls back to "Unauthorized"'s first entry if "Authorized" is empty,
+    so a claim that's present but not authorized for this session still
+    surfaces its errorMsg instead of just "PDF Claim not found."
     """
-    row_id = ctype = err_msg = ""
-    for key, val in re.findall(r'"([A-Za-z]+)"\s*:\s*"?([^",}]*)"?', body):
-        key_up = key.upper()
-        if key_up == "ROWID":
-            row_id = clean_values(val)
-        elif key_up == "CLAIMTYPE":
-            ctype = clean_values(val)
-        elif key_up == "ERRORMSG":
-            err_msg = clean_values(val)
+    try:
+        data = json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        return "", "", ""
+
+    entries = data.get("Authorized") or data.get("Unauthorized") or []
+    if not entries:
+        return "", "", ""
+
+    entry = entries[0]
+    row_id = clean_values(str(entry.get("RowID", "")))
+    ctype = clean_values(str(entry.get("ClaimType", "")))
+    central_security = entry.get("CentralSecurity") or {}
+    err_msg = clean_values(str(central_security.get("errorMsg") or entry.get("ErrorMsg") or "NULL"))
     return row_id, ctype, err_msg
