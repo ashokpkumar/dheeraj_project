@@ -7,6 +7,7 @@ greenlet==3.3.2
 mssql==1.0.1
 mssql-django==1.6
 numpy==2.4.4
+openpyxl==3.1.5
 pandas==3.0.1
 pdfplumber==0.11.7
 playwright==1.49.0

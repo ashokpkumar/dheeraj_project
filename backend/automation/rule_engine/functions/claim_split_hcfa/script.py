@@ -39,6 +39,7 @@ from rule_engine.functions.helpers import attach_emulator_sessions
 from .cps_entry import (
     hcfa_nonscratch_split, hcfa_pos_collection, hcfa_scratch_not_online, hcfa_scratch_split,
 )
+from .excel_export import write_workbook
 from .pdf_backend import ClaimPdfReader
 from .pdf_extract import extract_claim
 from .utils import get_screen_id
@@ -89,6 +90,7 @@ def _write_rows_csv(rows: list[dict], path: str) -> str:
         {"name": "service_lines_df", "type": "dataframe"},
         {"name": "claims_csv_path", "type": "str"},
         {"name": "service_lines_csv_path", "type": "str"},
+        {"name": "xlsx_path", "type": "str"},
     ],
 )
 def claim_split_get_edi_details(
@@ -112,9 +114,12 @@ def claim_split_get_edi_details(
     output stays in order in the log.
 
     Also writes claims_df / service_lines_df to CSV in *dest_dir* once the
-    fetch completes — the same two-sheet split (ClaimInfo / ClaimServiceLInes)
-    the VBA produces on the workbook, just as CSV files instead. Their paths
-    come back as claims_csv_path / service_lines_csv_path.
+    fetch completes (claims_csv_path / service_lines_csv_path), plus a
+    single .xlsx workbook (xlsx_path) with the same three sheets the VBA
+    produces on its own workbook — Main / ClaimInfo / ClaimServiceLInes —
+    built by excel_export.write_workbook(). That's the one meant for
+    reviewing/downloading; the CSVs are kept only because other pipeline
+    steps may already depend on their paths.
     """
     print("[claim_split_get_edi_details] Starting...")
     if context is None:
@@ -125,7 +130,7 @@ def claim_split_get_edi_details(
         print("[claim_split_get_edi_details] WARNING: context['df'] is empty — nothing to fetch")
         return {
             "success": True, "claims_df": [], "service_lines_df": [],
-            "claims_csv_path": "", "service_lines_csv_path": "",
+            "claims_csv_path": "", "service_lines_csv_path": "", "xlsx_path": "",
         }
 
     dest_dir = dest_dir or os.environ.get("TEMP", ".")
@@ -198,12 +203,23 @@ def claim_split_get_edi_details(
     )
     print(f"[claim_split_get_edi_details] Wrote CSV output: {claims_csv_path}, {service_lines_csv_path}")
 
+    xlsx_path = ""
+    try:
+        xlsx_path = write_workbook(
+            claims_results, service_lines_results, os.path.join(dest_dir, f"ClaimSplit_{timestamp}.xlsx"),
+        )
+        print(f"[claim_split_get_edi_details] Wrote Excel workbook: {xlsx_path}")
+    except Exception as exc:
+        print(f"[claim_split_get_edi_details] WARNING: failed to write Excel workbook: {exc}")
+        traceback.print_exc()
+
     return {
         "success": True,
         "claims_df": claims_results,
         "service_lines_df": service_lines_results,
         "claims_csv_path": claims_csv_path,
         "service_lines_csv_path": service_lines_csv_path,
+        "xlsx_path": xlsx_path,
     }
 
 
@@ -381,3 +397,60 @@ def claim_split_run_batch(
 
     print(f"[claim_split_run_batch] Done. Processed {len(results)}/{len(claims)} claim(s).")
     return {"success": True, "result": results}
+
+
+# ---------------------------------------------------------------------------
+# claim_split_export_excel — re-export the Main/ClaimInfo/ClaimServiceLInes
+# workbook after "03.SPLIT CLAIM" has run, with each claim's MACRO_STATUS
+# updated to reflect the split result rather than just the EDI fetch.
+# ---------------------------------------------------------------------------
+
+@register_function(
+    name="claim_split_export_excel",
+    tag="Claim Split HCFA",
+    color="#6a3fb5",
+    inputs=[{"name": "dest_dir", "type": "str", "default": ""}],
+    outputs=[{"name": "success", "type": "bool"}, {"name": "xlsx_path", "type": "str"}],
+)
+def claim_split_export_excel(dest_dir: str = "", context=None):
+    """
+    Chain this after claim_split_run_batch() to get a workbook whose
+    MACRO STATUS column reflects the split outcome (SCRATCH/NON SCRATCH/
+    SCRATCH NOT ONLINE), instead of only the "02.GET EDI DETAILS" status.
+    Expects context['claims_df'] / context['service_lines_df'] (from
+    claim_split_get_edi_details) and, if present, context['result'] (from
+    claim_split_run_batch) to overlay onto each claim's MACRO_STATUS.
+
+    Safe to call on its own right after claim_split_get_edi_details too —
+    context['result'] simply won't be there yet, so claims keep their
+    fetch-time MACRO_STATUS (same as the workbook claim_split_get_edi_details
+    already writes as xlsx_path).
+    """
+    print("[claim_split_export_excel] Starting...")
+    if context is None:
+        return {"success": False, "xlsx_path": "", "error": "context is None"}
+
+    claims = context.get("claims_df") or []
+    service_lines = context.get("service_lines_df") or []
+    split_results = context.get("result") or []
+
+    if not claims:
+        print("[claim_split_export_excel] WARNING: context['claims_df'] is empty — nothing to export")
+        return {"success": True, "xlsx_path": ""}
+
+    split_by_claim = {r.get("CLAIM_NO", ""): r for r in split_results}
+    export_claims = []
+    for claim in claims:
+        row = dict(claim)
+        split_row = split_by_claim.get(row.get("CLAIM_NO", ""))
+        if split_row:
+            row["MACRO_STATUS"] = split_row.get("MACRO_STATUS", row.get("MACRO_STATUS", ""))
+        export_claims.append(row)
+
+    dest_dir = dest_dir or os.environ.get("TEMP", ".")
+    os.makedirs(dest_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    xlsx_path = write_workbook(export_claims, service_lines, os.path.join(dest_dir, f"ClaimSplit_{timestamp}.xlsx"))
+    print(f"[claim_split_export_excel] Wrote Excel workbook: {xlsx_path}")
+
+    return {"success": True, "xlsx_path": xlsx_path}
