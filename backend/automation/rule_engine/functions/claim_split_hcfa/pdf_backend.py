@@ -31,7 +31,14 @@ This is the single highest-risk file in the whole port:
     joined with "|" — mirroring how the VBA does
     `Split(TextCoordinates(...), "|")` and indexes into the pieces. The
     original DLL's exact matching rules (word-boundary? multi-line labels?)
-    are unverified.
+    are still unverified, but one concrete bug in that area was found and
+    fixed 2026-09-09: the per-line text used to be built by joining
+    pdfplumber's word tokens with `""`, collapsing e.g.
+    "HEALTH INSURANCE CLAIM FORM" into "HEALTHINSURANCECLAIMFORM" — which
+    a needle containing spaces can never match. That made virtually every
+    `if not reader.text_coordinates(...)` guard in pdf_extract.py take the
+    "not found" branch regardless of the PDF's actual content. Now joined
+    with `" "` instead.
 """
 
 from __future__ import annotations
@@ -84,7 +91,17 @@ class ClaimPdfReader:
 
         matches = []
         for line in _lines(pg):
-            text = "".join(w["text"] for w in line).strip()
+            # NB: pdfplumber's extract_words() returns one dict per
+            # already-space-separated word — joining with "" (as this used
+            # to) collapses "HEALTH INSURANCE CLAIM FORM" into
+            # "HEALTHINSURANCECLAIMFORM", which a space-containing needle
+            # can never match. Every multi-word marker search in
+            # pdf_extract.py goes through this function, so that one
+            # missing separator was enough to make text_coordinates()
+            # return "" for virtually every real label — the `if not
+            # reader.text_coordinates(...)` guards all over pdf_extract.py
+            # would then always take the "not found" branch.
+            text = " ".join(w["text"] for w in line).strip()
             if needle_lower in text.lower():
                 x0 = min(w["x0"] for w in line)
                 x1 = max(w["x1"] for w in line)
