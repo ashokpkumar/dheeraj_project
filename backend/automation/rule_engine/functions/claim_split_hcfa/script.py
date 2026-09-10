@@ -141,7 +141,7 @@ def claim_split_get_edi_details(
                     claims_row["MACRO_STATUS"] = f"CANCELLED: {claim_type or 'FILE NOT EXISTS'}"
                 else:
                     claims_row["CLAIM_TYPE"] = "HCFA"
-                    extracted = extract_claim(reader, pdf_path, claim_no)
+                    extracted = extract_claim(reader, pdf_path, claim_no, is_web_api=web_api)
                     demographics = extracted["demographics"]
                     demographics["CLAIM_TYPE"] = "HCFA"
                     claims_row = demographics

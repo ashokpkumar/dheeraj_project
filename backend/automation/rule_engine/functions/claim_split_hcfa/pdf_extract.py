@@ -257,27 +257,50 @@ def extract_medicare_cob_line(reader: ClaimPdfReader, pdf_path: str, svl: dict, 
 # CLAIM_REPRICING_INFORMATION — repricing figures + claim-level totals
 # ---------------------------------------------------------------------------
 
-def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines: list[dict]) -> dict:
+def extract_repricing_info(
+    reader: ClaimPdfReader, pdf_path: str, service_lines: list[dict], is_web_api: bool = False,
+) -> dict:
     """
     Mirrors CLAIM_REPRICING_INFORMATION VBA. Mutates `service_lines` in
     place (adding REPRICE_* / ALLOWED_REPRICED / DISCOUNT_* / ICES_EDC_REMARK
     per line, matched by position — same as the VBA writing into SVL rows by
     index) and returns the claim-level totals/flags dict.
 
-    Only ports the newer ("ADDED 2025.11.06") KeyPattern set (DATE FRM,
-    DATE THR, CPT/HCPCS, CHARGES, Allowed/, Discount/) — the older
-    lowercase set (Date Frm, HCPCS, /Repriced, /Ineligible) used for the
-    legacy PDF-viewer path was NOT ported. If claims fetched via
-    get_pdf_claim_legacy() come back with these fields blank, that's why —
-    port the old KeyPattern branch here too.
+    Ports BOTH KeyPattern sets from the VBA's 14-entry `KeyPattern` array:
+    the older lowercase set (Date Frm, Date Thr, HCPCS, Charges, /Repriced,
+    /Ineligible — used by the legacy PDF-viewer path, i.e. whatever
+    get_pdf_claim_legacy() fetches) and the newer uppercase set (DATE FRM,
+    DATE THR, CPT/HCPCS, CHARGES, Allowed/, Discount/, "ADDED 2025.11.06").
+    Only the newer set was ported originally, which meant the whole reprice
+    block came back empty for any claim fetched through the (default)
+    legacy path — the older set's coordinate math and cell targets are
+    otherwise identical, just anchored off different label text.
+
+    `is_web_api` mirrors `MN.chkWbClaim.Value` — it decides which
+    coordinate math the "Units" KeyPattern uses (it's the one field that
+    reuses a single label string for both paths, branching on the checkbox
+    instead of on which text matched) and which coordinate match "Method"
+    reads (see `_read_labeled_field`'s caller below).
     """
     total_pages = reader.total_pages(pdf_path)
     norm = lambda s: " ".join((s or "").split()).upper()  # noqa: E731
     totals = {
-        "TOTAL_REPRICED": 0.0, "TOTAL_DISCOUNTS": 0.0, "REPRICED_IND": "",
+        # None ("untouched") until at least one repricing match is found,
+        # same as the VBA's TotalRepriced/TotalDiscounts starting as ""
+        # rather than 0 — extract_claim() turns "untouched" into "-" and
+        # "touched, sums to zero" into "0.00", same distinction the VBA
+        # macro's own `If TotalRepriced = "" Then TotalRepriced = "-"` makes.
+        "TOTAL_REPRICED": None, "TOTAL_DISCOUNTS": None, "REPRICED_IND": "",
         "HIC_MEM_NO": "", "REPRICED_BY": "", "CLAIM_NTE": "", "TIMELY_FILING": "",
         "METHOD_INFO": "",
     }
+
+    def _accumulate(key: str, val: str) -> None:
+        try:
+            num = float(val) if val else 0.0
+        except ValueError:
+            num = 0.0
+        totals[key] = (totals[key] or 0.0) + num
 
     cob_page = None
     for page in range(1, total_pages + 1):
@@ -313,71 +336,133 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
         totals["TIMELY_FILING"] = _read_labeled_field(reader, pdf_path, repricing_page, "Timely Filing", "TIMELY FILING")
         totals["CLAIM_NTE"] = _read_labeled_field(reader, pdf_path, repricing_page, "Claim NTE", "CLAIM NTE")
         totals["REPRICED_BY"] = _read_labeled_field(reader, pdf_path, repricing_page, "Re-Priced By", "RE-PRICED BY")
-        totals["METHOD_INFO"] = _read_labeled_field(reader, pdf_path, repricing_page, "Method", "METHOD")
+        # "Method" is the one labeled field that reads a DIFFERENT match
+        # index depending on fetch path: `iDx = UBound(...) - 1` (second-
+        # to-last match) for the legacy path, `iDx = 0` (first match) for
+        # the web-claims API — mirroring `If MN.chkWbClaim.Value <> True`.
+        totals["METHOD_INFO"] = _read_labeled_field(
+            reader, pdf_path, repricing_page, "Method", "METHOD", use_last=not is_web_api,
+        )
 
         srw = 0
-        key_patterns = ["DATE FRM", "DATE THR", "CPT/HCPCS", "CHARGES", "Units", "Allowed/", "Discount/", "iCES/EDC Remark Code"]
+        # All 14 KeyPattern entries from the VBA (oReadPdf.txt), old
+        # (legacy-viewer) and new ("ADDED 2025.11.06") side by side, same
+        # order as the original `KeyPattern(0..13)` array.
+        key_patterns = [
+            "Date Frm", "DATE FRM", "Date Thr", "DATE THR", "HCPCS", "CPT/HCPCS",
+            "Charges", "CHARGES", "Units", "/Repriced", "Allowed/", "/Ineligible",
+            "Discount/", "iCES/EDC Remark Code",
+        ]
         for pattern in key_patterns:
             page = repricing_page
             rw = srw
             while page <= total_pages:
                 coords = reader.text_coordinates(pdf_path, pattern, page)
                 if coords:
-                    for match in coords.split("|"):
+                    # Mirrors `For x = 0 To UBound(olSet) - 1` in the VBA
+                    # (oReadPdf.txt CLAIM_REPRICING_INFORMATION): the LAST
+                    # coordinate match on each page is deliberately dropped
+                    # for every KeyPattern search. Keeping it would desync
+                    # `rw` against the real service-line index for every
+                    # match after it — this is why ALLOWED/REPRICED,
+                    # DISCOUNT/INELIGIBLE, and the totals derived from them
+                    # could come back empty/wrong even when the "REPRICE
+                    # INFO..." page and its labels were found correctly.
+                    matches = coords.split("|")
+                    for match in matches[:-1]:
                         parts = match.split(",")
                         if len(parts) < 4:
                             continue
                         l, b, r, t = (float(x) for x in parts)
-                        b2, t2 = b - 23.25, t - 15.25
+                        # "New" (ADDED 2025.11.06) offset: reads the box
+                        # directly under the matched label's own bounds.
+                        new_b, new_t = b - 23.25, t - 15.25
+                        # "Old" (legacy-viewer) offset — a 15pt-tall band
+                        # starting at the label's own bottom edge; T really
+                        # does reuse CordSet(1) (=b) rather than CordSet(3)
+                        # in the VBA, not a typo here.
+                        old_b, old_t = b - 15, b
+                        old_r_narrow = r                # Date Frm/Date Thr/HCPCS/Units
+                        old_r_wide = r + 10              # Charges//Repriced//Ineligible
                         if rw >= len(service_lines):
                             rw += 1
                             continue
                         svl = service_lines[rw]
-                        if pattern == "DATE FRM":
-                            svl["REPRICE_DATE_FROM"] = norm(reader.read_page(pdf_path, page, l, b2, r, t2))
+                        if pattern == "Date Frm":
+                            svl["REPRICE_DATE_FROM"] = norm(reader.read_page(pdf_path, page, l, old_b, old_r_narrow, old_t))
+                        elif pattern == "DATE FRM":
+                            svl["REPRICE_DATE_FROM"] = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t))
+                        elif pattern == "Date Thr":
+                            svl["REPRICE_DATE_TO"] = norm(reader.read_page(pdf_path, page, l, old_b, old_r_narrow, old_t))
                         elif pattern == "DATE THR":
-                            svl["REPRICE_DATE_TO"] = norm(reader.read_page(pdf_path, page, l, b2, r, t2))
+                            svl["REPRICE_DATE_TO"] = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t))
+                        elif pattern == "HCPCS":
+                            svl["REPRICE_CPT_HCPCS"] = norm(reader.read_page(pdf_path, page, l, old_b, old_r_narrow, old_t))
                         elif pattern == "CPT/HCPCS":
-                            svl["REPRICE_CPT_HCPCS"] = norm(reader.read_page(pdf_path, page, l, b2, r, t2))
+                            svl["REPRICE_CPT_HCPCS"] = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t))
+                        elif pattern == "Charges":
+                            svl["REPRICE_CHARGES"] = norm(reader.read_page(pdf_path, page, l, old_b, old_r_wide, old_t)).replace("$", "").replace(",", "")
                         elif pattern == "CHARGES":
-                            svl["REPRICE_CHARGES"] = norm(reader.read_page(pdf_path, page, l, b2, r, t2)).replace("$", "").replace(",", "")
+                            svl["REPRICE_CHARGES"] = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t)).replace("$", "").replace(",", "")
                         elif pattern == "Units":
-                            svl["REPRICE_UNITS"] = norm(reader.read_page(pdf_path, page, l, b2, r, t2)).replace(",", "")
+                            if is_web_api:
+                                svl["REPRICE_UNITS"] = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t)).replace(",", "")
+                            else:
+                                svl["REPRICE_UNITS"] = norm(reader.read_page(pdf_path, page, l, old_b, old_r_narrow, old_t)).replace(",", "")
+                        elif pattern == "/Repriced":
+                            val = norm(reader.read_page(pdf_path, page, l, old_b, old_r_wide, old_t)).replace("$", "")
+                            svl["ALLOWED_REPRICED"] = val
+                            _accumulate("TOTAL_REPRICED", val)
                         elif pattern == "Allowed/":
-                            val = norm(reader.read_page(pdf_path, page, l, b2, r, t2)).replace("$", "")
+                            val = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t)).replace("$", "")
                             val = val.replace("REPRICED|", "").replace("REPRICED", "")
                             svl["ALLOWED_REPRICED"] = val
-                            try:
-                                totals["TOTAL_REPRICED"] += float(val) if val else 0.0
-                            except ValueError:
-                                pass
+                            _accumulate("TOTAL_REPRICED", val)
+                        elif pattern == "/Ineligible":
+                            val = norm(reader.read_page(pdf_path, page, l, old_b, old_r_wide, old_t)).replace("$", "")
+                            svl["DISCOUNT_INELIGIBLE"] = val
+                            svl["DISCOUNT_REASON_CODE"] = norm(
+                                reader.read_page(pdf_path, page, old_r_wide, old_b, old_r_wide + 41, old_t)
+                            ).replace(",", "")
+                            _accumulate("TOTAL_DISCOUNTS", val)
                         elif pattern == "Discount/":
-                            val = norm(reader.read_page(pdf_path, page, l, b2, r, t2)).replace("$", "")
+                            val = norm(reader.read_page(pdf_path, page, l, new_b, r, new_t)).replace("$", "")
                             val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
                             svl["DISCOUNT_INELIGIBLE"] = val
-                            svl["DISCOUNT_REASON_CODE"] = norm(reader.read_page(pdf_path, page, r, b2, r + 41, t2)).replace(",", "")
-                            try:
-                                totals["TOTAL_DISCOUNTS"] += float(val) if val else 0.0
-                            except ValueError:
-                                pass
+                            svl["DISCOUNT_REASON_CODE"] = norm(
+                                reader.read_page(pdf_path, page, r, new_b, r + 41, new_t)
+                            ).replace(",", "")
+                            _accumulate("TOTAL_DISCOUNTS", val)
                         elif pattern == "iCES/EDC Remark Code":
-                            svl["ICES_EDC_REMARK"] = norm(reader.read_page(pdf_path, page, l, b2 - 20, r, t2 - 10))
+                            svl["ICES_EDC_REMARK"] = norm(reader.read_page(pdf_path, page, l, new_b - 20, r, new_t - 10))
                         rw += 1
                 page += 1
 
-    totals["TOTAL_REPRICED"] = round(totals["TOTAL_REPRICED"], 2)
-    totals["TOTAL_DISCOUNTS"] = round(totals["TOTAL_DISCOUNTS"], 2)
+    totals["TOTAL_REPRICED"] = round(totals["TOTAL_REPRICED"], 2) if totals["TOTAL_REPRICED"] is not None else None
+    totals["TOTAL_DISCOUNTS"] = round(totals["TOTAL_DISCOUNTS"], 2) if totals["TOTAL_DISCOUNTS"] is not None else None
     return totals
 
 
-def _read_labeled_field(reader: ClaimPdfReader, pdf_path: str, page: int, label: str, strip_label: str) -> str:
+def _read_labeled_field(
+    reader: ClaimPdfReader, pdf_path: str, page: int, label: str, strip_label: str, use_last: bool = False,
+) -> str:
+    """
+    `use_last` mirrors "Method"'s VBA branch: `iDx = UBound(...) - 1`
+    (second-to-last match) instead of the first. Every other labeled field
+    always uses the first match (`olSet(0)` in the VBA) — `use_last`
+    defaults to False so they're unaffected.
+    """
     coords = reader.text_coordinates(pdf_path, label, page)
     if not coords:
         return ""
-    first = coords.split("|")[0].split(",")
-    if len(first) < 4:
+    matches = coords.split("|")
+    idx = len(matches) - 2 if use_last else 0
+    if idx < 0 or idx >= len(matches):
         return ""
-    l, b, _r, t = (float(x) for x in first)
+    parts = matches[idx].split(",")
+    if len(parts) < 4:
+        return ""
+    l, b, _r, t = (float(x) for x in parts)
     text = reader.read_page(pdf_path, page, l, b, 575, t)
     text = " ".join((text or "").split()).upper()
     return text.replace(strip_label, "").strip()
@@ -480,13 +565,19 @@ def resolve_dx_code(demographics: dict, dx_pointer: str) -> str:
     return demographics.get(f"DX_{letter}", "")
 
 
-def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dict:
+def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str, is_web_api: bool = False) -> dict:
     """
     Mirrors the sequence Main.txt's cmdRun_Click runs per claim during
     "02.GET EDI DETAILS": demographics, then service lines, then repricing
     (mutates the service lines further), then claim-level COB, then rolls
     up total charges the same way `INF.Range("BI" & x) = Format(TotalCharges, "0.00")`
     does in the VBA.
+
+    `is_web_api` should match whatever fetch path was actually used for
+    this PDF (WebClaimsSession vs get_pdf_claim_legacy) — it's threaded
+    into extract_repricing_info() for the handful of fields whose VBA
+    coordinate math branches on `MN.chkWbClaim.Value` rather than on which
+    KeyPattern text matched.
     """
     demographics = extract_demographics(reader, pdf_path, ccn)
     service_lines = extract_service_lines(reader, pdf_path, ccn)
@@ -499,9 +590,9 @@ def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dict:
             pass
     demographics["TOTAL_CHARGES"] = f"{total_charges:.2f}"
 
-    totals = extract_repricing_info(reader, pdf_path, service_lines)
-    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}" if totals["TOTAL_REPRICED"] else "-"
-    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}" if totals["TOTAL_DISCOUNTS"] else "-"
+    totals = extract_repricing_info(reader, pdf_path, service_lines, is_web_api)
+    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}" if totals["TOTAL_REPRICED"] is not None else "-"
+    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}" if totals["TOTAL_DISCOUNTS"] is not None else "-"
     demographics["REPRICED_IND"] = totals["REPRICED_IND"]
     demographics["HIC_MEM_NO"] = totals["HIC_MEM_NO"]
     demographics["REPRICED_BY"] = totals["REPRICED_BY"]

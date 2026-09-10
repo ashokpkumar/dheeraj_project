@@ -136,7 +136,17 @@ class ClaimPdfReader:
             cropped = pg.within_bbox((x0, top_pp, x1, bottom_pp))
         except ValueError:
             return ""
-        return (cropped.extract_text() or "").replace("\n", " ").strip()
+        # A box spanning multiple visual lines (e.g. Box 32/33's Name /
+        # Address / City,ST Zip block) comes back from the real DLL's
+        # ReadPage with "|" between lines, NOT a space — Reformat_Address
+        # (oReadPdf.txt) expects exactly that: `Split(StrAdr, "|")` into
+        # 3-4 parts. Joining with " " here instead (as this used to)
+        # collapses those lines into one run-on string, so
+        # reformat_address() in pdf_extract.py always saw a 1-part result
+        # and fell straight through to its "not 3 or 4 parts" blank
+        # default — which is why Box32/Box33 (service facility / billing
+        # provider) came back completely empty.
+        return (cropped.extract_text() or "").replace("\n", "|").strip()
 
 
 def _lines(page) -> list[list[dict]]:

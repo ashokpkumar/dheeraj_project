@@ -134,27 +134,43 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX33", "BILLING PROVIDER ZIP", "BILLING_ZIP"),
     ("BOX33A", "BILLING PROVIDER NPI", "BILLING_NPI"),
     ("BOX33B", "BOX33B", "BOX33B"),
+    # From here on, column source cells were traced through Main.txt's
+    # cmdRun_Click (INF.Range("BI".."CE" & x) = ...) and
+    # Medicare_Medicaid_Cob_Information (INF.Range("BR".."CB" & rW) = ...)
+    # in oReadPdf.txt — not guessed from the screenshot, which was cut off
+    # before this point. Real group headers per the live workbook.
+    ("ADDITIONAL REFERENCES", "TOTAL CHARGES", "TOTAL_CHARGES"),
+    ("ADDITIONAL REFERENCES", "TOTAL REPRICED", "TOTAL_REPRICED"),
+    ("ADDITIONAL REFERENCES", "TOTAL DISCOUNTS", "TOTAL_DISCOUNTS"),
+    ("ADDITIONAL REFERENCES", "REPRICED IND", "REPRICED_IND"),
+    ("ADDITIONAL REFERENCES", "HIC/MEMBER NO", "HIC_MEM_NO"),
     ("BOX22", "RESUBMISSION CODE", "RESUBMISSION_CODE"),
     ("BOX29", "AMOUNT PAID", "AMOUNT_PAID"),
-    (None, "TOTAL CHARGES", "TOTAL_CHARGES"),
-    (None, "TOTAL REPRICED", "TOTAL_REPRICED"),
-    (None, "TOTAL DISCOUNTS", "TOTAL_DISCOUNTS"),
-    (None, "REPRICED IND", "REPRICED_IND"),
-    (None, "HIC/MEMBER NO", "HIC_MEM_NO"),
-    (None, "REPRICED BY", "REPRICED_BY"),
-    (None, "CLAIM NOTE", "CLAIM_NTE"),
-    (None, "TIMELY FILING", "TIMELY_FILING"),
-    (None, "METHOD", "METHOD_INFO"),
-    ("COB", "DEDUCTIBLE", "DEDUCTIBLE"),
-    ("COB", "COINSURANCE", "COINSURANCE"),
-    ("COB", "CALC APPROVED AMT", "CALC_APPROVED_AMT"),
-    ("COB", "PAID", "COB_PAID"),
-    ("COB", "PATIENT RESPONSIBILITY", "PATIENT_RESPONSIBILITY"),
-    ("COB", "NON-COVERED", "NON_COVERED"),
-    ("COB", "CONTRACTUAL", "CONTRACTUAL"),
-    ("COB", "MEDICARE ID", "MEDICARE_ID"),
-    ("COB", "OTHER INSURANCE TYPE", "OTHER_INS_TYPE"),
-    ("COB", "ADJUSTMENT DETAIL", "ADJUSTMENT_DETAIL"),
+    ("ADDITIONAL REFERENCES", "REPRICED BY", "REPRICED_BY"),
+    ("ADDITIONAL REFERENCES", "DEDUCTIBLE", "DEDUCTIBLE"),
+    ("ADDITIONAL REFERENCES", "COINSURANCE", "COINSURANCE"),
+    ("ADDITIONAL REFERENCES", "CALC APPROVED AMT", "CALC_APPROVED_AMT"),
+    ("ADDITIONAL REFERENCES", "PAID", "COB_PAID"),
+    ("ADDITIONAL REFERENCES", "PATIENT RESPONSIBILITY", "PATIENT_RESPONSIBILITY"),
+    ("ADDITIONAL REFERENCES", "NON-COVERED", "NON_COVERED"),
+    ("ADDITIONAL REFERENCES", "CONTRACTUAL", "CONTRACTUAL"),
+    ("ADDITIONAL REFERENCES", "ADJUSTMENT DETAIL", "ADJUSTMENT_DETAIL"),
+    ("ADDITIONAL REFERENCES", "MEDICARE ID", "MEDICARE_ID"),
+    ("ADDITIONAL REFERENCES", "OTHER INSURANCE TYPE", "OTHER_INS_TYPE"),
+    ("ADDITIONAL REFERENCES", "CLAIM NOTE", "CLAIM_NTE"),
+    ("ADDITIONAL REFERENCES", "TIMELY FILING", "TIMELY_FILING"),
+    ("ADDITIONAL REFERENCES", "METHOD", "METHOD_INFO"),
+    # NOT wired to any PDF-extraction source — "FOR PRV SELECTION" /
+    # "PROVIDER INTERNAL MANUAL ID" appears nowhere in any .txt module
+    # under Macro/ (CLAIM_DEMOGRAPHICS_INFORMATION, CLAIM_SERVICELINES_
+    # INFORMATION, CLAIM_REPRICING_INFORMATION, Medicare_Medicaid_Cob_
+    # Information, oScratch.txt, oNonScratch.txt — grepped all of them).
+    # Either it comes from a VBA module the extracted Macro/*.txt files
+    # don't include, or it's filled in by hand rather than by code. Column
+    # kept here so the sheet layout matches the real workbook, but
+    # PRV_INTERNAL_MANUAL_ID is never set anywhere, so it will render blank
+    # until its real source is identified.
+    ("FOR PRV SELECTION", "PROVIDER INTERNAL MANUAL ID", "PRV_INTERNAL_MANUAL_ID"),
 ]
 
 
