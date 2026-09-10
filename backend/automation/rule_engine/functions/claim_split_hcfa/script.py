@@ -50,31 +50,6 @@ from .web_claims import WebClaimsSession, get_pdf_claim_legacy
 # PART 1 — claim_split_get_edi_details (web_claims.py + pdf_extract.py)
 # ---------------------------------------------------------------------------
 
-def _write_rows_csv(rows: list[dict], path: str) -> str:
-    """
-    Writes *rows* (a list of flat dicts, one row's columns not necessarily
-    matching the next — e.g. a skipped/invalid claim only has CLAIM_NO/
-    MACRO_STATUS/CLAIM_TYPE while a fully-extracted one has every ClaimInfo/
-    ClaimServiceLInes column) out to *path* as CSV. The header is the union
-    of every key seen, in first-seen order, so no column gets silently
-    dropped; missing keys on a given row are written blank.
-    """
-    fieldnames: list[str] = []
-    seen = set()
-    for row in rows:
-        for key in row.keys():
-            if key not in seen:
-                seen.add(key)
-                fieldnames.append(key)
-
-    with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        if fieldnames:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, restval="")
-            writer.writeheader()
-            writer.writerows(rows)
-    return path
-
-
 @register_function(
     name="claim_split_get_edi_details",
     tag="Claim Split HCFA",
@@ -88,8 +63,6 @@ def _write_rows_csv(rows: list[dict], path: str) -> str:
         {"name": "success", "type": "bool"},
         {"name": "claims_df", "type": "dataframe"},
         {"name": "service_lines_df", "type": "dataframe"},
-        {"name": "claims_csv_path", "type": "str"},
-        {"name": "service_lines_csv_path", "type": "str"},
         {"name": "xlsx_path", "type": "str"},
     ],
 )
@@ -113,13 +86,11 @@ def claim_split_get_edi_details(
     `[WebClaimsSession ...]` debug output for, and each claim's print
     output stays in order in the log.
 
-    Also writes claims_df / service_lines_df to CSV in *dest_dir* once the
-    fetch completes (claims_csv_path / service_lines_csv_path), plus a
-    single .xlsx workbook (xlsx_path) with the same three sheets the VBA
-    produces on its own workbook — Main / ClaimInfo / ClaimServiceLInes —
-    built by excel_export.write_workbook(). That's the one meant for
-    reviewing/downloading; the CSVs are kept only because other pipeline
-    steps may already depend on their paths.
+    Once the fetch completes, writes a single .xlsx workbook (xlsx_path) to
+    *dest_dir* with the same three sheets the VBA produces on its own
+    workbook — Main / ClaimInfo / ClaimServiceLInes — built by
+    excel_export.write_workbook(). No separate CSVs are written anymore;
+    everything in them is already in that workbook.
     """
     print("[claim_split_get_edi_details] Starting...")
     if context is None:
@@ -128,10 +99,7 @@ def claim_split_get_edi_details(
     df = context.get("df")
     if df is None or df.empty:
         print("[claim_split_get_edi_details] WARNING: context['df'] is empty — nothing to fetch")
-        return {
-            "success": True, "claims_df": [], "service_lines_df": [],
-            "claims_csv_path": "", "service_lines_csv_path": "", "xlsx_path": "",
-        }
+        return {"success": True, "claims_df": [], "service_lines_df": [], "xlsx_path": ""}
 
     dest_dir = dest_dir or os.environ.get("TEMP", ".")
     os.makedirs(dest_dir, exist_ok=True)
@@ -197,12 +165,6 @@ def claim_split_get_edi_details(
           f"{len(service_lines_results)} service line(s).")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    claims_csv_path = _write_rows_csv(claims_results, os.path.join(dest_dir, f"ClaimInfo_{timestamp}.csv"))
-    service_lines_csv_path = _write_rows_csv(
-        service_lines_results, os.path.join(dest_dir, f"ClaimServiceLInes_{timestamp}.csv")
-    )
-    print(f"[claim_split_get_edi_details] Wrote CSV output: {claims_csv_path}, {service_lines_csv_path}")
-
     xlsx_path = ""
     try:
         xlsx_path = write_workbook(
@@ -217,8 +179,6 @@ def claim_split_get_edi_details(
         "success": True,
         "claims_df": claims_results,
         "service_lines_df": service_lines_results,
-        "claims_csv_path": claims_csv_path,
-        "service_lines_csv_path": service_lines_csv_path,
         "xlsx_path": xlsx_path,
     }
 

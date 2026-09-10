@@ -207,7 +207,10 @@ _GROUP_LABELS = {"REPRICE": _REPRICE_GROUP_LABEL, "COBDOC": _COBDOC_GROUP_LABEL}
 MAIN_CLAIM_COLUMNS: list[tuple[str, str]] = [
     ("MACRO STATUS", "MACRO_STATUS"),
     ("OTHER NOTES", "CLAIM_NTE"),
-    ("*CCN (Required)", "CLAIM_NO"),
+    # Distinct key from MAIN_LINE_COLUMNS's "CLAIM CONTROL #" (which uses
+    # plain "CLAIM_NO") — these are two separate Excel columns and must not
+    # collide on one dict key, or blanking one blanks/overwrites the other.
+    ("*CCN (Required)", "CCN_HEADER"),
     ("CLAIM TYPE", "CLAIM_TYPE"),
     ("PATIENT'S NAME", "PATIENT_NAME"),
     ("FROM SVDT", "FROM_SVDT"),
@@ -268,6 +271,7 @@ def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict
         thru_parsed = [p for p in thru_parsed if p[0] is not None]
 
         claim_extra = {
+            "CCN_HEADER": claim_no,
             "FROM_SVDT": min(dos_parsed)[1] if dos_parsed else "",
             "THRU_SVDT": max(thru_parsed)[1] if thru_parsed else "",
             "NO_OF_SVLINES": len(own_lines),
@@ -291,8 +295,14 @@ def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict
             rows.append({**_claim_block(), **_line_block({})})
             continue
 
-        for svl in own_lines:
-            rows.append({**_claim_block(), **_line_block(svl)})
+        # Claim-level columns (A:L — MACRO STATUS, CCN, PATIENT'S NAME,
+        # TOTAL CHARGE, etc.) only get written on the claim's first line
+        # row; subsequent lines leave them blank instead of repeating the
+        # same values down every row.
+        blank_claim_block = {key: "" for _, key in MAIN_CLAIM_COLUMNS}
+        for i, svl in enumerate(own_lines):
+            claim_block = _claim_block() if i == 0 else blank_claim_block
+            rows.append({**claim_block, **_line_block(svl)})
 
     return rows
 
