@@ -237,6 +237,7 @@ MAIN_LINE_COLUMNS: list[tuple[str, str]] = [
     ("MOD 03", "MOD_C"),
     ("MOD 04", "MOD_D"),
     ("DX CODES", "DX_CODE"),
+    ("DX POINTER", "DX_POINTER_LETTER"),
     ("PLACE OF SERVICE", "POS"),
     ("RESUBMISSION CODE", "RESUBMISSION_CODE"),
 ]
@@ -263,7 +264,17 @@ def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict
     rows: list[dict] = []
     for idx, claim in enumerate(claims, start=1):
         claim_no = claim.get("CLAIM_NO", "")
-        own_lines = lines_by_claim.get(claim_no, [])
+        # Mirrors POPULATE_MAIN_SHEET's own 3-key sort (oShared.txt:120-131)
+        # — Claim Control # (constant within this group), Dt Svc From, then
+        # Dx Codes, all ascending. Without this the rows come out in raw
+        # PDF/service-line order instead, which can visibly interleave
+        # differently from the original macro's output whenever two lines
+        # share a date of service (sort()'s stability reproduces the tie
+        # order the same way Excel's does here).
+        own_lines = sorted(
+            lines_by_claim.get(claim_no, []),
+            key=lambda l: (l.get("DOS_FROM", ""), l.get("DX_CODE", "")),
+        )
 
         dos_parsed = [(_parse_date(l.get("DOS_FROM", "")), l.get("DOS_FROM", "")) for l in own_lines]
         dos_parsed = [p for p in dos_parsed if p[0] is not None]
