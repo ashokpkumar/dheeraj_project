@@ -133,7 +133,18 @@ class ClaimPdfReader:
         if x0 >= x1 or top_pp >= bottom_pp:
             return ""
         try:
-            cropped = pg.within_bbox((x0, top_pp, x1, bottom_pp))
+            # crop(), not within_bbox(): within_bbox() drops any text
+            # object that isn't *entirely* inside the box, whereas crop()
+            # clips objects that only partially overlap it. Several HCFA
+            # boxes (Box 3 DOB/Sex, Box 22 Resubmission Code, …) are only
+            # 9-11pt tall — sized tight enough to the glyph height that a
+            # hair of rounding puts a line's bounding box a fraction of a
+            # point outside the crop, and within_bbox() silently discarded
+            # the whole line. That was the actual cause of PATIENT_DOB /
+            # PATIENT_SEX / RESUBMISSION_CODE (and likely other thin-band
+            # fields) coming back empty even though the coordinates match
+            # the VBA exactly.
+            cropped = pg.crop((x0, top_pp, x1, bottom_pp))
         except ValueError:
             return ""
         return (cropped.extract_text() or "").replace("\n", " ").strip()

@@ -118,6 +118,12 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX26", "PATIENT'S ACCOUNT NO.", "PATIENT_ACCT_NO"),
     ("BOX28", "TOTAL CHARGE (AS BILLED)", "BOX28_TOTAL_CHARGE"),
     ("BOX31", "SUPPLIER", "BOX31_SUPPLIER"),
+    # AQ in the original: the raw, unparsed Box 32 text (Reformat_Address's
+    # input) before it's split into AR:AW below — pdf_extract.py already
+    # captures this as SERVICE_FAC_RAW, it just wasn't wired into a column
+    # here, which shifted every column after it one to the left of where
+    # the real macro has it.
+    ("BOX32", "SERVICE FACILITY LOCATION (RAW)", "SERVICE_FAC_RAW"),
     ("BOX32", "SERVICE FACILITY NAME", "SERVICE_FAC_NAME"),
     ("BOX32", "SERVICE FACILITY ADDR 1", "SERVICE_FAC_ADDR1"),
     ("BOX32", "SERVICE FACILITY ADDR 2", "SERVICE_FAC_ADDR2"),
@@ -126,6 +132,9 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX32", "SERVICE FACILITY ZIP", "SERVICE_FAC_ZIP"),
     ("BOX32A", "SERVICE FACILITY NPI", "SERVICE_FAC_NPI"),
     ("BOX32B", "BOX32B", "BOX32B"),
+    # AZ in the original — same idea as SERVICE_FAC_RAW above, but for Box
+    # 33 (billing provider) instead of Box 32.
+    ("BOX33", "BILLING PROVIDER (RAW)", "BILLING_RAW"),
     ("BOX33", "BILLING PROVIDER NAME", "BILLING_NAME"),
     ("BOX33", "BILLING PROVIDER ADDR 1", "BILLING_ADDR1"),
     ("BOX33", "BILLING PROVIDER ADDR 2", "BILLING_ADDR2"),
@@ -134,17 +143,27 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX33", "BILLING PROVIDER ZIP", "BILLING_ZIP"),
     ("BOX33A", "BILLING PROVIDER NPI", "BILLING_NPI"),
     ("BOX33B", "BOX33B", "BOX33B"),
-    ("BOX22", "RESUBMISSION CODE", "RESUBMISSION_CODE"),
-    ("BOX29", "AMOUNT PAID", "AMOUNT_PAID"),
+    # From here down this was in the wrong order — it used to run
+    # RESUBMISSION CODE, AMOUNT PAID, *then* the totals/repriced/COB
+    # block, and put CLAIM NOTE/TIMELY FILING/METHOD right after METHOD
+    # instead of at the very end. The real macro's own column order is
+    # INF.Range("BI".."CE" & x) in Main.txt/oReadPdf.txt (see
+    # IO_Reference.html's ClaimInfo column table) — matched exactly below,
+    # so every column here lines up with the same field in the original
+    # workbook instead of drifting out of sync past Box 33.
     (None, "TOTAL CHARGES", "TOTAL_CHARGES"),
     (None, "TOTAL REPRICED", "TOTAL_REPRICED"),
     (None, "TOTAL DISCOUNTS", "TOTAL_DISCOUNTS"),
     (None, "REPRICED IND", "REPRICED_IND"),
+    ("BOX22", "RESUBMISSION CODE", "RESUBMISSION_CODE"),
     (None, "HIC/MEMBER NO", "HIC_MEM_NO"),
+    ("BOX29", "AMOUNT PAID", "AMOUNT_PAID"),
+    # BP in the original: read as an input on the CPS325 screen (Scratch
+    # Not Online mode) but no extraction routine ever writes it, so it's
+    # always blank in the real macro too — kept as a placeholder column
+    # purely so every column after it keeps lining up with BQ..CE.
+    (None, "FOR PIV SELECTION", "PIV_SELECTION"),
     (None, "REPRICED BY", "REPRICED_BY"),
-    (None, "CLAIM NOTE", "CLAIM_NTE"),
-    (None, "TIMELY FILING", "TIMELY_FILING"),
-    (None, "METHOD", "METHOD_INFO"),
     ("COB", "DEDUCTIBLE", "DEDUCTIBLE"),
     ("COB", "COINSURANCE", "COINSURANCE"),
     ("COB", "CALC APPROVED AMT", "CALC_APPROVED_AMT"),
@@ -152,9 +171,18 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("COB", "PATIENT RESPONSIBILITY", "PATIENT_RESPONSIBILITY"),
     ("COB", "NON-COVERED", "NON_COVERED"),
     ("COB", "CONTRACTUAL", "CONTRACTUAL"),
-    ("COB", "MEDICARE ID", "MEDICARE_ID"),
-    ("COB", "OTHER INSURANCE TYPE", "OTHER_INS_TYPE"),
     ("COB", "ADJUSTMENT DETAIL", "ADJUSTMENT_DETAIL"),
+    ("COB", "MEDICARE ID", "MEDICARE_ID"),
+    # CA in the original: Medicare_Medicaid_Cob_Information's "HIC Number"
+    # Select Case branch searches TextCoordinates() for "HIC Number", but
+    # the page was only ever probed for "Medicare ID" — that branch can
+    # never fire in the VBA either (see IO_Reference.html's "Worth
+    # Confirming" note). Always blank there too; kept only for position.
+    ("COB", "HIC NUMBER", "HIC_NUMBER_DEAD"),
+    ("COB", "OTHER INSURANCE TYPE", "OTHER_INS_TYPE"),
+    (None, "CLAIM NOTE", "CLAIM_NTE"),
+    (None, "TIMELY FILING", "TIMELY_FILING"),
+    (None, "METHOD", "METHOD_INFO"),
 ]
 
 
