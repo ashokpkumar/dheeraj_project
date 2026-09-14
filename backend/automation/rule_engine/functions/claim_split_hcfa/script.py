@@ -46,6 +46,23 @@ from .utils import get_screen_id
 from .web_claims import WebClaimsSession, get_pdf_claim_legacy
 
 
+def _open_pdf_on_screen(pdf_path: str, claim_no: str) -> None:
+    """
+    Opens *pdf_path* in whatever the OS has associated with .pdf (Edge,
+    Acrobat, etc.), so you can actually watch each claim's PDF on screen
+    while claim_split_get_edi_details() runs instead of it being
+    downloaded/parsed/deleted headlessly in under a second. Best-effort —
+    a failure here (no default PDF app, os.startfile unavailable outside
+    Windows, ...) is logged and otherwise ignored; it must never break the
+    fetch itself.
+    """
+    try:
+        os.startfile(pdf_path)  # noqa: S606 — Windows-only, deliberate
+    except Exception as exc:
+        print(f"[claim_split_get_edi_details] show_pdf: couldn't open {claim_no} "
+              f"({pdf_path}) on screen: {type(exc).__name__}: {exc}")
+
+
 # ---------------------------------------------------------------------------
 # PART 1 — claim_split_get_edi_details (web_claims.py + pdf_extract.py)
 # ---------------------------------------------------------------------------
@@ -58,6 +75,8 @@ from .web_claims import WebClaimsSession, get_pdf_claim_legacy
         {"name": "dest_dir", "type": "str", "default": ""},
         {"name": "use_new_api", "type": "str", "options": ["Y", "N"], "default": "N"},
         {"name": "most_recent_image", "type": "str", "options": ["Y", "N"], "default": "Y"},
+        {"name": "show_pdf", "type": "str", "options": ["Y", "N"], "default": "Y"},
+        {"name": "show_browser", "type": "str", "options": ["Y", "N"], "default": "Y"},
     ],
     outputs=[
         {"name": "success", "type": "bool"},
@@ -70,6 +89,8 @@ def claim_split_get_edi_details(
     dest_dir: str = "",
     use_new_api: str = "N",
     most_recent_image: str = "Y",
+    show_pdf: str = "Y",
+    show_browser: str = "Y",
     context=None,
 ):
     """
@@ -85,6 +106,21 @@ def claim_split_get_edi_details(
     single connection: easier to reason about and to read the
     `[WebClaimsSession ...]` debug output for, and each claim's print
     output stays in order in the log.
+
+    *show_pdf* ("Y" by default) opens each claim's PDF in the default
+    viewer right after it's downloaded, and skips deleting the temp file
+    afterward — otherwise (as it was before) the whole fetch-extract-delete
+    cycle happens headlessly in well under a second, with nothing to see.
+    Set to "N" to go back to that silent behavior (e.g. unattended runs).
+
+    *show_browser* ("Y" by default, only relevant when use_new_api="Y")
+    forces the WebClaims sign-in bridge (see web_claims.py's
+    WebClaimsSession/_bridge_edge_sso) to always open its Edge window
+    visibly, instead of only when an interactive sign-in is actually
+    needed, so you can watch it navigate. Only fires once per run (the
+    session is reused across claims), not once per claim — and doesn't
+    apply to the legacy path (use_new_api="N"), which is a plain HTTP
+    POST/GET with no browser involved at all.
 
     Once the fetch completes, writes a single .xlsx workbook (xlsx_path) to
     *dest_dir* with the same three sheets the VBA produces on its own
@@ -105,6 +141,8 @@ def claim_split_get_edi_details(
     os.makedirs(dest_dir, exist_ok=True)
     most_recent = most_recent_image == "Y"
     web_api = use_new_api == "Y"
+    show_pdf_on_screen = show_pdf == "Y"
+    show_browser_window = show_browser == "Y"
 
     rows = [
         {k: (str(v).strip() if v is not None else "") for k, v in row.items()}
@@ -116,7 +154,7 @@ def claim_split_get_edi_details(
     service_lines_results: list[dict] = []
 
     reader = ClaimPdfReader()
-    web_session = WebClaimsSession() if web_api else None
+    web_session = WebClaimsSession(show_browser=show_browser_window) if web_api else None
     try:
         for i, row in enumerate(rows):
             claim_no = row.get("CLAIM_NO", "")
@@ -140,6 +178,8 @@ def claim_split_get_edi_details(
                 elif not pdf_path or not os.path.exists(pdf_path):
                     claims_row["MACRO_STATUS"] = f"CANCELLED: {claim_type or 'FILE NOT EXISTS'}"
                 else:
+                    if show_pdf_on_screen:
+                        _open_pdf_on_screen(pdf_path, claim_no)
                     claims_row["CLAIM_TYPE"] = "HCFA"
                     extracted = extract_claim(reader, pdf_path, claim_no, web_api)
                     demographics = extracted["demographics"]
@@ -148,10 +188,11 @@ def claim_split_get_edi_details(
                     claims_row["MACRO_STATUS"] = ""
                     svl_rows = extracted["service_lines"]
                     reader.close(pdf_path)
-                    try:
-                        os.remove(pdf_path)
-                    except OSError:
-                        pass
+                    if not show_pdf_on_screen:
+                        try:
+                            os.remove(pdf_path)
+                        except OSError:
+                            pass
             except Exception as exc:
                 print(f"[claim_split_get_edi_details] error on {claim_no}: {exc}")
                 traceback.print_exc()

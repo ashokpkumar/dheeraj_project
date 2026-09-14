@@ -213,7 +213,7 @@ EDGE_SSO_PROFILE_DIR = os.path.join(
 SIGN_IN_WAIT_MS = 5 * 60 * 1000  # how long a first-time interactive sign-in gets
 
 
-def _launch_edge_sso_profile(headless: bool, log) -> "list[dict] | None":
+def _launch_edge_sso_profile(headless: bool, log, keep_open_ms: int = 0) -> "list[dict] | None":
     """
     Launches Playwright against EDGE_SSO_PROFILE_DIR and navigates to
     NEW_WEBCLAIMS_DOMAIN. Returns the resulting cookies if that lands
@@ -221,6 +221,12 @@ def _launch_edge_sso_profile(headless: bool, log) -> "list[dict] | None":
     headless=False and sign-in is still needed, waits (up to
     SIGN_IN_WAIT_MS) for you to complete it by hand in the visible window
     before giving up.
+
+    *keep_open_ms* only applies to the already-signed-in fast path (lands
+    somewhere other than the Microsoft sign-in page): with headless=False
+    that path would otherwise open and close the window almost instantly,
+    which is easy to miss — pass a few seconds here so there's actually
+    something to watch when show_browser is on.
     """
     os.makedirs(EDGE_SSO_PROFILE_DIR, exist_ok=True)
     with sync_playwright() as p:
@@ -242,21 +248,30 @@ def _launch_edge_sso_profile(headless: bool, log) -> "list[dict] | None":
                     log("Edge SSO bridge: timed out waiting for you to sign in")
                     return None
                 log(f"Edge SSO bridge: signed in, landed on: {page.url}")
+            elif keep_open_ms:
+                log(f"Edge SSO bridge: already signed in — keeping the window open "
+                    f"{keep_open_ms / 1000:.0f}s so it's visible")
+                page.wait_for_timeout(keep_open_ms)
             return context.cookies()
         finally:
             context.close()
 
 
-def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
+def _bridge_edge_sso(log, show_browser: bool = False) -> "requests.cookies.RequestsCookieJar | None":
     """
     Gets an authenticated Azure AD session for NEW_WEBCLAIMS_DOMAIN via a
-    dedicated, automation-only Edge profile (see EDGE_SSO_PROFILE_DIR):
-    tries headlessly first (silent — works once you've signed in at least
-    once before and that session hasn't expired), and if that lands on
-    Microsoft's sign-in page, opens a real visible window and waits for you
-    to sign in by hand once. Returns the resulting cookies as a
-    RequestsCookieJar for `requests` to reuse, or None (after logging why)
-    if playwright isn't installed or sign-in doesn't complete.
+    dedicated, automation-only Edge profile (see EDGE_SSO_PROFILE_DIR).
+
+    Normally (show_browser=False) tries headlessly first (silent — works
+    once you've signed in at least once before and that session hasn't
+    expired), and only opens a real visible window if that lands on
+    Microsoft's sign-in page. Pass show_browser=True to skip the headless
+    attempt and always open the window visibly, so you can watch it
+    navigate even on a run where the saved session still works.
+
+    Returns the resulting cookies as a RequestsCookieJar for `requests` to
+    reuse, or None (after logging why) if playwright isn't installed or
+    sign-in doesn't complete.
     """
     if sync_playwright is None:
         log("Edge SSO bridge unavailable: `playwright` is not installed "
@@ -266,11 +281,15 @@ def _bridge_edge_sso(log) -> "requests.cookies.RequestsCookieJar | None":
 
     cookies = None
     try:
-        cookies = _launch_edge_sso_profile(headless=True, log=log)
-        if cookies is None:
-            log("Edge SSO bridge: no valid saved session yet in the dedicated profile — "
-                "opening a visible window for a one-time interactive sign-in")
-            cookies = _launch_edge_sso_profile(headless=False, log=log)
+        if show_browser:
+            log("Edge SSO bridge: show_browser=True — opening a visible window")
+            cookies = _launch_edge_sso_profile(headless=False, log=log, keep_open_ms=3000)
+        else:
+            cookies = _launch_edge_sso_profile(headless=True, log=log)
+            if cookies is None:
+                log("Edge SSO bridge: no valid saved session yet in the dedicated profile — "
+                    "opening a visible window for a one-time interactive sign-in")
+                cookies = _launch_edge_sso_profile(headless=False, log=log)
     except Exception as exc:
         log(f"Edge SSO bridge failed: {type(exc).__name__}: {exc}")
 
@@ -299,6 +318,7 @@ class WebClaimsSession:
     """
 
     authenticated: bool = False
+    show_browser: bool = False
     _http: "requests.Session" = field(default_factory=requests.Session)
     _tried_edge_bridge: bool = field(default=False, repr=False)
 
@@ -344,7 +364,7 @@ class WebClaimsSession:
             "before PHASE 2 sends anything claim-specific below)")
         if not self.authenticated and not self._tried_edge_bridge:
             self._tried_edge_bridge = True
-            jar = _bridge_edge_sso(log)
+            jar = _bridge_edge_sso(log, show_browser=self.show_browser)
             if jar is not None:
                 self._http.cookies.update(jar)
                 self.authenticated = True
