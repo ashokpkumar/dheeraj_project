@@ -132,22 +132,34 @@ class ClaimPdfReader:
         bottom_pp = min(bottom_pp, pg.height)
         if x0 >= x1 or top_pp >= bottom_pp:
             return ""
-        try:
-            # crop(), not within_bbox(): within_bbox() drops any text
-            # object that isn't *entirely* inside the box, whereas crop()
-            # clips objects that only partially overlap it. Several HCFA
-            # boxes (Box 3 DOB/Sex, Box 22 Resubmission Code, …) are only
-            # 9-11pt tall — sized tight enough to the glyph height that a
-            # hair of rounding puts a line's bounding box a fraction of a
-            # point outside the crop, and within_bbox() silently discarded
-            # the whole line. That was the actual cause of PATIENT_DOB /
-            # PATIENT_SEX / RESUBMISSION_CODE (and likely other thin-band
-            # fields) coming back empty even though the coordinates match
-            # the VBA exactly.
-            cropped = pg.crop((x0, top_pp, x1, bottom_pp))
-        except ValueError:
-            return ""
-        return (cropped.extract_text() or "").replace("\n", " ").strip()
+        # Select by each word's CENTER point, not pdfplumber's crop()/
+        # within_bbox(). within_bbox() used to be here and dropped any
+        # word not *entirely* inside the box — several HCFA boxes (Box 3
+        # DOB/Sex, Box 22 Resubmission Code, …) are only 9-11pt tall,
+        # tight enough to the glyph height that a hair of rounding put a
+        # word's bbox a fraction of a point outside the box, and the
+        # whole word got silently discarded (PATIENT_DOB/PATIENT_SEX/
+        # RESUBMISSION_CODE coming back empty even though the coordinates
+        # matched the VBA exactly). Swapping to crop() fixed that, but
+        # crop() keeps a whole word as soon as it *overlaps* the box by
+        # any amount — on the last Box 24 service line, whose row sits
+        # right against the Box 25-30 label row beneath it, that pulled
+        # the neighboring labels ("FEDERAL TAX I.D. NUMBER", "TOTAL
+        # CHARGE", …) into every column of that line, corrupting values
+        # like CHARGES ("140.00" became "140.00 28. TOTAL CHARGE").
+        # Center-point matching keeps both fixes: a thin box's word is
+        # still included when only its edge pokes out by a hair (its
+        # center stays put), while a neighboring row's word — whose
+        # center sits a full line-height away — no longer counts as a
+        # hair-of-overlap match.
+        picked = []
+        for w in pg.extract_words(use_text_flow=False, keep_blank_chars=False):
+            x_mid = (w["x0"] + w["x1"]) / 2
+            y_mid = (w["top"] + w["bottom"]) / 2
+            if x0 <= x_mid <= x1 and top_pp <= y_mid <= bottom_pp:
+                picked.append(w)
+        picked.sort(key=lambda w: (round(w["top"]), w["x0"]))
+        return " ".join(w["text"] for w in picked).strip()
 
 
 def _lines(page) -> list[list[dict]]:

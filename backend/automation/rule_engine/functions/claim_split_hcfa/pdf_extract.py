@@ -559,7 +559,15 @@ def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str, use_new_api: 
         try:
             total_charges += float(svl.get("CHARGES") or 0)
         except ValueError:
-            pass
+            # Not silently dropping this any more: a CHARGES value that
+            # doesn't parse as a plain number means a line's charge is
+            # about to be missing from TOTAL_CHARGES with no trace of why
+            # (this is exactly how a Box 25-30 label bleeding into the
+            # last service line's CHARGES box — see pdf_backend.py's
+            # read_page() — silently produced a total short by that
+            # line's charge).
+            print(f"[{ccn}] WARNING: service line {svl.get('LINE_NO')} has a "
+                  f"non-numeric CHARGES value {svl.get('CHARGES')!r} — excluded from TOTAL_CHARGES")
     demographics["TOTAL_CHARGES"] = f"{total_charges:.2f}"
 
     totals = extract_repricing_info(reader, pdf_path, service_lines, use_new_api)
