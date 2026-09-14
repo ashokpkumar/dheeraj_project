@@ -102,15 +102,38 @@ class ClaimPdfReader:
             # reader.text_coordinates(...)` guards all over pdf_extract.py
             # would then always take the "not found" branch.
             text = " ".join(w["text"] for w in line).strip()
-            if needle_lower in text.lower():
-                x0 = min(w["x0"] for w in line)
-                x1 = max(w["x1"] for w in line)
-                top = min(w["top"] for w in line)
-                bottom = max(w["bottom"] for w in line)
-                # pdfplumber top-down -> PDF bottom-up (L, B, R, T)
-                b = pg.height - bottom
-                t = pg.height - top
-                matches.append(f"{x0:.2f},{b:.2f},{x1:.2f},{t:.2f}")
+            idx = text.lower().find(needle_lower)
+            if idx == -1:
+                continue
+            # Bound the box to just the word(s) that make up the match —
+            # NOT min/max across every word on the line (that used to be
+            # the whole box). A repricing-table header row puts several
+            # column labels on one visual line ("DATE FRM DATE THR
+            # CPT/HCPCS CHARGES UNITS ALLOWED/ DISCOUNT/ METHOD ..."), so
+            # matching "DATE FRM" against the whole line's bbox returned a
+            # box stretching to the last header on that line. Every
+            # per-line read below "DATE FRM" then used that box's left/
+            # right edges, scooping up the entire row's data (dates,
+            # charges, allowed/discount, method, provider ID, ...) into
+            # what was meant to be just the date.
+            end = idx + len(needle)
+            matched_words = []
+            pos = 0
+            for w in line:
+                w_start, w_end = pos, pos + len(w["text"])
+                if w_end > idx and w_start < end:
+                    matched_words.append(w)
+                pos = w_end + 1  # +1 for the joining " "
+            if not matched_words:
+                continue
+            x0 = min(w["x0"] for w in matched_words)
+            x1 = max(w["x1"] for w in matched_words)
+            top = min(w["top"] for w in matched_words)
+            bottom = max(w["bottom"] for w in matched_words)
+            # pdfplumber top-down -> PDF bottom-up (L, B, R, T)
+            b = pg.height - bottom
+            t = pg.height - top
+            matches.append(f"{x0:.2f},{b:.2f},{x1:.2f},{t:.2f}")
         return "|".join(matches)
 
     # ------------------------------------------------------------------
