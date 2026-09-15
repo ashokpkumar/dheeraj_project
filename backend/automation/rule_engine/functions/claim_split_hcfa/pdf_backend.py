@@ -175,8 +175,32 @@ class ClaimPdfReader:
         # center stays put), while a neighboring row's word — whose
         # center sits a full line-height away — no longer counts as a
         # hair-of-overlap match.
+        # Narrow marker/checkbox boxes (Box3 Sex, Box6 Patient Relationship,
+        # Box11 Insured Sex — all <=13pt wide/tall) need a different match
+        # rule than everything else: when one of these IS checked, its "X"
+        # sits with no separating gap right after the printed label ("Self",
+        # "Spouse", "Child", "Other"), so pdfplumber's extract_words() can
+        # merge label+mark into ONE word (e.g. "Child" + "X" -> "ChildX").
+        # That merged word's overall bbox — and so its CENTER point, used
+        # by the general center-point rule below — extends back over the
+        # label, left of the narrow checkbox window, even though the "X"
+        # itself is genuinely inside it. This was reported as CHILD coming
+        # back blank while SELF/SPOUSE/OTHER worked (2026-09) — confirmed
+        # not a coordinate bug (VBA and Python read the identical L,B,R,T),
+        # traced instead to this center-point rule silently excluding a
+        # merged label+mark word. Below the size threshold, use "any
+        # overlap" instead: safe here because these are narrow columns
+        # with no other field sharing their x-range, unlike the wider
+        # Box24 service-line columns where "any overlap" (`crop()`, see
+        # below) pulled in a vertically neighboring row's whole label.
+        is_marker_box = (x1 - x0) <= 20 and (bottom_pp - top_pp) <= 20
+
         picked = []
         for w in pg.extract_words(use_text_flow=False, keep_blank_chars=False):
+            if is_marker_box:
+                if w["x0"] < x1 and w["x1"] > x0 and w["top"] < bottom_pp and w["bottom"] > top_pp:
+                    picked.append(w)
+                continue
             x_mid = (w["x0"] + w["x1"]) / 2
             y_mid = (w["top"] + w["bottom"]) / 2
             if x0 <= x_mid <= x1 and top_pp <= y_mid <= bottom_pp:
