@@ -92,12 +92,23 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     d["PATIENT_STATE"] = norm(rp(203, 600, 228, 616))
     d["PATIENT_ZIP"] = norm(rp(23, 576, 117, 592))
     d["PATIENT_PHONE"] = norm(rp(117, 576, 205, 592))
-    d["PATIENT_REL"] = (                                                               # Box6
-        "SELF" if norm(rp(251, 624, 261, 637)) else
-        "SPOUSE" if norm(rp(287, 624, 300, 637)) else
-        "CHILD" if norm(rp(315, 624, 327, 637)) else
-        "OTHER" if norm(rp(351, 624, 362, 637)) else ""
-    )
+    # Box6 — mirrors 4 independent VBA `If`s (oReadPdf.txt:332-335), NOT an
+    # ElseIf chain: each box that has any text overwrites the cell, so if
+    # more than one of the four narrow checkbox boxes registers content
+    # (stray mark, bleed from adjacent text, …) the LAST one checked wins
+    # — OTHER, checked last, beats an earlier CHILD/SPOUSE/SELF match. A
+    # first-match-wins elif chain here (SELF/SPOUSE/CHILD before OTHER)
+    # has the opposite priority and was the likely cause of OTHER
+    # overriding a genuine CHILD match.
+    d["PATIENT_REL"] = ""
+    if norm(rp(251, 624, 261, 637)):
+        d["PATIENT_REL"] = "SELF"
+    if norm(rp(287, 624, 300, 637)):
+        d["PATIENT_REL"] = "SPOUSE"
+    if norm(rp(315, 624, 327, 637)):
+        d["PATIENT_REL"] = "CHILD"
+    if norm(rp(351, 624, 362, 637)):
+        d["PATIENT_REL"] = "OTHER"
     d["INSURED_ADDR"] = po_box_normalize(norm(rp(374, 624, 593, 639)))                 # Box7
     d["INSURED_CITY"] = norm(rp(374, 600, 544, 616))
     d["INSURED_STATE"] = norm(rp(544, 600, 593, 616))

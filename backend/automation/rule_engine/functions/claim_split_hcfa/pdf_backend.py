@@ -182,7 +182,28 @@ class ClaimPdfReader:
             if x0 <= x_mid <= x1 and top_pp <= y_mid <= bottom_pp:
                 picked.append(w)
         picked.sort(key=lambda w: (round(w["top"]), w["x0"]))
-        return " ".join(w["text"] for w in picked).strip()
+        # Group into visual lines (same 2pt "top" tolerance as _lines()
+        # below) and join lines with "|", words within a line with " ".
+        # A box spanning multiple visual lines (Box 32/33's Name/Addr1/
+        # [Addr2]/City,ST-Zip block) needs "|" between lines — that's what
+        # reformat_address() in pdf_extract.py splits on (`raw.split("|")`,
+        # needing exactly 3 or 4 parts), mirroring the real DLL's ReadPage
+        # and the VBA's `Split(StrAdr, "|")`. This was fixed once already
+        # (joining with "|"), but the fix was lost when read_page() was
+        # rewritten around center-point word picking to fix an unrelated
+        # overlap bug — that rewrite flattened everything back to a plain
+        # " ".join across all picked words regardless of line, which is
+        # why Box32/Box33 (SERVICE FACILITY NAME/ADDR*/CITY/STATE/ZIP,
+        # BILLING PROVIDER NAME/ADDR*/CITY/STATE/ZIP) came back blank again
+        # even though SERVICE_FAC_RAW/BILLING_RAW (the un-split box text)
+        # had data.
+        lines: list[list[dict]] = []
+        for w in picked:
+            if lines and abs(lines[-1][-1]["top"] - w["top"]) <= 2:
+                lines[-1].append(w)
+            else:
+                lines.append([w])
+        return "|".join(" ".join(w["text"] for w in line) for line in lines).strip()
 
 
 def _lines(page) -> list[list[dict]]:
