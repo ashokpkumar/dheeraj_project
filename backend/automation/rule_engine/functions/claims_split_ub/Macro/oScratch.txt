@@ -450,7 +450,7 @@ Screen_460:
                                     Else
                                         PLACEVALUE ByPassCode, i + 6, 14 '001
                                     End If
-                                    xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1: c = c + 10
+                                    xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1: c = c + 12
                                     If CCN = Trim(mw.Range("S" & xlLoc)) Then
                                         If Len(Trim(mw.Range("T" & xlLoc))) < 1 Then
                                             mw.Range("T" & xlLoc) = Trim(mw.Range("F" & rW))
