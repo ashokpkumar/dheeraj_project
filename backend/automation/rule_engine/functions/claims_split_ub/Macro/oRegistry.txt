@@ -1,8 +1,8 @@
 Public Sub RegisterDLL(DLLPath As String)
    'Path to RegAsm, adjust to the version of the .Net framework you're targeting
-    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, ws As WshShell, strRegFileContent As String, fileNo As Integer
+    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, wS As WshShell, strRegFileContent As String, fileNo As Integer
     RegasmPath = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
-    Set ws = New WshShell
+    Set wS = New WshShell
     #If Win64 Then
         Const Win64 = True
     #Else
@@ -13,7 +13,7 @@ Public Sub RegisterDLL(DLLPath As String)
         Err.Raise 1, Description:="Missing DLL!"
         Exit Sub
     End If
-    ws.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    wS.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
     If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
         strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
     Else
@@ -26,15 +26,15 @@ Public Sub RegisterDLL(DLLPath As String)
         strRegFileContent = Replace(strRegFileContent, "HKEY_CLASSES_ROOT", strNewRegPath) 'Change reg path
         Put #fileNo, 1, strRegFileContent 'Overwrite, always extends so no need to truncate
     Close #fileNo
-    ws.Run "regedit.exe /s """ & LibraryPath & ".reg""", 0, True  'Merge silently into registry
+    wS.Run "regedit.exe /s """ & LibraryPath & ".reg""", 0, True  'Merge silently into registry
     Kill LibraryPath & ".reg" 'Clean up registry
-    Set ws = Nothing
+    Set wS = Nothing
 End Sub
 
 Public Sub UnregisterDLL(DLLPath As String)
-    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, ws As WshShell, strRegFileContent As String, fileNo As Integer, fileOutput As Integer
+    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, wS As WshShell, strRegFileContent As String, fileNo As Integer, fileOutput As Integer
     RegasmPath = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
-    Set ws = New WshShell
+    Set wS = New WshShell
     #If Win64 Then
         Const Win64 = True
     #Else
@@ -45,7 +45,7 @@ Public Sub UnregisterDLL(DLLPath As String)
         Err.Raise 1, Description:="Missing DLL!"
         Exit Sub
     End If
-    ws.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    wS.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
     If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
         strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
     Else
@@ -67,9 +67,9 @@ Public Sub UnregisterDLL(DLLPath As String)
     Close #fileOutput
     Close #fileNo
     Kill LibraryPath & ".reg" 'Remove create file
-    ws.Run "regedit.exe /s """ & LibraryPath & "remove.reg"""  'Merge silently into registry
+    wS.Run "regedit.exe /s """ & LibraryPath & "remove.reg"""  'Merge silently into registry
     Kill LibraryPath & "remove.reg" 'Remove delete file
-    Set ws = Nothing
+    Set wS = Nothing
 End Sub
 
 Public Sub Add_Reference_Library(ByVal oLibFullPath As String) ' ByVal dllFile As String
@@ -86,6 +86,7 @@ Public Sub Add_Reference_Library(ByVal oLibFullPath As String) ' ByVal dllFile A
                     Exit For
             End Select
         Next objRef
-       '.VBProject.References.AddFromFile oLibFullPath
+      '.VBProject.References.AddFromFile oLibFullPath
     End With
 End Sub
+
