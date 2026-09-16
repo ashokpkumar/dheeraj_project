@@ -140,6 +140,28 @@ Step2:
                         'If Len(Trim(.getstring(14, 2, 11))) > 0 Then PlaceValue ByPassCode, 14, 14
                         'If Len(Trim(.getstring(15, 2, 11))) > 0 Then PlaceValue ByPassCode, 15, 14
                         
+                        Select Case MN.Range("AA2") 'ADDED 2026.09.14
+                            Case "REMOVE ALL EXISTING INEL"
+                                REMOVEVALUE 12, 2: REMOVEVALUE 12, 14
+                                REMOVEVALUE 13, 2: REMOVEVALUE 13, 14
+                                REMOVEVALUE 14, 2: REMOVEVALUE 14, 14
+                                REMOVEVALUE 15, 2: REMOVEVALUE 15, 14
+                                REMOVEVALUE 12, 18: REMOVEVALUE 12, 30
+                                REMOVEVALUE 13, 18: REMOVEVALUE 13, 30
+                                REMOVEVALUE 14, 18: REMOVEVALUE 14, 30
+                                REMOVEVALUE 15, 18: REMOVEVALUE 15, 30
+                            Case "REMOVE EXISTING INEL1"
+                                REMOVEVALUE 12, 2: REMOVEVALUE 12, 14
+                                REMOVEVALUE 13, 2: REMOVEVALUE 13, 14
+                                REMOVEVALUE 14, 2: REMOVEVALUE 14, 14
+                                REMOVEVALUE 15, 2: REMOVEVALUE 15, 14
+                            Case "REMOVE EXISTING INEL2"
+                                REMOVEVALUE 12, 18: REMOVEVALUE 12, 30
+                                REMOVEVALUE 13, 18: REMOVEVALUE 13, 30
+                                REMOVEVALUE 14, 18: REMOVEVALUE 14, 30
+                                REMOVEVALUE 15, 18: REMOVEVALUE 15, 30
+                        End Select
+                        
                         PLACEVALUE ByPassCode, 12, 14
                         PLACEVALUE ByPassCode, 13, 14
                         PLACEVALUE ByPassCode, 14, 14
@@ -202,7 +224,7 @@ Step2:
                                             Else
                                                 PLACEVALUE ByPassCode, i + 6, 14 '001
                                             End If
-                                            xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1: c = c + 10
+                                            xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1: c = c + 12
                                             Select Case wS.Range("X3")
                                                 Case "BY DATE OF SERVICE"
                                                     If DtCo <> Format(wS.Range("T" & xlLoc), "MMDDYY") Then Exit For
