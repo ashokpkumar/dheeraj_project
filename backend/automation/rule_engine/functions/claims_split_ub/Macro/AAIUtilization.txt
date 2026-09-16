@@ -13,7 +13,7 @@ Public Local_Folder As String 'AAI SCRIPT
 Public AAI_ID As String
 
 Global Const mASSETNAME = "CLAIM.SPLIT.MACRO.UB" '**** NEEDS TO BE POPULATED *****
-Global Const mCURRENTVR = "2026.04.15" '**** NEEDS TO BE POPULATED *****
+Global Const mCURRENTVR = "2026.09.14" '**** NEEDS TO BE POPULATED *****
 
 Public Sub MACRO_LIST_AND_LOG_SETUP()
     Dim FileSys As FileSystemObject
