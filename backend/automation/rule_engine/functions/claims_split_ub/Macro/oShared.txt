@@ -54,6 +54,14 @@ Public Function PLACEVALUE(ByVal val As String, ByVal r As Integer, c As Integer
     End With
 End Function
 
+Public Function REMOVEVALUE(ByVal r As Integer, c As Integer)  'ADDED 2026.08.14
+    With objSession.screen
+        .moveTo r, c
+        .SendKeys ("<EraseEof>")
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
 Public Function INCORRECTSCREEN(ByVal ScrnVal As String, ByVal r As Integer, ByVal c As Integer, ByVal l As Integer) As Boolean
     Dim Scrn As String: INCORRECTSCREEN = False
     With objSession.screen
