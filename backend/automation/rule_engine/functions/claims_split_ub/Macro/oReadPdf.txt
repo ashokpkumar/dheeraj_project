@@ -1,75 +1,215 @@
-
-Public Sub CLAIM_SERVICELINES_INFORMATION(ByVal pFile As String, ByVal rW As Integer, ByVal CCN As String, TotalCharges)
-    Dim TotalPage As Integer, Page As Integer, mRk As String, NDC As String, bGn As String
-    Dim B As Integer, L As Integer, j As Integer, LnNo As Integer
+Public Sub CLAIM_DEMOGRAPHICS_INFORMATION(ByVal pFile As String, ByVal rW As Long, ByVal CCN As String)
     With iREADER
-        TotalPage = .TotalPages(pFile)
-        For Page = 1 To TotalPage
-            mRk = "": B = 243: T = 256
-            mRk = .TextCoordinates(pFile, "HEALTH INSURANCE CLAIM FORM", Page)
-            If Len(Trim(mRk)) > 0 Then
-                LnNo = 0
-                For j = 1 To 6
-                    bGn = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 23, B, 82, T))
-                    If Len(bGn) < 1 Then GoTo JUSTEXIT
-                    NDC = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 193, B + 10, 245, T + 10))
-                    If Len(NDC) < 1 Then 'ADDED 2025.11.06
-                        NDC = NORMALIZE_EDIT_MSG(Replace(.ReadPage(pFile, Page, 245, B + 10, 335, T + 10), "NDC#", ""))
-                    End If
-                    LnNo = LnNo + 1
-                    SVL.Range("A" & rW & ":AB" & rW).ClearContents
-                    SVL.Range("A" & rW) = "'" & CCN
-                    SVL.Range("B" & rW) = "'" & Replace(bGn, " ", "/") 'BOX 24 DATE OF SERVICE FROM
-                    SVL.Range("C" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 82, B, 148, T)), " ", "/") 'BOX 24 DATE OF SERVICE TO
-                    SVL.Range("D" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 148, B, 171, T)) 'BOX 24 POS
-                    SVL.Range("E" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 171, B, 193, T)) 'BOX 24 EMG
-                    SVL.Range("F" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 193, B, 245, T)) 'BOX 24 CPT/HCPS
-                    SVL.Range("G" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 245, B, 269, T)) 'BOX 24 MOD A
-                    SVL.Range("H" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 269, B, 292, T)) 'BOX 24 MOD B
-                    SVL.Range("I" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 292, B, 312, T)) 'BOX 24 MOD C
-                    SVL.Range("J" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 312, B, 335, T)) 'BOX 24 MOD D
-                    SVL.Range("K" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 335, B, 372, T)) 'BOX 24 DIAGNOSIS
-                    SVL.Range("L" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 372, B, 436, T)), " ", "."), ",", "") 'BOX 24 CHARGES
-                    SVL.Range("M" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 436, B, 464, T)), ",", "") 'BOX 24 DAYS/UNIT
-                    SVL.Range("N" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 464, B, 481, T)) 'BOX 24 EPSDT
-                    SVL.Range("O" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 481, B, 500, T)), "NPI", "") 'BOX 24 I.D. QUAL
-                    SVL.Range("P" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, 500, B, 592, T)) 'BOX 24 RENDERING PROVIDER I.D.
-                    If Len(SVL.Range("L" & rW)) < 1 Then TotalCharges = 0
-                    TotalCharges = TotalCharges + SVL.Range("L" & rW)
-                    Medicare_Cob_Information pFile, rW, TotalPage, LnNo
-                    SVL.Range("AB" & rW) = "'" & NDC 'ADDED 2024.02.07
-                    B = B - 25: T = T - 25: rW = rW + 1
-                Next j
-            End If
-        Next Page
+        CI.Range("A" & rW & ":HU" & rW).ClearContents
+        CI.Range("A" & rW) = "'" & CCN
+        CI.Range("C" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 768, 185, 774)) 'Box1_Provider_Name
+        CI.Range("D" & rW) = PoBOXADR_COLLECTIONS(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 755, 185, 767))) 'Box1_Provider_Address1
+        CI.Range("E" & rW) = PoBOXADR_COLLECTIONS(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 744, 185, 755))) 'Box1_Provider_Address2
+        tmp$ = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 732, 185, 744)) 'Box1_Provider_City_State_Zip
+        REFORMAT_CITY_STATE_ZIP tmp$, rW, "BOX1"
+       'CI.Range("F" & rw) = Box1_Provider_City_State_Zip 'CI.Range("G" & rw) ='CI.Range("H" & rw) =
+        CI.Range("I" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 768, 365, 774)) 'Box2_Billing_Name
+        CI.Range("J" & rW) = PoBOXADR_COLLECTIONS(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 755, 365, 767))) 'Box2_Billing_Address1
+        CI.Range("K" & rW) = PoBOXADR_COLLECTIONS(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 744, 365, 755))) 'Box2_Billing_Address2
+        tmp$ = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 732, 365, 744)) 'Box2_Billing_City_State_Zip
+        REFORMAT_CITY_STATE_ZIP tmp$, rW, "BOX2"
+       'CI.Range("L" & rw) = Box2_Billing_City_State_Zip 'CI.Range("M" & rw) ='CI.Range("N" & rw) =
+        CI.Range("O" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 388, 768, 559, 774)) 'Box3A_Pat_Cntl
+        CI.Range("P" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 388, 755, 559, 767)) 'Box3B_Med_Rec
+        CI.Range("Q" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 559, 755, 597, 767)) 'Box4_Type_Of_Bill
+        CI.Range("R" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 365, 732, 438, 744)) 'Box5_Fed_Tax_No
+        CI.Range("S" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 438, 732, 488, 744)) 'Box6_Period_Cov_From
+        CI.Range("T" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 488, 732, 539, 744)) 'Box6_Period_Cov_To
+       'CI.Range("U" & rw) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 539, 732, 596, 755)) 'Box7
+        CI.Range("V" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 86, 719, 221, 732)) 'Box8A_Patient_Name
+        CI.Range("W" & rW) = PoBOXADR_COLLECTIONS(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 301, 719, 596, 732))) 'Box9A_Patient_Address
+        CI.Range("X" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 685, 71, 696)) 'Box10_Patient_Birthdate
+        CI.Range("Y" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 71, 685, 93, 696)) 'Box11_Patient_Sex
+        CI.Range("Z" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 93, 685, 135, 696)) 'Box12_Admission_Date
+        CI.Range("AA" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 135, 685, 157, 696)) 'Box13_Admission_HR
+        CI.Range("AB" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 158, 685, 179, 696)) 'Box14_Admission_Type
+        CI.Range("AC" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 179, 685, 194, 696)) 'Box15_Admission_SRC
+        CI.Range("AD" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 194, 685, 222, 696)) 'Box16_DHR
+        CI.Range("AE" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 685, 238, 696)) 'Box17_Stat
+        CI.Range("AF" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 238, 685, 266, 696)) 'Box18_Cond_Codes
+        CI.Range("AG" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 266, 685, 286, 696)) 'Box19_Cond_Codes
+        CI.Range("AH" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 286, 685, 309, 696)) 'Box20_Cond_Codes
+        CI.Range("AI" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 309, 685, 330, 696)) 'Box21_Cond_Codes
+        CI.Range("AJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 330, 685, 351, 696)) 'Box22_Cond_Codes
+        CI.Range("AK" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 351, 685, 374, 696)) 'Box23_Cond_Codes
+        CI.Range("AL" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 685, 395, 696)) 'Box24_Cond_Codes
+        CI.Range("AM" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 395, 685, 416, 696)) 'Box25_Cond_Codes
+        CI.Range("AN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 416, 685, 438, 696)) 'Box26_Cond_Codes
+        CI.Range("AO" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 438, 685, 459, 696)) 'Box27_Cond_Codes
+        CI.Range("AP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 459, 685, 481, 696)) 'Box28_Cond_Codes
+        CI.Range("AQ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 481, 685, 505, 696)) 'Box29_ACDT_State
+       'CI.Range("AR" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 505, 685, 597, 696)) 'Box30
+        CI.Range("AS" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 662, 27, 672)) 'Box31A_Occurrence_Code
+        CI.Range("AT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 27, 662, 77, 672)) 'Box31A_Occurrence_Date
+        CI.Range("AU" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 77, 662, 99, 672)) 'Box32A_Occurrence_Code
+        CI.Range("AV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 99, 662, 150, 672)) 'Box32A_Occurrence_Date
+        CI.Range("AW" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 150, 662, 171, 672)) 'Box33A_Occurrence_Code
+        CI.Range("AX" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 662, 222, 672)) 'Box33A_Occurrence_Date
+        CI.Range("AY" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 662, 243, 672)) 'Box34A_Occurrence_Code
+        CI.Range("AZ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 243, 662, 294, 672)) 'Box34A_Occurrence_Date
+        CI.Range("BA" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 294, 662, 315, 672)) 'Box35A_Occurrence_Span_Code
+        CI.Range("BB" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 662, 366, 672)) 'Box35A_Occurrence_Span_From
+        CI.Range("BC" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 366, 662, 417, 672)) 'Box35A_Occurrence_Span_Thru
+        CI.Range("BD" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 417, 662, 438, 672)) 'Box36A_Occurrence_Span_Code
+        CI.Range("BE" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 438, 662, 489, 672)) 'Box36A_Occurrence_Span_From
+        CI.Range("BF" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 489, 662, 539, 672)) 'Box36A_Occurrence_Span_Thru
+        CI.Range("BG" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 539, 662, 596, 672)) 'Box37A
+       'CI.Range("BH" & rw) =
+        CI.Range("BI" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 649, 27, 662)) 'Box31B_Occurrence_Code
+        CI.Range("BJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 27, 649, 77, 662)) 'Box31B_Occurrence_Date
+        CI.Range("BK" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 77, 649, 99, 662)) 'Box32B_Occurrence_Code
+        CI.Range("BL" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 99, 649, 150, 662)) 'Box32B_Occurrence_Date
+        CI.Range("BM" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 150, 649, 171, 662)) 'Box33B_Occurrence_Code
+        CI.Range("BN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 649, 222, 662)) 'Box33B_Occurrence_Date
+        CI.Range("BO" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 649, 243, 662)) 'Box34B_Occurrence_Code
+        CI.Range("BP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 243, 649, 294, 662)) 'Box34B_Occurrence_Date
+        CI.Range("BQ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 294, 649, 315, 662)) 'Box35B_Occurrence_Span_Code
+        CI.Range("BR" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 649, 366, 662)) 'Box35B_Occurrence_Span_From
+        CI.Range("BS" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 366, 649, 417, 662)) 'Box35B_Occurrence_Span_Thru
+        CI.Range("BT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 417, 649, 438, 662)) 'Box36B_Occurrence_Span_Code
+        CI.Range("BU" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 438, 649, 489, 662)) 'Box36B_Occurrence_Span_From
+        CI.Range("BV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 489, 649, 539, 662)) 'Box36B_Occurrence_Span_Thru
+        CI.Range("BW" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 539, 662, 596, 672)) 'Box37B
+        CI.Range("BX" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 9, 588, 308, 642)) 'Box38
+       'CI.Range("BY" & rw) ='CI.Range("BZ" & rw) ='CI.Range("CA" & rw) ='CI.Range("CB" & rw) ='CI.Range("CC" & rw) =
+        CI.Range("CD" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 624, 338, 636)) 'Box39A_Value_Code
+        CI.Range("CE" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 338, 624, 409, 636)), " ", "."), ",", "") 'Box39A_Value_Code_Amt
+        CI.Range("CF" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 612, 338, 624)) 'Box39B_Value_Code
+        CI.Range("CG" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 338, 612, 409, 624)), " ", "."), ",", "") 'Box39B_Value_Code_Amt
+        CI.Range("CH" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 599, 338, 612)) 'Box39C_Value_Code
+        CI.Range("CI" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 338, 599, 409, 612)), " ", "."), ",", "") 'Box39C_Value_Code_Amt
+        CI.Range("CJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 587, 338, 599)) 'Box39D_Value_Code
+        CI.Range("CK" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 338, 587, 409, 599)), " ", "."), ",", "") 'Box39D_Value_Code_Amt
+        CI.Range("CL" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 409, 624, 431, 636)) 'Box40A_Value_Code
+        CI.Range("CM" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 431, 624, 501, 636)), " ", "."), ",", "") 'Box40A_Value_Code_Amt
+        CI.Range("CN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 409, 612, 431, 624)) 'Box40B_Value_Code
+        CI.Range("CO" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 431, 612, 501, 624)), " ", "."), ",", "") 'Box40B_Value_Code_Amt
+        CI.Range("CP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 409, 599, 431, 612)) 'Box40C_Value_Code
+        CI.Range("CQ" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 431, 599, 501, 612)), " ", "."), ",", "") 'Box40C_Value_Code_Amt
+        CI.Range("CR" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 409, 587, 431, 599)) 'Box40D_Value_Code
+        CI.Range("CS" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 431, 587, 501, 599)), " ", "."), ",", "") 'Box40D_Value_Code_Amt
+        CI.Range("CT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 501, 624, 524, 636)) 'Box41A_Value_Code
+        CI.Range("CU" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 524, 624, 596, 636)), " ", "."), ",", "") 'Box41A_Value_Code_Amt
+        CI.Range("CV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 501, 624, 612, 624)) 'Box41B_Value_Code
+        CI.Range("CW" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 524, 612, 596, 624)), " ", "."), ",", "") 'Box41B_Value_Code_Amt
+        CI.Range("CX" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 501, 599, 524, 612)) 'Box41C_Value_Code
+        CI.Range("CY" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 524, 599, 596, 612)), " ", "."), ",", "") 'Box41C_Value_Code_Amt
+        CI.Range("CZ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 501, 587, 524, 599)) 'Box41D_Value_Code
+        CI.Range("DA" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 524, 587, 596, 599)), " ", "."), ",", "") 'Box41D_Value_Code_Amt
+        CI.Range("DB" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 276, 171, 289)) 'Box50A_Payer_Name
+        CI.Range("DC" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 276, 279, 289)) 'Box51A_Health_PlanID
+        CI.Range("DD" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 279, 276, 294, 289)) 'Box52A_RelInfo
+        CI.Range("DE" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 300, 276, 315, 289)) 'Box53A_ASG_Ben
+        CI.Range("DF" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 276, 387, 289)), " ", "."), ",", "") 'Box54A_Prior_Payments
+        CI.Range("DG" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 387, 276, 466, 289)), " ", "."), ",", "") 'Box55A_EST_Amount_Due
+        CI.Range("DH" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 266, 171, 276)) 'Box50B_Payer_Name
+        CI.Range("DI" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 266, 279, 276)) 'Box51B_Health_PlanID
+        CI.Range("DJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 279, 266, 294, 276)) 'Box52B_RelInfo
+        CI.Range("DK" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 300, 266, 315, 276)) 'Box53B_ASG_Ben
+        CI.Range("DL" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 266, 387, 276)), " ", "."), ",", "") 'Box54B_Prior_Payments
+        CI.Range("DM" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 387, 266, 466, 276)), " ", "."), ",", "") 'Box55B_EST_Amount_Due
+        CI.Range("DN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 253, 171, 266)) 'Box50C_Payer_Name
+        CI.Range("DO" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 253, 279, 266)) 'Box51C_Health_PlanID
+        CI.Range("DP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 279, 253, 294, 266)) 'Box52C_RelInfo
+        CI.Range("DQ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 300, 253, 315, 266)) 'Box53C_ASG_Ben
+        CI.Range("DR" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 253, 387, 266)), " ", "."), ",", "") 'Box54C_Prior_Payments
+        CI.Range("DS" & rW) = Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 387, 253, 466, 266)), " ", "."), ",", "") 'Box55C_EST_Amount_Due
+        CI.Range("DT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 487, 289, 596, 300)) 'Box56_NPI
+        CI.Range("DU" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 487, 276, 596, 289)) 'Box57
+        CI.Range("DV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 487, 266, 596, 276)) 'Box57_Other
+        CI.Range("DW" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 487, 253, 596, 266)) 'Box57_Prv_ID
+        CI.Range("DX" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 229, 193, 240)) 'Box58A_Insured_Name
+        CI.Range("DY" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 193, 229, 215, 240)) 'Box59A_P_Rel
+        CI.Range("DZ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 215, 229, 359, 240)) 'Box60A_Insured_Unique_ID
+        CI.Range("EA" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 359, 229, 467, 240)) 'Box61A_Group_Name
+        CI.Range("EB" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 467, 229, 596, 240)) 'Box62A_Insurance_Grp_No
+        CI.Range("EC" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 217, 193, 229)) 'Box58B_Insured_Name
+        CI.Range("ED" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 193, 217, 215, 229)) 'Box59B_P_Rel
+        CI.Range("EE" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 215, 217, 359, 229)) 'Box60B_Insured_Unique_ID
+        CI.Range("EF" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 359, 217, 467, 229)) 'Box61B_Group_Name
+        CI.Range("EG" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 467, 217, 596, 229)) 'Box62B_Insurance_Grp_No
+        CI.Range("EH" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 204, 193, 217)) 'Box58C_Insured_Name
+        CI.Range("EI" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 193, 204, 215, 217)) 'Box59C_P_Rel
+        CI.Range("EJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 215, 204, 359, 217)) 'Box60C_Insured_Unique_ID
+        CI.Range("EK" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 359, 204, 467, 217)) 'Box61C_Group_Name
+        CI.Range("EL" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 467, 204, 596, 217)) 'Box62C_Insurance_Grp_No
+        CI.Range("EM" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 180, 228, 191)) 'Box63A_Treatment_Auth_Codes
+        CI.Range("EN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 228, 180, 415, 191)) 'Box64A_Document_Control_No
+        CI.Range("EO" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 415, 180, 596, 191)) 'Box65A_Employer_Name
+        CI.Range("EP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 168, 228, 180)) 'Box63B_Treatment_Auth_Codes
+        CI.Range("EQ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 228, 168, 415, 180)) 'Box64B_Document_Control_No
+        CI.Range("ER" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 415, 168, 596, 180)) 'Box65B_Employer_Name
+        CI.Range("ES" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 156, 228, 168)) 'Box63C_Treatment_Auth_Codes
+        CI.Range("ET" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 228, 156, 415, 168)) 'Box64C_Document_Control_No
+        CI.Range("EU" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 415, 156, 596, 168)) 'Box65C_Employer_Name
+        CI.Range("EV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 132, 14, 144)) 'Box66_Dx
+        CI.Range("EW" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 16, 144, 71, 156))), "|67", "") 'Box67_Primary_Dx
+        CI.Range("EX" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 71, 144, 129, 156))), "|A", "") 'Box67A_Dx
+        CI.Range("EY" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 129, 144, 185, 156))), "|B", "") 'Box67B_Dx
+        CI.Range("EZ" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 144, 243, 156))), "|C", "") 'Box67C_Dx
+        CI.Range("FA" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 243, 144, 300, 156))), "|D", "") 'Box67D_Dx
+        CI.Range("FB" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 300, 144, 359, 156))), "|E", "") 'Box67E_Dx
+        CI.Range("FC" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 359, 144, 416, 156))), "|F", "") 'Box67F_Dx
+        CI.Range("FD" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 416, 144, 474, 156))), "|G", "") 'Box67G_Dx
+        CI.Range("FE" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 474, 144, 531, 156))), "|H", "") 'Box67H_Dx
+        CI.Range("FF" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 16, 132, 71, 144))), "|I", "") 'Box67I_Dx
+        CI.Range("FG" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 71, 132, 129, 144))), "|J", "") 'Box67J_Dx
+        CI.Range("FH" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 129, 132, 185, 144))), "|K", "") 'Box67K_Dx
+        CI.Range("FI" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 185, 132, 243, 144))), "|L", "") 'Box67L_Dx
+        CI.Range("FJ" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 243, 132, 300, 144))), "|M", "") 'Box67M_Dx
+        CI.Range("FK" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 300, 132, 359, 144))), "|N", "") 'Box67N_Dx
+        CI.Range("FL" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 359, 132, 416, 144))), "|O", "") 'Box67O_Dx
+        CI.Range("FM" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 416, 132, 474, 144))), "|P", "") 'Box67P_Dx
+        CI.Range("FN" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 474, 132, 531, 144))), "|Q", "") 'Box67Q_Dx
+       'CI.Range("FO" & rw) ='Box68 - Extra Boxes
+        CI.Range("FP" & rW) = RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 36, 120, 86, 132))) 'Box69_Admin_Dx
+        CI.Range("FQ" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 121, 120, 171, 132))), "|A", "") 'Box70A_PatientDx
+        CI.Range("FR" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 120, 222, 132))), "|B", "") 'Box70B_PatientDx
+        CI.Range("FS" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 120, 274, 132))), "|C", "") 'Box70C_PatientDx
+        CI.Range("FT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 301, 120, 336, 132)) 'Box71_PPS_Code
+        CI.Range("FU" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 351, 120, 408, 132))), "|A", "") 'Box72A_ECI
+        CI.Range("FV" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 408, 120, 466, 132))), "|B", "") 'Box72B_ECI
+        CI.Range("FW" & rW) = Replace(RETURN_BLANK_VALUE(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 466, 120, 525, 132))), "|C", "") 'Box72C_ECI
+       'CI.Range("FX" & rw) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 525, 120, 596, 132))'Box73
+        CI.Range("FY" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 97, 65, 109)) 'Box74_Principal_Procedure_Code
+        CI.Range("FZ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 65, 97, 114, 109)) 'Box74_Principal_Procedure_Date
+        CI.Range("GA" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 114, 97, 171, 109)) 'Box74A_Other_Procedure_Code
+        CI.Range("GB" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 97, 222, 109)) 'Box74A_Other_Procedure_Date
+        CI.Range("GC" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 97, 281, 109)) 'Box74B_Other_Procedure_Code
+        CI.Range("GD" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 281, 97, 330, 109)) 'Box74B_Other_Procedure_Date
+        CI.Range("GE" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 6, 73, 65, 84)) 'Box74C_Other_Procedure_Code
+        CI.Range("GF" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 65, 73, 114, 84)) 'Box74C_Other_Procedure_Date
+        CI.Range("GG" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 114, 73, 171, 84)) 'Box74D_Other_Procedure_Code
+        CI.Range("GH" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 171, 73, 222, 84)) 'Box74D_Other_Procedure_Date
+        CI.Range("GI" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 73, 281, 84)) 'Box74E_Other_Procedure_Code
+        CI.Range("GJ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 281, 73, 330, 84)) 'Box74E_Other_Procedure_Date
+       'CI.Range("GK" & rw) =
+        CI.Range("GL" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 430, 109, 500, 120)) 'Box76_Attending_NPI
+        CI.Range("GM" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 518, 109, 596, 120)) 'Box76_Attending_Qual
+        CI.Range("GN" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 385, 96, 493, 109)) 'Box76_Attending_Last
+        CI.Range("GO" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 514, 96, 596, 109)) 'Box76_Attending_First
+        CI.Range("GP" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 430, 84, 500, 97)) 'Box77_Operating_NPI
+        CI.Range("GQ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 518, 84, 596, 97)) 'Box77_Operating_Qual
+        CI.Range("GR" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 385, 73, 493, 84)) 'Box77_Operating_Last
+        CI.Range("GS" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 514, 73, 596, 84)) 'Box77_Operating_First
+        CI.Range("GT" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 430, 60, 500, 73)) 'Box78_Other_NPI
+        CI.Range("GU" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 518, 60, 596, 73)) 'Box78_Other_Qual
+        CI.Range("GV" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 385, 50, 493, 60)) 'Box78_Other_Last
+        CI.Range("GW" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 514, 50, 596, 60)) 'Box78_Other_First
+        CI.Range("GX" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 430, 37, 500, 50)) 'Box79_Other_NPI
+        CI.Range("GY" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 518, 37, 596, 50)) 'Box79_Other_Qual
+        CI.Range("GZ" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 385, 26, 493, 37)) 'Box79_Other_Last
+        CI.Range("HA" & rW) = NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 514, 26, 596, 37)) 'Box79_Other_First
     End With
-JUSTEXIT:
+    MEDICARE_MEDICAID_COB_INFORMATION pFile, rW
 End Sub
 
-Public Sub Medicare_Cob_Information(ByVal pFile As String, ByVal rW As Long, ByVal TotalPage As Integer, ByVal LineNo As String) 'ADDED 2024.01.24
-    Dim strMark As String, Page As Integer, B As Double, T As Double, L As Double, R As Double
-    With iREADER
-        For Page = 1 To TotalPage
-            strMark = .TextCoordinates(pFile, "MEDICARE/MEDICAID/COB SUPPORT DOCUMENT", Page)
-            If Len(Trim(strMark)) > 0 Then
-                lineInfo = Split(.TextCoordinates(pFile, Format(LineNo, "000000"), Page), ",")
-                Appvd = Split(.TextCoordinates(pFile, "APPVD", Page), ",")
-                Paid = Split(.TextCoordinates(pFile, "PAID", Page), ",")
-                B = lineInfo(1): T = Replace(lineInfo(3), "|", "")
-                L = Paid(0): R = Appvd(2)
-                AppvdInfo = Trim(.ReadPage(pFile, Page, L - 15, B, R, T))
-                R = Paid(2)
-                PaidInfo = Trim(.ReadPage(pFile, Page, L, B, R, T))
-                SVL.Range("Z" & rW) = "'" & Replace(AppvdInfo, "$", "")
-                SVL.Range("AA" & rW) = "'" & Replace(PaidInfo, "$", "")
-                Exit For
-            End If
-        Next Page
-    End With
-objRelease:
-End Sub
-
-Public Sub Medicare_Medicaid_Cob_Information(ByVal pFile As String, ByVal rW As Integer) 'ADDED 2025.03.11
+Public Sub MEDICARE_MEDICAID_COB_INFORMATION(ByVal pFile As String, ByVal rW As Integer)
     Dim TotalPage As Integer, Page As Integer, strMark As String, i As Integer, B As String, T As String
     Dim KeyPattern(8) As String, olCoordinates As String, olSet() As String, h As Integer, cAdjInfo As String
     Dim tmpVal As String
@@ -96,19 +236,19 @@ Public Sub Medicare_Medicaid_Cob_Information(ByVal pFile As String, ByVal rW As 
             If Len(Trim(olCoordinates)) > 0 Then
                 olSet = Split(olCoordinates, "|")
                 tmpVal = NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 432, Round(Split(olSet(0), ",")(3))))
-                tmpVal = Trim(Replace(Replace(tmpVal, KeyPattern(i), ""), " ", ""))
-                'tmpVal = Trim(Right(tmpVal, Len(tmpVal) - InStr(1, tmpVal, "$")))
+                tmpVal = Trim(Replace(Replace(tmpVal, UCase(KeyPattern(i)), ""), " ", ""))
+               'tmpVal = Trim(Right(tmpVal, Len(tmpVal) - InStr(1, tmpVal, "$")))
                 Select Case KeyPattern(i)
-                    Case "Deductible": INF.Range("BR" & rW) = "'" & tmpVal
-                    Case "Coinsurance": INF.Range("BS" & rW) = "'" & tmpVal
-                    Case "Calculated Approved Amount": INF.Range("BT" & rW) = "'" & tmpVal
-                    Case "Paid": INF.Range("BU" & rW) = "'" & tmpVal
-                    Case "Patient Responsibility": INF.Range("BV" & rW) = "'" & tmpVal
-                    Case "Non-Covered": INF.Range("BW" & rW) = "'" & tmpVal
-                    Case "Contractual": INF.Range("BX" & rW) = "'" & tmpVal
-                    Case "Medicare ID": INF.Range("BZ" & rW) = "'" & tmpVal
-                    Case "HIC Number": INF.Range("CA" & rW) = "'" & tmpVal
-                    Case "Other Insurance Type": INF.Range("CB" & rW) = "'" & tmpVal
+                    Case "Deductible": CI.Range("HF" & rW) = "'" & tmpVal
+                    Case "Coinsurance": CI.Range("HG" & rW) = "'" & tmpVal
+                    Case "Calculated Approved Amount": CI.Range("HH" & rW) = "'" & tmpVal
+                    Case "Paid": CI.Range("HI" & rW) = "'" & tmpVal
+                    Case "Patient Responsibility": CI.Range("HJ" & rW) = "'" & tmpVal
+                    Case "Non-Covered": CI.Range("HK" & rW) = "'" & tmpVal
+                    Case "Contractual": CI.Range("HL" & rW) = "'" & tmpVal
+                    Case "Medicare ID": CI.Range("HN" & rW) = "'" & tmpVal
+                    Case "HIC Number": CI.Range("HO" & rW) = "'" & tmpVal
+                    Case "Other Insurance Type": CI.Range("HR" & rW) = "'" & tmpVal
                 End Select
             End If
         Next i
@@ -138,85 +278,114 @@ Public Sub Medicare_Medicaid_Cob_Information(ByVal pFile As String, ByVal rW As 
                 Next i: DoEvents
             End If
         Next h
-        INF.Range("BY" & rW) = "'" & Trim(cAdjInfo)
+        CI.Range("HM" & rW) = "'" & Trim(cAdjInfo)
     End With
 objRelease:
 End Sub
 
-Public Sub CLAIM_REPRICING_INFORMATION(ByVal pFile As String, ByVal srw As Integer, TotalRepriced, TotalDiscounts, _
-Re_Priced_Ind, HIC_Mem_No, Re_Priced_By, ClaimNTE, TimelyFiling, MethodInfo)
-    Dim TotalPage As Integer, Page As Integer, x As Integer, strMark As String, Repriced As String, Discount As String
-    Dim olCoordinates As String, olSet() As String, CordSet() As String, CurPg As Integer, iDx As Integer
-    Dim L As Integer, B As Integer, R As Integer, T As Integer, KeyPattern(14) As String, i As Integer
-    
-    KeyPattern(0) = "Date Frm"
-    KeyPattern(1) = "DATE FRM" 'ADDED 2025.11.06
-    KeyPattern(2) = "Date Thr"
-    KeyPattern(3) = "DATE THR" 'ADDED 2025.11.06
-    KeyPattern(4) = "HCPCS"
-    KeyPattern(5) = "CPT/HCPCS" 'ADDED 2025.11.06
-    KeyPattern(6) = "Charges"
-    KeyPattern(7) = "CHARGES" 'ADDED 2025.11.06
-    KeyPattern(8) = "Units"
-    KeyPattern(9) = "/Repriced"
-    KeyPattern(10) = "Allowed/" 'ADDED 2025.11.06
-    KeyPattern(11) = "/Ineligible"
-    KeyPattern(12) = "Discount/" 'ADDED 2025.11.06
-    KeyPattern(13) = "iCES/EDC Remark Code"
-    
+Public Sub MEDICARE_MEDICAID_COB_DETAIL(ByVal pFile As String, ByVal rW As Integer, ByVal SvcLnCnt As Integer) 'Added 2024.10.15
+    Dim TotalPage As Integer, Page As Integer, strMark As String, i As Integer, B As String, T As String
+    Dim KeyPattern(8) As String, olCoordinates As String, olSet() As String
+    Dim LINE_L As Integer, DATE_FRM_L As Integer, DATE_THR_L As Integer, CPT_HCPCS_L As Integer, CHARGES_L As Integer
+    Dim PTNT_RSPNS_L As Integer, DED_L As Integer, APPVD_L As Integer, PAID_L As Integer
+    KeyPattern(0) = "LINE#"
+    KeyPattern(1) = "DATE FRM"
+    KeyPattern(2) = "DATE THR"
+    KeyPattern(3) = "CPT/HCPCS"
+    KeyPattern(4) = "CHARGES"
+    KeyPattern(5) = "PTNT RSPNS"
+    KeyPattern(6) = "DED"
+    KeyPattern(7) = "APPVD"
+    KeyPattern(8) = "PAID"
     With iREADER
         TotalPage = .TotalPages(pFile)
         For Page = 1 To TotalPage
             strMark = .TextCoordinates(pFile, "MEDICARE/MEDICAID/COB SUPPORT DOCUMENT", Page)
             If Len(Trim(strMark)) > 0 Then
-                topTble = Split(.TextCoordinates(pFile, "Claim Control Number", Page), ",")
-                bottomTble = Split(.TextCoordinates(pFile, "LINE#", Page), "|")
-                bottomTble = Split(bottomTble(0), ",")
-                For n = CLng(Round(Replace(topTble(3), "|", ""), 0)) To CLng(Round(bottomTble(1), 0)) Step -13
-                    If Len(Trim(Trim(.ReadPage(pFile, Page, 30, n - 13, 580, n)))) < 1 Then Exit For
-                    If InStr(1, UCase(Trim(.ReadPage(pFile, Page, 30, n - 13, 580, n))), "MEDICARE ID") > 0 Then
-                        HIC_Mem_No = Trim(Replace(.ReadPage(pFile, Page, 30, n - 13, 580, n), "Medicare ID", ""))
-                    End If
-                   'Debug.Print Trim(.ReadPage(pFile, Page, 30, n - 13, 580, n))
-                    DoEvents
-                Next n
-                Exit For
+                CurPg = Page: Exit For
             End If
         Next Page
+        If CurPg < 1 Then GoTo objRelease
+       'For i = 0 To UBound(KeyPattern)
+        For i = 1 To SvcLnCnt
+PgFwd:
+            olCoordinates = .TextCoordinates(pFile, Format(i, "000000"), CurPg)
+            If Len(Trim(olCoordinates)) > 0 Then
+                olSet = Split(olCoordinates, "|")
+                LINE_L = 36
+                DATE_FRM_L = 75
+                DATE_THR_L = 125
+                CPT_HCPCS_L = 175
+                CHARGES_L = 229
+                PTNT_RSPNS_L = 274
+                DED_L = 466
+                APPVD_L = 501
+                PAID_L = 546
+                For m = 0 To UBound(olSet)
+                    If LINE_L = CInt(Split(olSet(m), ",")(0)) Then 'L,B,R,T
+                       'Stop
+                        CS.Range("V" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, DATE_FRM_L, CInt(Split(olSet(m), ",")(1)), 115, CInt(Split(olSet(m), ",")(3))))
+                        CS.Range("W" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, DATE_THR_L, CInt(Split(olSet(m), ",")(1)), 164, CInt(Split(olSet(m), ",")(3))))
+                        CS.Range("X" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CPT_HCPCS_L, CInt(Split(olSet(m), ",")(1)), 219, CInt(Split(olSet(m), ",")(3))))
+                        CS.Range("Y" & rW) = "'" & Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CHARGES_L, CInt(Split(olSet(m), ",")(1)), 264, CInt(Split(olSet(m), ",")(3)))), "$", ""))
+                        CS.Range("Z" & rW) = "'" & Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, PTNT_RSPNS_L, CInt(Split(olSet(m), ",")(1)), 323, CInt(Split(olSet(m), ",")(3)))), "$", ""))
+                        CS.Range("AA" & rW) = "'" & Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, DED_L, CInt(Split(olSet(m), ",")(1)), 481, CInt(Split(olSet(m), ",")(3)))), "$", ""))
+                        CS.Range("AB" & rW) = "'" & Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, APPVD_L, CInt(Split(olSet(m), ",")(1)), 525, CInt(Split(olSet(m), ",")(3)))), "$", ""))
+                        CS.Range("AC" & rW) = "'" & Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, PAID_L, CInt(Split(olSet(m), ",")(1)), 566, CInt(Split(olSet(m), ",")(3)))), "$", ""))
+                        rW = rW + 1
+                        Exit For
+                    End If
+                Next m
+               ' Stop
+            Else
+                If i <= SvcLnCnt Then
+                    CurPg = CurPg + 1
+                    GoTo PgFwd
+                End If
+            End If
+        Next i
+objRelease:
+    End With
+End Sub
+
+Public Sub CLAIM_REPRICING_INFORMATION(ByVal pFile As String, ByVal sRw As Integer, TotalRepriced, TotalDiscounts, _
+    Re_Priced_Ind, HIC_Number, Re_Priced_By, TimelyFiling, MethodInfo, ClaimNTE)
+    Dim TotalPage As Integer, Page As Integer, x As Integer, strMark As String, Repriced As String, Discount As String
+    Dim olCoordinates As String, olSet() As String, CordSet() As String, CurPg As Integer, iDx As Integer
+    Dim l As Integer, B As Integer, r As Integer, T As Integer, KeyPattern(13) As String, i As Integer
+    KeyPattern(0) = "Date Frm"
+    KeyPattern(1) = "DATE FRM" 'ADDED 2025.11.05
+    KeyPattern(2) = "Date Thr"
+    KeyPattern(3) = "DATE THR" 'ADDED 2025.11.05
+    KeyPattern(4) = "HCPCS"
+    KeyPattern(5) = "CPT/HCPCS" 'ADDED 2025.11.05
+    KeyPattern(6) = "Charges"
+    KeyPattern(7) = "CHARGES" 'ADDED 2025.11.05
+    KeyPattern(8) = "Units"
+    KeyPattern(9) = "/Repriced"
+    KeyPattern(10) = "Allowed/" 'ADDED 2025.11.05
+    KeyPattern(11) = "/Ineligible"
+    KeyPattern(12) = "Discount/" 'ADDED 2025.11.05
+   'KeyPattern(8) = "Method"
+    With iREADER
+        TotalPage = .TotalPages(pFile)
         For Page = 1 To TotalPage
             strMark = .TextCoordinates(pFile, "REPRICE INFO, RENDERING PHYSICIAN, & NOTES", Page)
             If Len(Trim(strMark)) > 0 Then
-                olCoordinates = .TextCoordinates(pFile, "Re-Price Ind", Page)
+               'Re_Priced_Ind = Trim(.ReadPage(pFile, Page, 249, 611, 575, 624))
+               'If Len(Trim(Re_Priced_Ind)) < 1 Then
+                olCoordinates = .TextCoordinates(pFile, "Re-Price Ind", Page) 'ADDED LOGIC 2023.09.07 ***
                 If Len(Trim(olCoordinates)) > 0 Then
                     olSet = Split(olCoordinates, "|")
-                    Re_Priced_Ind = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), _
-                    Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "RE-PRICE IND", ""))
+                    Re_Priced_Ind = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "RE-PRICE IND", ""))
                 End If
-                olCoordinates = .TextCoordinates(pFile, "Timely Filing", Page) 'ADDED 2025.03.26
+               'End If '***
+                olCoordinates = .TextCoordinates(pFile, "Timely Filing", Page) 'ADDED 2025.11.05
                 If Len(Trim(olCoordinates)) > 0 Then
                     olSet = Split(olCoordinates, "|")
-                    TimelyFiling = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), _
-                    Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "TIMELY FILING", ""))
+                    TimelyFiling = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "TIMELY FILING", ""))
                 End If
-                olCoordinates = .TextCoordinates(pFile, "Claim NTE", Page) 'ADDED 2025.03.26
-                If Len(Trim(olCoordinates)) > 0 Then
-                    olSet = Split(olCoordinates, "|")
-                    ClaimNTE = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), _
-                    Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "CLAIM NTE", ""))
-                End If
-                olCoordinates = .TextCoordinates(pFile, "HIC Number", Page)
-                If Len(Trim(olCoordinates)) > 0 Then
-                    olSet = Split(olCoordinates, "|")
-                    HIC_Number = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 432, Round(Split(olSet(0), ",")(3))))
-                    HIC_Number = Trim(Replace(Replace(HIC_Number, "HIC NUMBER", ""), " ", ""))
-                End If
-                olCoordinates = .TextCoordinates(pFile, "Re-Priced By", Page) 'ADDED LOGIC 2024.02.15 ***
-                If Len(Trim(olCoordinates)) > 0 Then
-                    olSet = Split(olCoordinates, "|")
-                    Re_Priced_By = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), _
-                    Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "RE-PRICED BY", ""))
-                End If
-                olCoordinates = .TextCoordinates(pFile, "Method", Page) 'ADDED 2025.11.06
+                olCoordinates = .TextCoordinates(pFile, "Method", Page) 'ADDED 2025.11.05
                 If Len(Trim(olCoordinates)) > 0 Then
                     olSet = Split(olCoordinates, "|")
                     If MN.chkWbClaim.Value <> True Then
@@ -224,85 +393,92 @@ Re_Priced_Ind, HIC_Mem_No, Re_Priced_By, ClaimNTE, TimelyFiling, MethodInfo)
                     Else
                         iDx = 0
                     End If
-                    MethodInfo = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(iDx), ",")(0)), _
-                    Round(Split(olSet(iDx), ",")(1)), 575, Round(Split(olSet(iDx), ",")(3)))), "METHOD", ""))
+                    MethodInfo = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(iDx), ",")(0)), Round(Split(olSet(iDx), ",")(1)), 575, Round(Split(olSet(iDx), ",")(3)))), "METHOD", ""))
                 End If
+                olCoordinates = .TextCoordinates(pFile, "Claim NTE", Page) 'ADDED 2025.11.05
+                If Len(Trim(olCoordinates)) > 0 Then
+                    olSet = Split(olCoordinates, "|")
+                    ClaimNTE = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "CLAIM NTE", ""))
+                End If
+                olCoordinates = .TextCoordinates(pFile, "HIC Number", Page)
+                If Len(Trim(olCoordinates)) > 0 Then
+                    olSet = Split(olCoordinates, "|")
+                    HIC_Number = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 432, Round(Split(olSet(0), ",")(3))))
+                    HIC_Number = Trim(Replace(Replace(HIC_Number, "HIC NUMBER", ""), " ", ""))
+                End If
+               'If Len(Trim(Re_Priced_By)) < 1 Then
+                olCoordinates = .TextCoordinates(pFile, "Re-Priced By", Page) 'ADDED LOGIC 2024.02.15 ***
+                If Len(Trim(olCoordinates)) > 0 Then
+                    olSet = Split(olCoordinates, "|")
+                    Re_Priced_By = Trim(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, Round(Split(olSet(0), ",")(0)), Round(Split(olSet(0), ",")(1)), 575, Round(Split(olSet(0), ",")(3)))), "RE-PRICED BY", ""))
+                End If
+               'End If '***
                 CurPg = Page: Exit For
             End If
         Next Page
-        If CurPg < 1 Then GoTo objRelease
+        If CurPg < 1 Then GoTo JUSTEXIT
         For i = 0 To UBound(KeyPattern) - 1
-            CurPg = Page: rW = srw
+            CurPg = Page: rW = sRw
             Do While CurPg <= TotalPage
                 olCoordinates = .TextCoordinates(pFile, KeyPattern(i), CurPg)
                 If Len(Trim(olCoordinates)) > 0 Then
                     olSet = Split(olCoordinates, "|")
                     For x = 0 To UBound(olSet) - 1
                         CordSet = Split(olSet(x), ",")
-                        L = CordSet(0) 'LEFT
+                        l = CordSet(0) 'LEFT
                         B = CordSet(1) - 15 'BOTTOM
                         Select Case KeyPattern(i)
-                            Case "Date Frm", "Date Thr", "HCPCS", "Units"
-                                R = CordSet(2)
+                            Case "Date Frm", "Date Thr", "HCPCS", "Units" ', "Method"
+                                r = CordSet(2)
                             Case Else
-                                R = CordSet(2) + 10 'RIGHT
+                                r = CordSet(2) + 10 'RIGHT
                         End Select
                         T = CordSet(1) 'CordSet(3) 'TOP
                         Select Case KeyPattern(i)
-                            Case "Date Frm": SVL.Range("Q" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T))
-                            Case "DATE FRM" 'ADDED 2025.11.06
-                                SVL.Range("Q" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), _
-                                CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
-                            Case "Date Thr": SVL.Range("R" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T))
-                            Case "DATE THR" 'ADDED 2025.11.06
-                                SVL.Range("R" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), _
-                                CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
-                            Case "HCPCS": SVL.Range("S" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T))
-                            Case "CPT/HCPCS" 'ADDED 2025.11.06
-                                SVL.Range("S" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), _
-                                CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
-                            Case "Charges": SVL.Range("T" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T)), "$", ""), ",", "")
-                            Case "CHARGES" 'ADDED 2025.11.06
-                                SVL.Range("T" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, _
-                                CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", ""), ",", "")
+                            Case "Date Frm": CS.Range("N" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T))
+                            Case "DATE FRM" 'ADDED 2025.11.05
+                                CS.Range("N" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
+                            Case "Date Thr": CS.Range("O" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T))
+                            Case "DATE THR" 'ADDED 2025.11.05
+                                CS.Range("O" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
+                            Case "HCPCS": CS.Range("P" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T))
+                            Case "CPT/HCPCS" 'ADDED 2025.11.05
+                                CS.Range("P" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25))
+                            Case "Charges": CS.Range("Q" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T)), "$", ""), ",", "")
+                            Case "CHARGES" 'ADDED 2025.11.05
+                                CS.Range("Q" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", ""), ",", "")
                             Case "Units"
-                                If MN.chkWbClaim.Value <> True Then 'ADDDED 2025.11.06
-                                    SVL.Range("U" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T)), ",", "")
+                                If MN.chkWbClaim.Value <> True Then
+                                    CS.Range("R" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T)), ",", "")
                                 Else
-                                    SVL.Range("U" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, _
-                                    CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), ",", "")
+                                    CS.Range("R" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), ",", "")
                                 End If
                             Case "/Repriced"
-                                Repriced = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T)), "$", "")
+                                Repriced = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T)), "$", "")
+                                CS.Range("S" & rW) = "'" & Format(Repriced, "0.00")
+                                If Len(Trim(TotalRepriced)) < 1 Then TotalRepriced = 0
+                                If Len(Trim(Repriced)) > 0 Then TotalRepriced = CDbl(TotalRepriced) + CDbl(Repriced)
+                            Case "Allowed/" 'ADDED 2025.11.05
+                                Repriced = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", "")
+                                Repriced = Replace(Replace(Repriced, "REPRICED|", ""), "REPRICED", "")
                                 If Len(Repriced) < 1 Then Repriced = 0
                                 If Len(Trim(TotalRepriced)) < 1 Then TotalRepriced = 0
                                 If Len(Trim(Repriced)) > 0 Then TotalRepriced = CDbl(TotalRepriced) + CDbl(Repriced)
-                                SVL.Range("V" & rW) = "'" & Format(Repriced, "0.00")
-                            Case "Allowed/" 'ADDED 2025.11.06
-                                Repriced = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), _
-                                CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", "")
-                                Repriced = Replace(Replace(Repriced, "REPRICED|", ""), "REPRICED", "") 'ADDED 2026.04.15
-                                If Len(Repriced) < 1 Then Repriced = 0
-                                If Len(Trim(TotalRepriced)) < 1 Then TotalRepriced = 0
-                                If Len(Trim(Repriced)) > 0 Then TotalRepriced = CDbl(TotalRepriced) + CDbl(Repriced)
-                                SVL.Range("V" & rW) = "'" & Format(Repriced, "0.00")
+                                CS.Range("S" & rW) = "'" & Format(Repriced, "0.00")
                             Case "/Ineligible"
-                                Discount = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, L, B, R, T)), "$", "")
+                                Discount = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, l, B, r, T)), "$", "")
                                 If Len(Trim(TotalDiscounts)) < 1 Then TotalDiscounts = 0
                                 If Len(Trim(Discount)) > 0 Then TotalDiscounts = CDbl(TotalDiscounts) + CDbl(Discount)
-                                SVL.Range("W" & rW) = "'" & Format(Discount, "0.00")
-                                SVL.Range("X" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, R, B, R + 41, T)), ",", "")
-                            Case "Discount/" 'ADDED 2025.11.06
-                                Discount = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, _
-                                CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", "")
-                                Discount = Replace(Replace(Discount, "INELIGIBLE|", ""), "INELIGIBLE", "") 'ADDED 2026.04.15
+                                CS.Range("U" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, r, B, r + 41, T)), ",", "")
+                                CS.Range("T" & rW) = "'" & Format(Discount, "0.00")
+                            Case "Discount/" 'ADDED 2025.11.05
+                                Discount = Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(0)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)), CDbl(CordSet(3)) - 15.25)), "$", "")
+                                Discount = Replace(Replace(Discount, "INELIGIBLE|", ""), "INELIGIBLE", "")
                                 If Len(Trim(TotalDiscounts)) < 1 Then TotalDiscounts = 0
                                 If Len(Trim(Discount)) > 0 Then TotalDiscounts = CDbl(TotalDiscounts) + CDbl(Discount)
-                                SVL.Range("W" & rW) = "'" & Format(Discount, "0.00")
-                                SVL.Range("X" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(2)), _
-                                CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)) + 41, CDbl(CordSet(3)) - 15.25)), ",", "")
-                            Case "iCES/EDC Remark Code" 'ADDED 2025.03.26
-                                SVL.Range("Y" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, Lc, B - 20, Rc, T - 10))
+                                CS.Range("T" & rW) = "'" & Format(Discount, "0.00")
+                                CS.Range("U" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(2)), CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)) + 41, CDbl(CordSet(3)) - 15.25)), ",", "")
+                           'Case "Method":CS.Range("U" & rw) = "'" & Replace(Trim(.ReadPage(pFile, CurPg, L, B, R, T)), ",", "")
                         End Select
                         rW = rW + 1
                     Next x
@@ -311,137 +487,79 @@ Re_Priced_Ind, HIC_Mem_No, Re_Priced_By, ClaimNTE, TimelyFiling, MethodInfo)
             Loop
         Next i
     End With
+JUSTEXIT:
+End Sub
+
+Public Sub CLAIM_SERVICELINES_INFORMATION(ByVal pFile As String, ByVal rW As Long, ByVal PdfFileName As String, TotalCharges)
+    Dim TotalPage As Integer, Page As Integer, strMark As String, h As Integer, j As Integer
+    Dim Box42_RevCd As String, Box43_Description As String, Box44_HCPCS_Code As String, Box45_ServDate As String
+    Dim Box46_ServUnits As String, Box47_TotalCharges As String, Box48_NonCovered_Charges As String, Box49 As String
+    Dim i As Integer, x As Integer, l() As Variant, B As Integer, r() As Variant, T As Integer, Modifiers() As String
+    Dim SvcLnCnt As Integer, LnRw As Long
+    SvcLnCnt = 0: LnRw = rW
+    l = Array(6, 40, 220, 327, 378, 434, 508, 578)
+    r = Array(40, 220, 327, 378, 434, 508, 578, 596)
+    With iREADER
+        TotalPage = .TotalPages(pFile)
+        For Page = 1 To TotalPage
+            strMark = "": T = 575
+            strMark = .TextCoordinates(pFile, "42 REV.CD.", Page)
+            If Len(Trim(strMark)) > 0 Then
+                For i = 1 To 22
+                    Box42_RevCd = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(0), T - 11, r(0), T))
+                    Box43_Description = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(1), T - 11, r(1), T))
+                    Box44_HCPCS_Code = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(2), T - 11, r(2), T))
+                    Box45_ServDate = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(3), T - 11, r(3), T))
+                    Box46_ServUnits = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(4), T - 11, r(4), T))
+                    Box47_TotalCharges = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(5), T - 11, r(5), T))
+                    Box48_NonCovered_Charges = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(6), T - 11, r(6), T))
+                    Box49 = NORMALIZE_EDIT_MSG(.ReadPage(pFile, Page, l(7), T - 11, r(7), T))
+                    If Len(Trim(Box42_RevCd)) < 1 Then GoTo NextPage
+                    With CS
+                        .Range("A" & rW) = "'" & PdfFileName
+                        .Range("B" & rW) = "'" & Box42_RevCd
+                        .Range("C" & rW) = "'" & Box43_Description
+                        .Range("D" & rW) = "'" & Box44_HCPCS_Code
+                         If Len(Trim(Box44_HCPCS_Code)) > 5 Then
+                           .Range("D" & rW) = "'" & Trim(Left(Box44_HCPCS_Code, InStr(1, Box44_HCPCS_Code, " ")))
+                            Modifiers = Split(Mid(Box44_HCPCS_Code, InStr(1, Box44_HCPCS_Code, " "), Len(Box44_HCPCS_Code)), ",")
+                            j = 5
+                            For h = 0 To UBound(Modifiers)
+                               .Cells(rW, j) = "'" & Modifiers(h)
+                                j = j + 1
+                            Next h
+                         End If
+                        .Range("I" & rW) = "'" & Box45_ServDate
+                        .Range("J" & rW) = "'" & Box46_ServUnits
+                         If Len(Box47_TotalCharges) > 0 Then 'ADDED 2025.11.05
+                            If InStr(1, Box47_TotalCharges, " ") < 1 Then
+                               Box47_TotalCharges = Left(Box47_TotalCharges, Len(Box47_TotalCharges) - 2) & " " & Right(Box47_TotalCharges, 2)
+                            End If
+                         Else
+                            Box47_TotalCharges = 0
+                         End If
+                        .Range("K" & rW) = "'" & Format(Replace(Replace(Box47_TotalCharges, " ", "."), ",", ""), "0.00")
+                        .Range("L" & rW) = "'" & Replace(Replace(Box48_NonCovered_Charges, " ", "."), ",", "")
+                        .Range("M" & rW) = "'" & Box49
+                         TotalCharges = TotalCharges + .Range("K" & rW)
+                         SvcLnCnt = SvcLnCnt + 1
+                    End With
+                    T = T - 12: rW = rW + 1
+                    DoEvents
+                Next i
+            End If
+NextPage:
+        Next Page
+        MEDICARE_MEDICAID_COB_DETAIL pFile, LnRw, SvcLnCnt
+    End With
 objRelease:
 End Sub
 
-Public Sub CLAIM_DEMOGRAPHICS_INFORMATION(ByVal pFile As String, ByVal rW As Integer, ByVal CCN As String)
-    With iREADER
-        INF.Range("A" & rW & ":CE" & rW).ClearContents
-        INF.Range("A" & rW) = "'" & CCN
-        INF.Range("C" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 373, 672, 476, 683)) 'Box1_Insured_ID_Number
-        INF.Range("D" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 648, 205, 662)) 'Box2_Patient_Name
-        INF.Range("E" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 228, 648, 306, 657)), " ", "/") 'Box3_Patient_DOB
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 316, 648, 326, 657))) > 0 Then INF.Range("F" & rW) = "M" 'Box3_Patient_Sex_M
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 352, 648, 362, 657))) > 0 Then INF.Range("F" & rW) = "F" 'PBox3_Patient_Sex_F
-        INF.Range("G" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 648, 546, 662)) 'Box4_Insured_Name
-        INF.Range("H" & rW) = "'" & PoBoxAdr_Collections(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 624, 205, 639))) 'Box5_Patient_Adr
-        INF.Range("I" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 600, 203, 616)) 'Box5_Patient_City
-        INF.Range("J" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 203, 600, 228, 616)) 'Box5_Patient_State
-        INF.Range("K" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 576, 117, 592)) 'Box5_Patient_ZipCode
-        INF.Range("L" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 117, 576, 205, 592)) 'Box5_Patient_Telephone
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 251, 624, 261, 637))) > 0 Then INF.Range("M" & rW) = "SELF" 'Box6_Patient_RelSelf
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 287, 624, 300, 637))) > 0 Then INF.Range("M" & rW) = "SPOUSE" 'Box6_Patient_RelSpouse
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 315, 624, 327, 637))) > 0 Then INF.Range("M" & rW) = "CHILD" 'Box6_Patient_RelChild
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 351, 624, 362, 637))) > 0 Then INF.Range("M" & rW) = "OTHER" 'Box6_Patient_RelOther
-        INF.Range("N" & rW) = "'" & PoBoxAdr_Collections(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 624, 593, 639))) 'Box7_Insured_Adr
-        INF.Range("O" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 600, 544, 616)) 'Box7_Insured_City
-        INF.Range("P" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 544, 600, 593, 616)) 'Box7_Insured_State
-        INF.Range("Q" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 576, 465, 592)) 'Box7_Insured_Zip
-        INF.Range("R" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 465, 576, 593, 592)) 'Box7_Insured_Telephone
-        INF.Range("S" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 552, 569, 567)) 'Box11_Insured_PolGrp
-        INF.Range("T" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 374, 530, 475, 541)), " ", "/") 'Box11_Insured_DOB
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 504, 530, 514, 541))) > 0 Then INF.Range("U" & rW) = "M" 'Box11_Insured_Sex_M
-        If Len(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 554, 530, 564, 541))) > 0 Then INF.Range("U" & rW) = "F" 'Box11_Insured_Sex_F
-        INF.Range("V" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 362, 215, 377)) 'Box17_Ref_Provider
-        INF.Range("W" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 246, 374, 386, 374)) 'Box17a
-        INF.Range("X" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 246, 374, 386, 374)) 'Box17b
-        INF.Range("Y" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 402, 362, 477, 374)), " ", "/") 'Box18_HospDate_From
-        INF.Range("Z" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 503, 362, 593, 374)), " ", "/") 'Box18_HospDate_To
-        INF.Range("AA" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 37, 315, 88, 325)) 'Box21_Dx_A
-        INF.Range("AB" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 130, 315, 179, 325)) 'Box21_Dx_B
-        INF.Range("AC" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 315, 269, 325)) 'Box21_Dx_C
-        INF.Range("AD" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 317, 315, 368, 325)) 'Box21_Dx_D
-        INF.Range("AE" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 37, 304, 88, 315)) 'Box21_Dx_E
-        INF.Range("AF" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 130, 304, 179, 315)) 'Box21_Dx_F
-        INF.Range("AG" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 304, 269, 315)) 'Box21_Dx_G
-        INF.Range("AH" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 317, 304, 368, 315)) 'Box21_Dx_H
-        INF.Range("AI" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 37, 292, 88, 304)) 'Box21_Dx_I
-        INF.Range("AJ" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 130, 292, 179, 304)) 'Box21_Dx_J
-        INF.Range("AK" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 222, 292, 269, 304)) 'Box21_Dx_K
-        INF.Range("AL" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 317, 292, 368, 304)) 'Box21_Dx_L
-        INF.Range("AM" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 99, 117, 110)) 'Box25_Fed_TaxID
-        INF.Range("AN" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 178, 99, 286, 110)) 'Box26_Patient_AcctNo
-        INF.Range("AO" & rW) = "'" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 384, 99, 453, 110)), " ", "."), ",", "") 'Box28_Total_Charge
-        INF.Range("AP" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 23, 45, 177, 71)) 'Box31_Supplier
-        INF.Range("AQ" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 177, 53, 373, 90)) 'Box32_Service_Fac_Loc
-        Reformat_Address INF.Range("AQ" & rW), rW, "SERVICE", INF 'Box32_Service_Fac_Loc
-        INF.Range("AX" & rW) = "'" & Replace(Replace(Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 184, 35, 259, 52)), "A.|NPI", ""), "|", ""), "A.", ""), "NPI", "") 'Box32a
-        INF.Range("AY" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 258, 35, 372, 52)), "B.", "") 'Box32b
-        INF.Range("AZ" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 373, 58, 592, 88)) 'Box33_Billing_Provider
-        Reformat_Address INF.Range("AZ" & rW), rW, "BILLING", INF
-        INF.Range("BG" & rW) = "'" & Replace(Replace(Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 372, 35, 454, 52)), "A.|NPI", ""), "|", ""), "A.", ""), "NPI", "") 'Box33a
-        INF.Range("BH" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 454, 35, 592, 52)), "B.", "") 'Box33b
-        INF.Range("BM" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 372, 314, 454, 325)) 'BOX 22 RESUBMISSION CODE - Added 07/19/2021
-        INF.Range("BO" & rW) = "'$" & Replace(Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, 1, 454, 99, 521, 115)), "$", ""), "|", "") 'BOX 29 AMOUNT PAID - Added 09/29/2021)
-    End With
-End Sub
-
-Public Function Reformat_Address(ByVal StrAdr As String, ByVal rW As Integer, ByVal TypInfo As String, ByRef wsRef As Worksheet)
-    Dim AdrArray() As String
-    AdrArray = Split(StrAdr, "|") 'Ubound(adrarray) - Lbound(adrarray) + 1
-    With wsRef
-        Select Case UBound(AdrArray)
-            Case 2
-                 Select Case TypInfo
-                    Case "SERVICE"
-                        .Range("AR" & rW) = Trim(AdrArray(0))
-                        .Range("AS" & rW) = PoBoxAdr_Collections(Trim(AdrArray(1)))
-                        .Range("AT" & rW) = ""
-                        .Range("AU" & rW) = Trim(Left(Trim(AdrArray(2)), InStr(1, Trim(AdrArray(2)), ",") - 1))
-                         AdrArray(2) = Replace(Replace(AdrArray(2), .Range("AU" & rW), ""), ",", " ")
-                        .Range("AV" & rW) = Trim(Mid(Trim(AdrArray(2)), InStr(1, Trim(AdrArray(2)), ",") + 1, 2))
-                        .Range("AW" & rW) = "'" & Right(Trim(AdrArray(2)), Len(Trim(AdrArray(2))) - InStr(1, Trim(AdrArray(2)), " "))
-                    Case "BILLING"
-                        .Range("BA" & rW) = Trim(AdrArray(0))
-                        .Range("BB" & rW) = PoBoxAdr_Collections(Trim(AdrArray(1)))
-                        .Range("BC" & rW) = ""
-                        .Range("BD" & rW) = Trim(Left(Trim(AdrArray(2)), InStr(1, Trim(AdrArray(2)), ",") - 1))
-                         AdrArray(2) = Replace(Replace(AdrArray(2), .Range("BD" & rW), ""), ",", " ")
-                        .Range("BE" & rW) = Trim(Mid(Trim(AdrArray(2)), InStr(1, Trim(AdrArray(2)), ",") + 1, 2))
-                         If Len(Trim(.Range("BE" & rW))) < 2 Then .Range("BE" & rW).ClearContents
-                        .Range("BF" & rW) = "'" & Right(Trim(AdrArray(2)), Len(Trim(AdrArray(2))) - InStr(1, Trim(AdrArray(2)), " "))
-                 End Select
-            Case 3
-                 Select Case TypInfo
-                    Case "SERVICE"
-                        .Range("AR" & rW) = Trim(AdrArray(0))
-                        .Range("AS" & rW) = PoBoxAdr_Collections(Trim(AdrArray(1)))
-                        .Range("AT" & rW) = PoBoxAdr_Collections(Trim(AdrArray(2)))
-                        .Range("AU" & rW) = Trim(Left(Trim(AdrArray(3)), InStr(1, Trim(AdrArray(3)), ",") - 1))
-                         AdrArray(3) = Replace(Replace(AdrArray(3), .Range("AU" & rW), ""), ",", " ")
-                        .Range("AV" & rW) = Trim(Mid(Trim(AdrArray(3)), InStr(1, Trim(AdrArray(3)), ",") + 1, 2))
-                        .Range("AW" & rW) = "'" & Right(Trim(AdrArray(3)), Len(Trim(AdrArray(3))) - InStr(1, Trim(AdrArray(3)), " "))
-                    Case "BILLING"
-                        .Range("BA" & rW) = Trim(AdrArray(0))
-                        .Range("BB" & rW) = PoBoxAdr_Collections(Trim(AdrArray(1)))
-                        .Range("BC" & rW) = PoBoxAdr_Collections(Trim(AdrArray(2)))
-                        .Range("BD" & rW) = Trim(Left(Trim(AdrArray(3)), InStr(1, Trim(AdrArray(3)), ",") - 1))
-                         AdrArray(3) = Replace(Replace(AdrArray(3), .Range("BD" & rW), ""), ",", " ")
-                        .Range("BE" & rW) = Trim(Mid(Trim(AdrArray(3)), InStr(1, Trim(AdrArray(3)), ",") + 1, 2))
-                        .Range("BF" & rW) = "'" & Right(Trim(AdrArray(3)), Len(Trim(AdrArray(3))) - InStr(1, Trim(AdrArray(3)), " "))
-                 End Select
-        End Select
-    End With
-End Function
-
-Public Function GetFileNames()
-    Dim Fso As New FileSystemObject, xFolder As Folder, xFile As File, i As Integer
-    i = 3
-    Set xFolder = Fso.GetFolder("C:\Users\gmundia\Desktop\Macro\EDIDetails_\")
-    For Each xFile In xFolder.Files
-        With INF
-            .Range("A" & i) = Replace(xFile.Name, ".pdf", "")
-        End With
-        i = i + 1
-    Next xFile
-    Set Fso = Nothing: Set xFolder = Nothing: Set xFile = Nothing
-End Function
-
-Public Function PoBoxAdr_Collections(ByVal AdrParam As String) As String
+Public Function PoBOXADR_COLLECTIONS(ByVal AdrParam As String) As String
     If Len(Trim(AdrParam)) < 1 Then Exit Function
     Dim PoBoxCol As Dictionary, i As Integer
     Set PoBoxCol = New Dictionary
-    PoBoxAdr_Collections = AdrParam
+    PoBOXADR_COLLECTIONS = AdrParam
     PoBoxCol.Add "POBOX ", "PO BOX "
     PoBoxCol.Add "P O BOX ", "PO BOX "
     PoBoxCol.Add "P  O BOX ", "PO BOX "
@@ -461,14 +579,39 @@ Public Function PoBoxAdr_Collections(ByVal AdrParam As String) As String
     PoBoxCol.Add "P.O. BOX", "PO BOX "
     PoBoxCol.Add "P.O BOX", "PO BOX "
     PoBoxCol.Add "POST OFFICE BOX", "PO BOX "
-    
     For i = 0 To PoBoxCol.Count - 1
         If InStr(1, AdrParam, PoBoxCol.Keys(i), vbTextCompare) > 0 Then
-            PoBoxAdr_Collections = Replace(AdrParam, PoBoxCol.Keys(i), PoBoxCol.Items(i))
+            PoBOXADR_COLLECTIONS = Replace(AdrParam, PoBoxCol.Keys(i), PoBoxCol.Items(i))
             Exit For
         End If
     Next i
-    
     PoBoxCol.RemoveAll
     Set PoBoxCol = Nothing
+End Function
+
+Public Sub REFORMAT_CITY_STATE_ZIP(ByVal val As String, ByVal rW As String, ByVal Box As String)
+    Dim ZipCode As String, State As String, City As String
+    If Len(val) < 1 Then Exit Sub
+    ZipCode = Trim(Mid(val, InStrRev(val, " "), Len(val)))
+    val = Trim(Replace(val, ZipCode, ""))
+    State = Trim(Mid(val, InStrRev(val, " "), Len(val)))
+    val = Trim(Replace(val, State, ""))
+    City = Trim(val)
+    With CI
+        Select Case Box
+            Case "BOX2"
+                .Range("L" & rW) = City
+                .Range("M" & rW) = State
+                .Range("N" & rW) = ZipCode
+            Case "BOX1"
+                .Range("F" & rW) = City
+                .Range("G" & rW) = State
+                .Range("H" & rW) = ZipCode
+        End Select
+    End With
+End Sub
+
+Public Function RETURN_BLANK_VALUE(ByVal val As String) As String
+    RETURN_BLANK_VALUE = ""
+    If Len(Trim(val)) > 2 Then RETURN_BLANK_VALUE = val
 End Function
