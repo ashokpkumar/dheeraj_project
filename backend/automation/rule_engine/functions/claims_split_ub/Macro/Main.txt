@@ -1,11 +1,9 @@
 Private Sub chkDetails_Click()
     Select Case chkDetails.Value
         Case True
-            INF.Visible = -1
-            SVL.Visible = -1
+            CI.Visible = -1: CS.Visible = -1
         Case False
-            INF.Visible = 2
-            SVL.Visible = 2
+            CI.Visible = 2: CS.Visible = 2
     End Select
 End Sub
 
@@ -18,7 +16,7 @@ Private Sub chkWbClaim_Click()
     End If
 End Sub
 
-Private Sub cmdRun_Click()
+Private Sub cmdRUN_Click()
     Dim MacroAssetName As String, MacroStartTime As Date, MacroEndTime As Date, MacroFile As String, MacroTransaction As String, MacroAssetId As String, MacroComments As String
     Local_Folder = Environ("LocalAppData") & "\Macros\VBS"
     AAI_ID = AAI_ASSET_INFO(Local_Folder & "\", fASSETLIST)
@@ -33,87 +31,86 @@ Private Sub cmdRun_Click()
    '**************************
    'START OF AUTOMATION
    '**************************
-    Dim x As Integer, y As Integer, pFile As String, rW As Long, tCLAIM As String
-    Dim Re_Priced_Ind As String, HIC_Mem_No As String, Re_Priced_By As String, TimelyFiling As String, ClaimNTE As String
-    Dim TotalCharges As Double, TotalRepriced, TotalDiscounts, MethodInfo, aCTION As String, CCN As String
+    Dim x As Long, y As Long, pFile As String, rW As Long, tClaim As String, CCN As String, aCTION As String
+    Dim TotalCharges As Double, TotalRepriced, TotalDiscounts, Re_Priced_Ind, HIC_Number, Re_Priced_By, TimelyFiling, MethodInfo, ClaimNTE
     With MN
-        aCTION = .Range("I1")
+        aCTION = Trim(.Range("I1"))
         If MsgBox("ACTION TO PERFORM: " & vbCrLf & aCTION & vbCrLf & vbCrLf & _
         "Do you want to continue?", vbQuestion + vbYesNo, "HELPER") <> vbYes Then Exit Sub
         Select Case aCTION
             Case "01.CLEAN ALL SHEETS"
                 CLEAN_ALL_WORKSHEETS
-               .chkWbClaim.Value = False
                .chkImg.Value = True
+               .chkWbClaim.Value = False
             Case "02.GET EDI DETAILS"
                 fnLOC = Environ("temp")
-                For rW = MN.Range("F1") To .Range("F2")
+                For rW = .Range("F1") To .Range("F2")
                    .Range("G2") = rW: .Range("E3") = "MACRO IS CURRENTLY RUNNING…."
                     Set iREADER = CreateObject("PdfClaimImageDetails.ReadClaimDetails")
                     REFORMAT_CELL MN, .Range("C" & rW).Address
                     CCN = Trim(MN.Range("C" & rW))
                     If Len(CCN) <> 11 Then GoTo NXTCLAIM
-                    If .chkWbClaim.Value <> True Then tCLAIM = Get_PDF_Claim2(CCN) Else tCLAIM = NEW_WEBLCLAIM(CCN) 'ADJUSTED 2025.11.05
                     pFile = fnLOC & "\" & CCN & ".pdf"
-                    TotalCharges = 0: TotalRepriced = "": TotalDiscounts = "": MethodInfo = "": tTrans = tTrans + 1
-                    Select Case tCLAIM
-                        Case "HCFA"
-                           .Range("D" & rW) = tCLAIM
-                            If File_Exists(pFile) <> True Then
-                               .Range("A" & x) = "FILE NOT EXISTS": GoTo NXTCLAIM
-                            End If
-                            x = INF.Cells(INF.Rows.Count, 1).End(xlUp).Row + 1
-                            CLAIM_DEMOGRAPHICS_INFORMATION Trim(pFile), x, CCN
-                            y = SVL.Cells(SVL.Rows.Count, 1).End(xlUp).Row + 1
-                            CLAIM_SERVICELINES_INFORMATION Trim(pFile), y, CCN, TotalCharges
-                            INF.Range("BI" & x) = "'" & Format(TotalCharges, "0.00")
-                            CLAIM_REPRICING_INFORMATION pFile, y, TotalRepriced, TotalDiscounts, Re_Priced_Ind, HIC_Mem_No, Re_Priced_By, ClaimNTE, TimelyFiling, MethodInfo
-                            If TotalRepriced = "" Then TotalRepriced = "-"
-                            INF.Range("BJ" & x) = "'" & Format(TotalRepriced, "0.00")
-                            If TotalDiscounts = "" Then TotalDiscounts = "-"
-                            INF.Range("BK" & x) = "'" & Format(TotalDiscounts, "0.00")
-                            INF.Range("BL" & x) = "'" & Re_Priced_Ind
-                            INF.Range("BN" & x) = "'" & HIC_Mem_No
-                            INF.Range("BQ" & x) = "'" & Re_Priced_By
-                            INF.Range("CC" & x) = "'" & ClaimNTE 'ADDED 2025.03.26
-                            INF.Range("CD" & x) = "'" & TimelyFiling 'ADDED 2025.03.26
-                            INF.Range("CE" & x) = "'" & MethodInfo 'ADDED 2025.11.06
-                            Medicare_Medicaid_Cob_Information pFile, x 'ADDED 2025.03.11
+                    If .chkWbClaim.Value <> True Then tClaim = Get_PDF_Claim_New(CCN) Else tClaim = NEW_WEBLCLAIM(CCN) 'ADJUSTED 2025.11.04
+                    TotalCharges = 0: TotalRepriced = "": TotalDiscounts = "": TimelyFiling = "": MethodInfo = "": ClaimNTE = ""
+                    Select Case tClaim
                         Case "UB"
-                            .Range("A" & rW) = "CANCELLED"
-                            .Range("B" & rW) = tCLAIM & " CLAIM NOT SUPPORTED BY THIS MACRO."
+                           .Range("D" & rW) = tClaim
+                            If File_Exists(pFile) <> True Then
+                                .Range("A" & rW) = "FILE NOT EXISTS": GoTo NXTCLAIM
+                            End If
+                            x = CI.Cells(CI.Rows.Count, 1).End(xlUp).Row + 1
+                            CLAIM_DEMOGRAPHICS_INFORMATION pFile, x, CCN
+                            y = CS.Cells(CS.Rows.Count, 1).End(xlUp).Row + 1
+                            CLAIM_SERVICELINES_INFORMATION pFile, y, CCN, TotalCharges
+                            CI.Range("HB" & x) = "'" & TotalCharges
+                            CLAIM_REPRICING_INFORMATION pFile, y, TotalRepriced, TotalDiscounts, Re_Priced_Ind, HIC_Number, Re_Priced_By, TimelyFiling, MethodInfo, ClaimNTE
+                            If TotalRepriced = "" Then TotalRepriced = "-"
+                            CI.Range("HC" & x) = "'" & Format(TotalRepriced, "0.00")
+                            If TotalDiscounts = "" Then TotalDiscounts = "-"
+                            CI.Range("HD" & x) = "'" & Format(TotalDiscounts, "0.00")
+                            CI.Range("HE" & x) = "'" & Re_Priced_Ind
+                            CI.Range("HO" & x) = "'" & HIC_Number
+                            CI.Range("HQ" & x) = "'" & Re_Priced_By
+                            CI.Range("HS" & x) = "'" & MethodInfo
+                            CI.Range("HT" & x) = "'" & TimelyFiling
+                            CI.Range("HU" & x) = "'" & ClaimNTE
+                        Case "Not Found.", "CCN Missing.", ""
+                           .Range("A" & rW) = "CANCELLED"
+                           .Range("B" & rW) = "UNABLE TO VEIW CLAIM": GoTo NXTCLAIM
+                        Case "HCFA"
+                           .Range("A" & rW) = "CANCELLED"
+                           .Range("B" & rW) = "CLAIM NOT SUPPORTED BY MACRO.": GoTo NXTCLAIM
                         Case Else
                            .Range("A" & rW) = "CANCELLED"
-                           .Range("B" & rW) = tCLAIM
+                           .Range("B" & rW) = tClaim
                     End Select: DoEvents
-NXTCLAIM:
-                    Set iREADER = Nothing: DoEvents
+                    Set iREADER = Nothing
                     DEL_EXISTING_FILE fnLOC & "\" & CCN & ".pdf"
+NXTCLAIM:
+                    DoEvents
                 Next rW
-                POPULATE_MAIN_SHEET True
+                Populate_Main_Sheet True
             Case "03.SPLIT CLAIM"
                 If CURRENT_SESSION <> True Then Exit Sub
                 For rW = .Range("F1") To .Range("F2")
-                   .Range("G2") = rW: .Range("E3") = "MACRO IS CURRENTLY RUNNING…."
-                    If Len(Trim(.Range("S" & rW))) <> 11 Then GoTo NXTROW
-                    If .Range("D" & rW) <> "HCFA" Then GoTo NXTROW
-                    CCN = Trim(.Range("C" & rW)): tTrans = tTrans + 1
-                    Select Case .Range("Z2")
+                   .Range("E3") = "MACRO IS CURRENTLY RUNNING…."
+                    CCN = Trim(MN.Range("C" & rW))
+                    If Len(CCN) <> 11 Then GoTo NXTROW
+                    If .Range("D" & rW) <> "UB" Then GoTo NXTROW
+                    Select Case .Range("X2")
                         Case "SCRATCH"
                             If Len(Trim(.Range("P" & rW))) < 1 Then
-                               .Range("A" & rW) = "CANCELLED.": .Range("B" & rW) = "NEW DATE OF SERVICE REQUIRED"
-                                GoTo NXTROW
+                                .Range("A" & rW) = "CANCELLED.": .Range("B" & rW) = "NEW DOS IS REQUIRED.": GoTo NXTROW
                             End If
-                            HCFA_Scratch_Split CCN, Trim(.Range("O" & rW)), Trim(.Range("N" & rW)), Format(.Range("P" & rW), "MMDDYY"), rW
-                        Case "SCRATCH NOT ONLINE" 'Added 2023.08.15
+                            UB_Scratch_Split Trim(.Range("C" & rW)), Trim(.Range("O" & rW)), Trim(.Range("N" & rW)), Format(.Range("P" & rW), "MMDDYY"), rW
+                        Case "SCRATCH NOT ONLINE"
                             If Len(Trim(.Range("P" & rW))) < 1 Then
-                               .Range("A" & rW) = "CANCELLED.": .Range("B" & rW) = "NEW DATE OF SERVICE REQUIRED"
-                                GoTo NXTROW
+                                .Range("A" & rW) = "CANCELLED.": .Range("B" & rW) = "NEW DOS IS REQUIRED.": GoTo NXTROW
                             End If
-                            HCFA_POS_Collection
-                            HCFA_Scratch_NotOnline CCN, Trim(.Range("O" & rW)), Trim(.Range("N" & rW)), Format(.Range("P" & rW), "MMDDYY"), rW
+                            UB_Scratch_NotOnline (.Range("C" & rW)), Trim(.Range("O" & rW)), Trim(.Range("N" & rW)), Format(.Range("P" & rW), "MMDDYY"), rW
                         Case "NON SCRATCH"
-                            HCFA_NonScratch_Split rW
+                            UB_NonScratch_Split rW
                     End Select
 NXTROW:
                     DoEvents
@@ -121,13 +118,13 @@ NXTROW:
         End Select
        .Range("E3").ClearContents
     End With
-   '**********************************************
+   '**************************
     MacroEndTime = Now() 'REQUIRED
     MacroTransaction = IIf(tTrans > 0, CStr(tTrans), "") 'OPTIONAL (TOTAL TRANSACTION)
     If Len(Trim(MacroAssetId)) > 0 Then
         Call Usage_Log_AAI(MacroAssetName, MacroStartTime, MacroEndTime, MacroFile, MacroTransaction, MacroAssetId, MacroComments, AutomationTeam, AAIEnvironment)
     End If
-    MsgBox "MACRO PROCESSING IS FINISHED.", vbInformation, ThisWorkbook.Name
+    MsgBox "MACRO IS FINISHED", vbInformation, ThisWorkbook.Name
 End Sub
 
 Private Sub Worksheet_Change(ByVal Target As Range)
@@ -143,23 +140,20 @@ Private Sub Worksheet_Change(ByVal Target As Range)
                     Case "02.GET EDI DETAILS"
                         .chkImg.Visible = True: .chkWbClaim.Visible = True
                 End Select
-            Case "$Z$2"
+            Case "$X$2"
                 Select Case UCase(Target.Value)
-                    Case "SCRATCH", "SCRATCH NOT ONLINE"
-                        INIT_SCRATCH_CONTROLS True
-                       .OLEObjects("chkByPass").Visible = False 'ADDED 2023.09.25
-                       .OLEObjects("chkCPSDisc").Visible = False 'ADDED 2023.08.01
-                        If Target.Value = "SCRATCH" Then .OLEObjects("chkByPass").Visible = True 'ADDED 2023.09.25
+                    Case "SCRATCH"
+                        Init_Scratch_Controls True
+                       .chkCPSDisc.Visible = False 'MN.OLEObjects("chkCPSDisc").Visible = False
                     Case "NON SCRATCH"
-                        INIT_SCRATCH_CONTROLS False
-                       .OLEObjects("chkCPSDisc").Visible = True 'ADDED 2023.08.01
-                       .OLEObjects("chkByPass").Visible = False 'ADDED 2023.09.25
+                        Init_Scratch_Controls False
+                       .chkCPSDisc.Visible = True 'MN.OLEObjects("chkCPSDisc").Visible = True
                 End Select
         End Select
     End With
 End Sub
 
-Private Sub INIT_SCRATCH_CONTROLS(ByVal bln As Boolean)
+Private Sub Init_Scratch_Controls(ByVal bln As Boolean)
     With MN
         Select Case bln
             Case True
