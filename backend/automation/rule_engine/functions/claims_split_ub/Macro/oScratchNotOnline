@@ -1,0 +1,295 @@
+Public HCFACol As New Dictionary 'Added 2023.08.15
+
+Public Sub HCFA_Scratch_NotOnline(ByVal OrigCCN As String, ByVal NewCCN As String, ByVal NewCert As String, ByVal DosParam As String, ByVal rW As Double) 'Added 2023.08.15
+    Dim Billing_Name_850 As String, Patient_Name_850 As String, Provider_Info_850 As String
+    Dim ICD_Info_850 As String, Billing_Adr_850 As String, Provider_IntNo_310 As String, Provider_NPI_310 As String, Provider_TIN_310 As String, SeqBln As Boolean
+    Dim POS_450 As String, Dx2_450 As String, PRV_450 As String, Dx3_450 As String, ACT_450 As String, j As Integer, x As Integer
+    Dim Dx1 As String, Dx2 As String, Dx3 As String, Fed_TaxID As String, Patient_AcctNo As String, Edit_Msg As String
+    Dim PendNote As String, DtCo As String, DraftsCreatedCntr As Integer, SrvcLineCntr As Integer, CCN As String, rLine As Integer, totSvcLns As Integer, xlLoc As Integer
+    Dim bln2Lines As Boolean, LineCtr As Integer, DxCode As String, i As Integer, a As Integer, nLine As Integer, MbrID_850 As String
+    Dim Box1A_Insureds_ID As String, Box25_Fed_Tax_No As String, Box31_Name As String, Box32_St As String, Box32_Zip As String, Fpg As Integer, POS As String
+    MN.Range("M" & rW).FormulaR1C1 = "=IFERROR(MATCH(RC[-10],ClaimInfo!C[-12],0),""0"")"
+    MN.Range("M" & rW) = MN.Range("M" & rW).Value
+    a = MN.Range("M" & rW): MN.Range("M" & rW).ClearContents
+    If a < 1 Then
+        MN.Range("A" & rW) = "CANCELLED."
+        MN.Range("B" & rW) = "NO CLAIM DETAIL."
+        GoTo objRelease
+    End If
+    With objSession.screen
+STEP1:
+    Box1A_Insureds_ID = INF.Range("C" & a)
+    Dx1 = INF.Range("AA" & a)
+    Dx2 = INF.Range("AB" & a)
+    Dx2 = INF.Range("AB" & a)
+    Fed_TaxID = INF.Range("AM" & a)
+    Patient_AcctNo = INF.Range("AN" & a)
+    Box25_Fed_Tax_No = INF.Range("AM" & a)
+    Box31_Name = INF.Range("AP" & a)
+    Box32_St = Trim(INF.Range("AV" & a))
+    Box32_Zip = Left(Trim(INF.Range("AW" & a)), 5)
+    rLine = 1: nLine = 1: xlLoc = MN.Range("L" & rW): DraftsCreatedCntr = 0
+        
+        If INCORRECTSCREEN("CPS520.01", 1, 2, 11) Then
+            PLACEVALUE OrigCCN, 8, 15
+            PLACEVALUE Box1A_Insureds_ID, 9, 15
+            PLACEVALUE OrigCCN, 16, 5
+            PLACEVALUE DosParam, 12, 15
+           .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+            If INCORRECTSCREEN("CPS215.01", 1, 2, 11) Then
+                .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                If INCORRECTSCREEN("CPS220.01", 1, 2, 11) Then
+Screen_220:
+                     For j = 9 To 22 Step 2 'Get IndSeqNo by matching name and dob | paging not supported yet
+                        SeqBln = False
+                        Select Case MN.Range("O2")
+                            Case "NEW BORN" 'APPLIES FOR IN and SP (Female)
+                                Select Case Trim(Trim(.GetString(j, 34, 2)))
+                                    Case "IN", "SP"
+                                        If Trim(Trim(.GetString(j, 46, 1))) = "F" Then
+                                            SeqBln = True
+                                            PLACEVALUE Trim(.GetString(j, 2, 2)), 2, 6
+                                            Exit For
+                                        End If
+                                End Select
+                            Case "NON-NEW BORN"
+                                If Len(Trim(MN.Range("Q" & rW))) > 0 Then
+                                    SeqBln = True
+                                    PLACEVALUE Format(Trim(MN.Range("Q" & rW)), "00"), 2, 6
+                                    Exit For
+                                Else
+                                    MN.Range("A" & rW) = "CANCELLED."
+                                    MN.Range("B" & rW) = "NON-NEWBORN SEQNO REQUIRED."
+                                    GoTo Claim_End
+                                End If
+                            Case Else
+                                If InStr(1, INF.Range("D" & a), Trim(.GetString(j, 5, 11))) > 0 Then 'FirstName
+                                    If Format(INF.Range("E" & a), "MMDDYY") = Trim(.GetString(j, 37, 6)) Then 'Dob
+                                        SeqBln = True
+                                        PLACEVALUE Trim(.GetString(j, 2, 2)), 2, 6
+                                        Exit For
+                                    End If
+                                End If
+                        End Select
+                     Next j
+                     If SeqBln <> True Then
+                            MN.Range("A" & rW) = "CANCELLED."
+                            MN.Range("B" & rW) = "UNABLE TO SELECT INDSEQNO"
+                            GoTo Claim_End
+                     End If
+                    .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+Screen_325:
+                    If INCORRECTSCREEN("CPS325.01", 1, 2, 11) Then
+                        PLACEVALUE Box25_Fed_Tax_No, 3, 27
+                        If InStr(1, Trim(Box31_Name), ",") < 1 Then
+                            PLACEVALUE Replace(Left(Trim(Box31_Name), 3), ",", ""), 5, 18
+                        Else
+                            PLACEVALUE Left(Trim(Box31_Name), InStr(1, Trim(Box31_Name), ",") - 1), 5, 18
+                        End If
+                        PLACEVALUE Box32_St, 5, 61
+                        PLACEVALUE Box32_Zip, 5, 69
+                        PLACEVALUE Trim(INF.Range("BP" & a)), 7, 30
+                       .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    End If
+                    Fpg = 1
+Provider_320:
+                    If INCORRECTSCREEN("CPS320.01", 1, 2, 11) Then 'Added 2023.08.30
+                         SeqBln = False
+                         If Fpg > 5 Then GoTo Prvd_NotFound
+                         For x = 8 To 18
+                            If Len(Trim(.GetString(x, 5, 31))) < 1 Then Exit For
+                            If InStr(1, Box31_Name, Split(Trim(.GetString(x, 5, 31)), ",")(0)) > 0 Then
+                                If InStr(1, Box31_Name, Split(Trim(.GetString(x, 5, 31)), ",")(1)) > 0 Then
+                                    SeqBln = True
+                                    PLACEVALUE Trim(Trim(.GetString(x, 2, 2))), 3, 52
+                                    Exit For
+                                End If
+                            End If
+                         Next x
+                         If SeqBln <> False Then
+                            .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         Else
+                            If InStr(1, Trim(.GetString(28, 2, 70)), "MORE DATA:") > 0 Then
+                                .SendKeys ("<PF11>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 Fpg = Fpg + 1
+                                 GoTo Provider_320
+                            Else
+Prvd_NotFound:
+                                MN.Range("A" & rW) = "CANCELLED."
+                                MN.Range("B" & rW) = "MULTIPLE PROVIDER"
+                                GoTo Claim_End
+                            End If
+                         End If
+                    End If
+Screen_310:
+                    If INCORRECTSCREEN("CPS310.01", 1, 2, 11) Then
+                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    Else
+                        MN.Range("A" & rW) = "CANCELLED."
+                        MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                        GoTo Claim_End
+                    End If
+                    If Trim(.GetString(1, 67, 14)) = "BIF2002/BIF101" Then
+MatchBillingAdr:
+                        For x = 3 To 19 Step 4 'Match in order: Adr1, City, State, Zip,
+                            SeqBln = False
+                            If Len(Trim(.GetString(x, 2, 2))) < 1 Then Exit For
+                            If Trim(.GetString(x, 36, 30)) = UCase(Trim(INF.Range("BB" & a))) And _
+                                Trim(.GetString(x + 1, 36, 15)) = UCase(Trim(INF.Range("BD" & a))) And _
+                                Trim(.GetString(x + 1, 52, 2)) = UCase(Trim(INF.Range("BE" & a))) And _
+                                Trim(.GetString(x + 1, 55, 5)) = Trim(Left(INF.Range("BF" & a), 5)) Then
+                                'If Trim(.Getstring(x, 5, 30)) = UCase(Trim(inf.Range("BA" & a))) Then 'Billing Name
+                                     SeqBln = True
+                                     PLACEVALUE Trim(.GetString(x, 2, 2)), 1, 9: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                    .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                     Exit For
+                                'End If
+                            End If
+                            DoEvents
+                        Next x
+                        If SeqBln <> True Then
+                            If InStr(1, Trim(.GetString(1, 2, 70)), "COMPLETE") < 1 Then
+                                .SendKeys "<Pf8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 GoTo MatchBillingAdr
+                            Else
+                                .SendKeys "<PF12>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                        End If
+                    End If
+Screen_920:
+                    If INCORRECTSCREEN("CPS920.01", 1, 2, 11) Then
+                         If MN.Range("O2") = "NEW BORN" Then
+                            If Find_03_04_TOD <> True Then 'ADDED 2023.08.14
+                               MN.Range("A" & rW) = "CANCELLED."
+                               MN.Range("B" & rW) = "TOD 03 OR 04 NOT FOUND" 'Edit
+                               GoTo Claim_End
+                            End If
+                         End If
+                        .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         PLACEVALUE "850", 2, 37
+                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         PLACEVALUE Dx1, 23, 6
+                         PLACEVALUE "Y", 23, 14
+                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    End If
+Screen_450:
+                    CCN = MN.Range("C" & rW): totSvcLns = MN.Range("K" & rW)
+                    If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then
+                        For rLine = nLine To totSvcLns
+                            j = 14: LineCtr = 0
+                            DtCo = Format(MN.Range("T" & xlLoc), "MMDDYY")
+                            DxCode = Trim(MN.Range("AF" & xlLoc))
+                            If HCFACol.Exists(Trim(MN.Range("AH" & xlLoc))) Then
+                                PLACEVALUE Left(HCFACol(Trim(MN.Range("AH" & xlLoc))), 2), 2, 6
+                            End If
+                           'PlaceValue Trim(MN.Range("AH" & xlLoc)), 2, 6
+                            PLACEVALUE Dx2, 2, 36
+                            PLACEVALUE Dx3, 2, 49
+                            'PlaceValue PRV_450, 26, 9
+                            'PlaceValue ACT_450, 27, 26
+                            For i = 5 To 12 Step 2
+                                If MN.OLEObjects("chk2Lines").Object.Value <> False Then If LineCtr >= 2 Then Exit For
+                                PLACEVALUE Format(MN.Range("T" & xlLoc), "MMDDYY"), i, 4  'BGN
+                                PLACEVALUE Format(MN.Range("U" & xlLoc), "MMDDYY"), i, 11 'END
+                                PLACEVALUE MN.Range("W" & xlLoc), i, 18 'TOS
+                                PLACEVALUE MN.Range("Y" & xlLoc), i, 21 'CHARGE
+                                PLACEVALUE MN.Range("X" & xlLoc), i, 33 'OC
+                                PLACEVALUE MN.Range("V" & xlLoc), i, 41 'HCPCS
+                                PLACEVALUE MN.Range("AB" & xlLoc), i, 47 'MOD1
+                                PLACEVALUE MN.Range("AC" & xlLoc), i, 51 'MOD2
+                                PLACEVALUE MN.Range("AD" & xlLoc), i, 55 'MOD3
+                                PLACEVALUE MN.Range("AE" & xlLoc), i, 59 'MOD4
+                                PLACEVALUE MN.Range("AF" & xlLoc), i + 1, 70 'DXCODES
+                                If Len(Trim(MN.Range("AA" & xlLoc))) > 0 Then 'Discounts
+                                   PLACEVALUE MN.Range("AA" & xlLoc), j, 2 'Amt 'Removed 2023.05.04
+                                   PLACEVALUE InelCode, j, 14 '908
+                                   PLACEVALUE ByPassCode, j, 30 '001
+                                    j = j + 1
+                                Else
+                                    PLACEVALUE ByPassCode, j, 14 '001
+                                    j = j + 1
+                                End If
+                                xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1
+                                Select Case MN.Range("Z3")
+                                    Case "BY DATE OF SERVICE"
+                                       'If DtCo <> Format(MN.Range("T" & xlLoc), "MMDDYY") Then Exit For
+                                    Case "BY DIAGNOSIS"
+                                       'If DxCode <> Trim(MN.Range("AF" & xlLoc)) Then Exit For
+                                End Select
+                                If CCN <> Trim(MN.Range("S" & xlLoc)) Then Exit For 'Corrected Sheet Reference from inf to MN: 2022.07.20
+                            Next i
+                            DraftsCreatedCntr = DraftsCreatedCntr + 1: DoEvents
+                           .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            If INCORRECTSCREEN("CPS445.01", 1, 2, 11) Then
+                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                PLACEVALUE "x", 29, 76 'DPSV
+                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            End If
+                            If INCORRECTSCREEN("CPS506.01", 1, 2, 11) Then
+                                 PLACEVALUE RlsCode, 3, 13: PLACEVALUE LstRls, 3, 39: PLACEVALUE PendRsn, 3, 53
+                                 PLACEVALUE FlupDays, 4, 38: PLACEVALUE Payee, 7, 8: PLACEVALUE IIf(MN.Range("O2") <> "NEW BORN", "SPLIT MACRO ", "NEWBORN SPLIT UNDER MOM ") & DraftsCreatedCntr, 4, 50
+                                .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                'nLine = rLine '- 1
+                                .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                 PLACEVALUE "450", 2, 37
+                                .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                            Else
+                                MN.Range("A" & rW) = "CANCELLED."
+                                MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                                GoTo Claim_End
+                            End If
+                            rLine = rLine - 1
+                        Next rLine
+                       .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                        MN.Range("A" & rW) = "DONE."
+                        MN.Range("B" & rW) = "DRAFTS CREATED: " & DraftsCreatedCntr
+                        GoTo Claim_End
+                    Else
+                        .SendKeys "<PF8>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         PLACEVALUE "450", 2, 37
+                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                         GoTo Screen_450
+                    End If
+
+                 Else '220 Error
+                    MN.Range("A" & rW) = "CANCELLED."
+                    MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                    GoTo Claim_End
+                 End If
+            Else '215 Error
+                MN.Range("A" & rW) = "CANCELLED."
+                MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                GoTo Claim_End
+            End If
+        Else '520 Error
+            .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+             GoTo STEP1
+        End If
+Claim_End:
+       .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+objRelease:
+End Sub
+
+Public Function Find_03_04_TOD() As Boolean  'Added 2023.08.15
+    Dim i As Integer
+    Find_03_04_TOD = False
+    With objSession.screen 'Look only for the 1st page - Recent
+        For i = 4 To 18 Step 2
+            If Len(Trim(.GetString(i, 4, 4))) < 1 Then Exit For
+                Select Case Trim(.GetString(i, 34, 2))
+                    Case "03", "04": Find_03_04_TOD = True
+                End Select
+            DoEvents
+        Next i
+    End With
+End Function
+
+Public Sub HCFA_POS_Collection() 'Added 2023.08.15
+    Dim i As Integer: HCFACol.RemoveAll
+    With ThisWorkbook.Worksheets("REFERENCE")
+        For i = 2 To .Cells(.Rows.Count, "A").End(xlUp).Row
+            If Not HCFACol.Exists(Trim(.Range("A" & i))) Then HCFACol.Add Trim(.Range("A" & i)), Trim(.Range("B" & i))
+        Next i
+    End With
+End Sub

@@ -1,0 +1,232 @@
+Public Declare Function URLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" (ByVal pCaller As Long, _
+ByVal szURL As String, ByVal szFileName As String, ByVal dwReserved As Long, ByVal lpfnCB As Long) As Long
+Public Const WebClaimUrl As String = "http://apsep4201/webclaims/"
+Public fnLOC As String
+Public WebClaimIE As InternetExplorerMedium
+Public iREADER As Object 'ReadClaimDetails
+Public objSession As Object
+Public Const ByPassCode As String = "001"
+Public Const InelCode As String = "908"
+Public Const RlsCode As String = "60"
+Public Const LstRls As String = "N"
+Public Const PendRsn As String = "o99"
+Public Const FlupDays As String = "001"
+Public Const Payee As String = "0"
+
+Public Function CURRENT_SESSION() As Boolean
+    Dim objSystem As Object, objSessions As Object, msg As String
+    On Error GoTo ErrHandler
+    CURRENT_SESSION = False
+    Set objSystem = CreateObject("EXTRA.System")
+    If (objSystem Is Nothing) Then
+        msg = "Could not create the EXTRA System object.  Stopping macro playback."
+    End If
+    Set objSessions = objSystem.Sessions
+    If (objSessions Is Nothing) Then
+        msg = "Could not create the Sessions collection object.  Stopping macro playback."
+    End If
+    OldSystemTimeout& = objSystem.TimeoutValue: g_HostSettleTime = 500
+    OldSystemTimeout& = objSystem.TimeoutValue
+    If (g_HostSettleTime > OldSystemTimeout) Then objSystem.TimeoutValue = g_HostSettleTime
+    If Len(Trim(MN.Range("B3"))) > 0 Then
+        Set objSession = objSessions.Item(Trim(MN.Range("B3")))
+    Else
+        Set objSession = objSystem.ActiveSession
+    End If
+    If (objSession Is Nothing) Then
+        msg = "Could not create the Session object.  Stopping macro playback."
+    End If
+    CURRENT_SESSION = True
+    Exit Function
+ErrHandler:
+    MsgBox "Unable to communicate with session." & _
+    vbNewLine & vbNewLine & msg & vbNewLine & vbNewLine & _
+    Err.Description, vbCritical, ThisWorkbook.Name
+End Function
+
+Public Function PLACEVALUE(ByVal val As String, ByVal R As Integer, c As Integer)
+    If Len(Trim(val)) < 1 Then Exit Function
+    With objSession.screen
+        .moveTo R, c
+        .SendKeys ("<EraseEof>")
+        .PutString Trim(val), R, c
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
+Public Function REMOVEVALUE(ByVal R As Integer, c As Integer) 'Added 2022.07.20
+    With objSession.screen
+        .moveTo R, c
+        .SendKeys ("<EraseEof>")
+         Do While .OIA.Xstatus <> 0: DoEvents: Loop
+    End With
+End Function
+
+Public Function INCORRECTSCREEN(ByVal ScrnVal As String, ByVal R As Integer, ByVal c As Integer, ByVal L As Integer) As Boolean
+    Dim Scrn As String: INCORRECTSCREEN = False
+    With objSession.screen
+        Do While .OIA.Xstatus <> 0: DoEvents: Loop
+        Scrn = Trim(.GetString(R, c, L))
+        Select Case Scrn
+            Case ScrnVal
+                INCORRECTSCREEN = True
+        End Select
+    End With
+End Function
+
+Public Sub POPULATE_MAIN_SHEET(ByVal bln As Boolean) '
+    On Error GoTo Err_Handler
+    Dim rW As Integer, x As Integer, y As Integer
+    With MN
+       .Application.ScreenUpdating = False
+        rW = 6: .Range("S" & rW) = "tempval": y = .Cells(.Rows.Count, "C").End(xlUp).Row
+       .Range("S" & rW & ":" & "AI" & .Cells(.Rows.Count, "S").End(xlUp).Row).ClearContents
+        x = SVL.Cells(SVL.Rows.Count, "A").End(xlUp).Row
+        DoEvents
+       .Range("E6:L" & x + 3).NumberFormat = "General"
+       .Range("H6:J" & x + 3).NumberFormat = "0.00"
+       .Range("F6:G" & x + 3).NumberFormat = "mm/dd/yy;@"
+       .Range("O6:P" & x + 3).NumberFormat = "mm/dd/yy;@"
+       .Range("S6:S" & x + 3).NumberFormat = "@"
+       .Range("T6:U" & x + 3).NumberFormat = "mm/dd/yy;@"
+       .Range("V6:AI" & x + 3).NumberFormat = "@"
+       .Range("S6:S" & x + 3) = SVL.Range("A3:A" & x).Value
+       .Range("T6:T" & x + 3) = SVL.Range("B3:B" & x).Value
+       .Range("U6:U" & x + 3) = SVL.Range("C3:C" & x).Value
+       .Range("V6:V" & x + 3) = SVL.Range("F3:F" & x).Value
+       .Range("X6:X" & x + 3) = SVL.Range("M3:M" & x).Value
+       .Range("Y6:Y" & x + 3) = SVL.Range("L3:L" & x).Value
+       .Range("Z6:Z" & x + 3) = SVL.Range("V3:V" & x).Value
+       .Range("AA6:AA" & x + 3) = SVL.Range("W3:W" & x).Value
+       .Range("AB6:AB" & x + 3) = SVL.Range("G3:G" & x).Value
+       .Range("AC6:AC" & x + 3) = SVL.Range("H3:H" & x).Value
+       .Range("AD6:AD" & x + 3) = SVL.Range("I3:I" & x).Value
+       .Range("AE6:AE" & x + 3) = SVL.Range("J3:J" & x).Value
+       .Range("AG6:AG" & x + 3) = SVL.Range("K3:K" & x).Value
+       .Range("AJ6:AJ" & x + 3).FormulaR1C1 = "=IFERROR(LEFT(RC[-3],1),"""")"
+       .Range("AJ6:AJ" & x + 3) = .Range("AJ6:AJ" & x + 3).Value
+       .Range("AG6:AG" & x + 3) = .Range("AJ6:AJ" & x + 3).Value
+       .Range("AJ6:AJ" & x + 3).ClearContents
+       .Range("AF6:AF" & x + 3).NumberFormat = "General"
+       .Range("AF6:AF" & x + 3).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C27:C38,MATCH(RC[-13],ClaimInfo!C[-31],0),MATCH(RC[1],ClaimInfo!R2C27:R2C38,0)),"""")"
+       .Range("AH6:AI" & x + 3).NumberFormat = "General"
+       .Range("AF6:AF" & x + 3) = .Range("AF6:AF" & x + 3).Value
+       .Range("AH6:AH" & x + 3).FormulaR1C1 = "=IFERROR(INDEX(ClaimServiceLInes!C4,MATCH(RC[-15],ClaimServiceLInes!C1,0)),"""")"
+       .Range("AH6:AH" & x + 3) = .Range("AH6:AH" & x + 3).Value
+       .Range("AI6:AI" & x + 3).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C65,MATCH(RC[-16],ClaimInfo!C1,0)),"""")"
+       .Range("AI6:AI" & x + 3) = .Range("AI6:AI" & x + 3).Value
+       .Rows("6:" & x + 3).RowHeight = 11.25
+       .Rows("6:" & x + 3).Font.Size = 8
+       .Sort.SortFields.Clear
+       .Sort.SortFields.Add Key:=.Range("S" & rW & ":S" & .Cells(.Rows.Count, "S").End(xlUp).Row), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+       .Sort.SortFields.Add Key:=.Range("T" & rW & ":T" & .Cells(.Rows.Count, "S").End(xlUp).Row), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+       .Sort.SortFields.Add Key:=.Range("AF" & rW & ":AF" & .Cells(.Rows.Count, "S").End(xlUp).Row), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsText
+        With .Sort
+            .SetRange MN.Range("S5:AI" & MN.Cells(MN.Rows.Count, "S").End(xlUp).Row)
+            .Header = xlYes
+            .MatchCase = False
+            .Orientation = xlTopToBottom
+            .SortMethod = xlPinYin
+            .Apply
+        End With
+       .Rows("6:" & .Cells(.Rows.Count, "C").End(xlUp).Row).RowHeight = 11.25
+       .Rows("6:" & .Cells(.Rows.Count, "C").End(xlUp).Row).Font.Size = 8
+       .Range("E6:E" & y).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C[-1],MATCH(RC[-2],ClaimInfo!C[-4],0)),"""")"
+       .Range("E6:E" & y) = .Range("E6:E" & y).Value
+        DoEvents
+       .Range("F" & rW & ":F" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(INDEX(C[14],MATCH(RC[-3],C[13],0)),"""")"
+       .Range("F" & rW & ":F" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("F" & rW & ":F" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("G" & rW & ":G" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(MAXIFS(C[14],C[12],RC[-4]),"""")"
+       .Range("G" & rW & ":G" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("G" & rW & ":G" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("H" & rW & ":H" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C[53],MATCH(RC[-5],ClaimInfo!C[-7],0)),"""")"
+       .Range("H" & rW & ":H" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("H" & rW & ":H" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("I" & rW & ":I" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C[53],MATCH(RC[-6],ClaimInfo!C[-8],0)),"""")"
+       .Range("I" & rW & ":I" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("I" & rW & ":I" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("J" & rW & ":J" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(INDEX(ClaimInfo!C[53],MATCH(RC[-7],ClaimInfo!C[-9],0)),"""")"
+       .Range("J" & rW & ":J" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("J" & rW & ":J" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("K" & rW & ":K" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(IF(MATCH(RC[-8],C[8],0)>0,COUNTIF(C[8],RC[-8]),""""),"""")"
+       .Range("K" & rW & ":K" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("K" & rW & ":K" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+       .Range("L" & rW & ":L" & .Cells(.Rows.Count, "D").End(xlUp).Row).FormulaR1C1 = "=IFERROR(MATCH(RC[-9],C[7],0),"""")"
+       .Range("L" & rW & ":L" & .Cells(.Rows.Count, "D").End(xlUp).Row) = .Range("L" & rW & ":L" & .Cells(.Rows.Count, "D").End(xlUp).Row).Value
+        DoEvents
+objRelease:
+       .Application.ScreenUpdating = True
+    End With: Exit Sub
+Err_Handler:
+    GoTo objRelease
+End Sub
+
+Public Function CLEAN_ALL_WORKSHEETS()
+    With INF
+        .Range("A3") = "tempval"
+        .Range("A3:" & "CE" & .Cells(.Rows.Count, "A").End(xlUp).Row + 1).ClearContents
+    End With
+    With SVL
+        .Range("A3") = "tempval"
+        .Range("A3:" & "AB" & .Cells(.Rows.Count, "A").End(xlUp).Row + 1).ClearContents
+    End With
+    With MN
+        .Range("C6") = "tempval"
+        .Range("A6:" & "L" & .Cells(.Rows.Count, "C").End(xlUp).Row + 1).ClearContents
+        .Range("N6") = "tempval"
+        .Range("N6:" & "Q" & .Cells(.Rows.Count, "N").End(xlUp).Row + 1).ClearContents
+        .Range("S6") = "tempval"
+        .Range("S6:" & "AI" & .Cells(.Rows.Count, "S").End(xlUp).Row + 1).ClearContents
+    End With
+End Function
+
+Public Function REFORMAT_CELL(ByRef wsRef As Worksheet, ByVal Target As String)
+    With wsRef
+        .Range(Target).NumberFormat = "@"
+        .Range(Target) = "'" & Trim(.Range(Target).Value)
+         With .Range(Target).Font
+            .Name = "Calibri": .Size = 8: .Strikethrough = False
+            .Superscript = False: .Subscript = False
+            .OutlineFont = False: .Shadow = False
+            .Underline = xlUnderlineStyleNone
+         End With
+    End With
+End Function
+
+Public Function NORMALIZE_EDIT_MSG(ByVal str As String) As String
+    Dim i As Integer
+    For i = 0 To UBound(Split(str, " "))
+        If Len(Trim(Split(str, " ")(i))) > 0 Then NORMALIZE_EDIT_MSG = NORMALIZE_EDIT_MSG & Trim(Split(str, " ")(i)) & " "
+    Next i
+    NORMALIZE_EDIT_MSG = UCase(Trim(NORMALIZE_EDIT_MSG))
+End Function
+
+Public Function Force_Excel_ToNew_Instance(ByVal bln As Boolean)
+    Dim ws As New WshShell, sKey As String
+    sKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\16.0\Excel\Options\DisableMergeInstance"
+    If RegKeyExists(sKey, KeyVal) = True Then
+        If KeyVal <> 1 Then
+            ws.RegDelete sKey
+            GoTo SaveKey
+        End If
+    Else
+SaveKey:
+        ws.RegWrite sKey, 1, "REG_DWORD"
+    End If
+    Set ws = Nothing
+End Function
+
+Private Function RegKeyExists(ByVal sKey As String, KeyVal) As Boolean
+    Dim ws As WshShell
+    On Error GoTo ErrHandler
+    Set ws = New WshShell
+    KeyVal = ws.RegRead(sKey)
+    RegKeyExists = True
+Rel_Obj:
+    Set ws = Nothing
+    Exit Function
+ErrHandler:
+    RegKeyExists = False
+    GoTo Rel_Obj
+End Function

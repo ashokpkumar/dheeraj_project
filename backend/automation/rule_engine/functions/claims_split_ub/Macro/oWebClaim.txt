@@ -1,0 +1,234 @@
+Public Const wURL_DOMAIN = "https://umrwebclaims-prod.optum.com"
+Public blnAUTH As Boolean 'ADDED 2025.12.10
+
+Public Function NEW_WEBLCLAIM(ByVal CCN As String) As String 'ADDED 2025.11.06
+    Dim AuthW As String, UAuthW As String, AuthU As String, ROWID As String, ErMSG As String
+    Dim rE As String, rWords() As String, rWrd As String, i As Integer
+    Dim mXML As New MSXML2.XMLHTTP60, wPRM As String
+    Dim SEARCHTYPE As Integer '1-CLAIM CONTROL NUMBER|2-MEMBER ID|3-ALTERNATE CLAIM#
+    Dim CUSTOMID As String 'APPLIES IF SEARCHTYPE IS 2 (MEMBER ID)
+    Dim DATEMINLONG As Long 'EPOC TIME CALC: FORMAT(CLNG(DATEDIFF("s","1/1/1970","M/D/YYYY 05:00:00")),"0000000000000")
+    Dim DATEMAXLONG As Long 'EPOC TIME CALC: FORMAT(CLNG(DATEDIFF("s","1/1/1970","M/D/YYYY 05:00:00")),"0000000000000")
+    Dim CLAIMTYPE As Integer '1-ALL|2-HCFA|3-UB|4-ADA (CLAIM TYPE)
+    Dim DIRECTION As Integer '0-ALL|1-INBOUND|2-OUTBOUND
+    Dim TIMELINE As Integer '0-ALL CLAIMS|1-MOST RECENT ONLY|2-OLDEST ONLY
+    Dim u As Integer, CPS As String, CTYPE As String
+    NEW_WEBLCLAIM = ""
+    DEL_EXISTING_FILE fnLOC & "\" & CCN & ".pdf"
+   'DEFAULT VALUES - CAN BE CHANGED BASED ON REQUIREMENTS
+    SEARCHTYPE = 1
+    CUSTOMID = ""
+    DATEMINLONG = 0
+    DATEMAXLONG = 0
+    CLAIMTYPE = 1
+    DIRECTION = 0
+    TIMELINE = IIf(MN.OLEObjects("chkImg").Object.Value, 1, 2)
+   'PARAMATERS JSON FORMAT
+    wPRM = "{""SearchType"": " & """" & SEARCHTYPE & """" & ", "
+    wPRM = wPRM & """CCN"": " & """" & CCN & """" & ", "
+    wPRM = wPRM & """CustomId"": " & """" & CUSTOMID & """" & ", "
+    wPRM = wPRM & """DateMinLong"": " & DATEMINLONG & ", "
+    wPRM = wPRM & """DateMaxLong"": " & DATEMAXLONG & ", "
+    wPRM = wPRM & """ClaimType"": " & CLAIMTYPE & ", "
+    wPRM = wPRM & """Direction"": " & DIRECTION & ", "
+    wPRM = wPRM & """Timeline"": " & TIMELINE & "}"
+    
+    Dim wURL_SEARCH As String, wURL_GENPDF As String, wPARAM As String 'ADDED 2025.11.14
+    Dim hDOC As New HTMLDocument, reCode As String, re_STATE As String, re_SESSION As String
+    
+    wURL_SEARCH = wURL_DOMAIN & "/Search"
+    wURL_GENPDF = wURL_DOMAIN & "/PDFGeneration?"
+    With mXML
+        If blnAUTH = True Then GoTo URL_SEARCH
+       .Open "POST", wURL_DOMAIN, False: .setRequestHeader "Content-Type", "application/json": .send wPRM 'MODIFIED 2025.12.10
+        rE = .responseText
+        Select Case .Status 'ADDED 2025.12.10
+            Case 200
+                If InStr(1, rE, "<head>", 0) > 0 Then 'ADDED 2025.11.14
+                    blnAUTH = False
+                    hDOC.body.innerHTML = rE
+                    reCode = hDOC.getElementsByTagName("input").Item("code").Value
+                    re_SESSION = hDOC.getElementsByTagName("input").Item("session_state").Value
+                    re_STATE = hDOC.getElementsByTagName("input").Item("state").Value
+                    wPARAM = "&code=" & reCode & "&state=" & re_STATE & "&session_state=" & re_SESSION
+                   .Open "POST", wURL_DOMAIN & "/signin-oidc?action=submit", False
+                   .setRequestHeader "Content-Type", "application/x-www-form-urlencoded"
+                   .send wPARAM
+                    Select Case .Status 'ADDED 2025.12.10
+                        Case 200
+                            blnAUTH = True
+                           .Open "POST", wURL_SEARCH, False: .setRequestHeader "Content-Type", "application/json": .send wPRM
+                            rE = .responseText
+                        Case Else
+                            blnAUTH = False
+                            MsgBox "WEBCLAIM: UNEXPECTED ERROR OCCURED" & vbCrLf & "RESPONSE CODE: " & .Status & _
+                            vbCrLf & "RESPONSE DESCRIPTION: " & .statusText, vbCritical, "HELPER": End
+                    End Select
+                End If
+            Case 405
+URL_SEARCH:
+               .Open "POST", wURL_SEARCH, False: .setRequestHeader "Content-Type", "application/json": .send wPRM 'ADDED 2025.12.10
+                rE = .responseText
+                blnAUTH = True
+            Case Else
+                blnAUTH = False
+                MsgBox "WEBCLAIM: UNEXPECTED ERROR OCCURED" & vbCrLf & "RESPONSE CODE: " & .Status & _
+                vbCrLf & "RESPONSE DESCRIPTION: " & .statusText, vbCritical, "HELPER": End
+        End Select
+        If rE <> "{""Authorized"":[],""Unauthorized"":[]}" Then
+             blnAUTH = True
+             AuthW = Trim(Left(rE, InStr(1, rE, """Unauthorized"":"))): UAuthW = Trim(Right(rE, Len(rE) - InStr(1, rE, """Unauthorized"":")))
+             AuthU = Mid(rE, InStr(1, rE, ":{") + 2, InStr(1, rE, "}}]") - InStr(1, rE, ":{") - 2)
+             rWrd = Replace(Replace(Replace(Replace(Replace(AuthW, "{""Authorized"":[],""", ""), "{""Authorized"":[{", ""), "}", ""), "]", ""), "{", "")
+             rWrd = Trim(rWrd) & Trim(Replace(Replace(Replace(Replace(Replace(Replace(UAuthW, "Unauthorized"":[],""", ""), "Unauthorized"":[{", ""), _
+            "Unauthorized"":[", ""), "}", ""), "]", ""), "{", ""))
+             rWrd = Left(rWrd, InStr(1, rWrd, """CentralSecurity"":") - 1)
+             rWords = Split(rWrd & AuthU, ",")
+        Else
+            blnAUTH = False
+            GoTo JUSTEXIT
+        End If
+        For i = 0 To UBound(rWords)
+            Select Case Replace(UCase(Trim(Split(rWords(i), ":")(0))), """", "")
+                Case "ROWID": ROWID = CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "SEARCHTERM"
+                Case "CPS": CPS = CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "BIDS": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "UMR_EDI_ID": 'CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "PRV_SUB_ID": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "TRADINGPARTNERID": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "TRADINGPARTNERNAME": 'CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "STATUSID": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "STATUSDESCRIPTION": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "CLAIMPLATFORM": 'CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "CLAIMTYPE": CTYPE = CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "CCN": 'CLEAN_VALUES(Trim(Split(rWords(i), ":")(1)))
+                Case "DIRECTION": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "DATE": 'CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+                Case "ERRORMSG"
+                    ErMSG = CLEAN_VALUES(Trim(UCase(Trim(Split(rWords(i), ":")(1)))))
+            End Select
+        Next i: .abort
+        If ErMSG <> "NULL" Then
+            NEW_WEBLCLAIM = ErMSG
+        Else
+            NEW_WEBLCLAIM = CTYPE
+            DownloadFile wURL_GENPDF & "rowid=" & ROWID & "&ccn=" & CCN, fnLOC & "\" & CCN & ".pdf"
+        End If
+End With
+JUSTEXIT:
+    Set mXML = Nothing
+End Function
+
+Public Function CLEAN_VALUES(ByVal val As String) As String 'ADDED 2025.11.06
+    CLEAN_VALUES = ""
+    CLEAN_VALUES = Replace(UCase(Trim(CLEAN_VALUES & Replace(val, """", ""))), "}", "")
+End Function
+
+Public Function Get_PDF_Claim2(ByRef ClaimControlNumber As String) As String
+    Dim msXML As New MSXML2.XMLHTTP60, webURL As String, webParam As String, pdfUrl As String
+    Dim htmlDoc As New HTMLDocument, tdElems As Object, tdElem As Object, btnClicktoView As String
+    Dim tblElem As Object, inptElem As Object, OrgSearchSeq As String
+    Dim u As Integer, cntPlcr As Integer, tblRw As Integer, imgVer As String
+    
+    DEL_EXISTING_FILE fnLOC & "\" & ClaimControlNumber & ".pdf"
+    imgVer = IIf(MN.chkImg.Value, "top", "bottom")
+    Get_PDF_Claim2 = "": Ccns = ""
+
+    webURL = "https://umrwebclaims.optum.com/webclaims/index.php?action=submit"
+    webParam = "&bolRestrictedSearch=&search_field=" & ClaimControlNumber & "&search_type=CCN&search_min=&search_max=&" & _
+   "search_clm_type=all&Route[]=100,500,511,525,570,575,5052&multiclm_opt1=" & imgVer & "&db_state=prod"
+    With msXML
+        .Open "POST", webURL, False
+        .setRequestHeader "Content-Type", "application/x-www-form-urlencoded"
+        .send webParam
+        htmlDoc.body.innerHTML = .responseText
+    End With
+    Set tdElems = htmlDoc.getElementsByTagName("b")
+    For Each tdElem In tdElems
+        If InStr(1, tdElem.innerText, "Some CCN search criteria did not yield a result:") > 0 Then
+            Get_PDF_Claim2 = "PDF Claim not found."
+            GoTo obj_Release
+        End If: DoEvents
+    Next tdElem
+    Set tblElem = htmlDoc.getElementsByTagName("TABLE")
+    cntPlcr = 3
+    For tblRw = 1 To tblElem(2).Rows.Length - 1 Step 2
+         Set inptElem = htmlDoc.getElementsByTagName("input")
+         btnClicktoView = Replace(Replace(Replace(inptElem(cntPlcr).Name, "/", "%2f"), "+", "%2b") & "%3d&", "submit_", "")
+         OrgSearchSeq = "originalSearchSequence=" & Replace(inptElem(cntPlcr - 1).Value, "=", "%3d")
+         pdfUrl = "https://umrwebclaims.optum.com/webclaims/index.php?action=view&searchResult=" & btnClicktoView & OrgSearchSeq
+         If DownloadFile(pdfUrl, fnLOC & "\" & ClaimControlNumber & ".pdf") <> True Then 'Mid(Trim(tblElem(2).Rows(tblRw).Cells(3).innerText), 2, 10)
+             Get_PDF_Claim2 = "PDF file download not successful."
+         Else
+             Get_PDF_Claim2 = Trim(tblElem(2).Rows(tblRw).Cells(7).innerText) 'Claim Type
+         End If
+         cntPlcr = cntPlcr + 6: DoEvents
+     Next tblRw
+obj_Release:
+    Set msXML = Nothing: Set htmlDoc = Nothing: Set tdElems = Nothing: Set tdElem = Nothing: Set inptElem = Nothing
+End Function
+
+Public Function Get_PDF_Claim(ByVal ClaimControlNumber As String) As String
+    Dim objHtmlTable As IHTMLElementCollection, objHtmlInput As IHTMLElementCollection
+    Dim TDelements As IHTMLElementCollection, TDelement As IHTMLElement
+    Dim btnClicktoView As String, OrgSearchSeq As String, pdfUrl As String
+    Dim tblRw As Integer, cntPlcr As Integer
+    On Error GoTo Err_Handler
+Retry_Download:
+    If WebClaimIE Is Nothing Then Set WebClaimIE = New InternetExplorerMedium
+    Get_PDF_Claim = ""
+    
+    DEL_EXISTING_FILE fnLOC & "\" & ClaimControlNumber & ".pdf"
+    
+    With WebClaimIE
+        .Visible = False: .navigate WebClaimUrl
+         While .Busy Or .readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+        .document.all.Item("multiclm_opt1").Item(2).Checked = True
+         While .Busy Or .readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+        .document.all("search_field").innerText = ClaimControlNumber
+         While .Busy Or .readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+        .document.all("multiclm_opt1").Item(1).Click '"Most Recent Claim"
+         While .Busy Or .readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+        .document.all("btnG").Click
+         While .Busy Or .readyState <> READYSTATE_COMPLETE: DoEvents: Wend
+         Set TDelements = .document.getElementsByTagName("b")
+         For Each TDelement In TDelements
+            Select Case Trim(TDelement.innerText)
+                Case "Some CCN search criteria did not yield a result:"
+                    Get_PDF_Claim = "Not Found."
+                    GoTo objRelease
+                Case "PLEASE PROVIDE SEARCH CRITERIA"
+                    Get_PDF_Claim = "CCN Missing."
+                    GoTo objRelease
+            End Select
+        Next TDelement
+        Set objHtmlTable = .document.getElementsByTagName("TABLE")
+        tblRw = 1: cntPlcr = 3
+        Do While Len(Trim(objHtmlTable(2).Rows(tblRw).Cells(5).innerText)) > 0
+            Set objHtmlInput = .document.getElementsByTagName("input")
+            btnClicktoView = Replace(Replace(Replace(objHtmlInput(cntPlcr).Name, "/", "%2f"), "+", "%2b") & "%3d&", "submit_", "")
+            OrgSearchSeq = "originalSearchSequence=" & Replace(objHtmlInput(cntPlcr - 1).Value, "=", "%3d")
+            pdfUrl = "http://apsep4201/webclaims/index.php?action=view&searchResult=" & btnClicktoView & OrgSearchSeq
+            If DownloadFile(pdfUrl, fnLOC & "\" & ClaimControlNumber & ".pdf") <> True Then
+                Get_PDF_Claim = "Not Found."
+            Else
+                Get_PDF_Claim = Trim(objHtmlTable(2).Rows(tblRw).Cells(7).innerText) 'Claim Type
+            End If
+            tblRw = tblRw + 1: cntPlcr = cntPlcr + 6: DoEvents
+        Loop
+objRelease:
+        Set TDelements = Nothing: Set objHtmlTable = Nothing: Set objHtmlInput = Nothing
+        WebClaimIE.Quit: Set WebClaimIE = Nothing
+        Exit Function
+Err_Handler:
+        Set WebClaimIE = Nothing
+        GoTo Retry_Download
+    End With
+End Function
+
+Private Function DownloadFile(URL As String, LocalFilename As String) As Boolean
+    Dim lngRetVal As Long
+    lngRetVal = URLDownloadToFile(0, URL, LocalFilename, 0, 0)
+    If lngRetVal = 0 Then DownloadFile = True
+End Function

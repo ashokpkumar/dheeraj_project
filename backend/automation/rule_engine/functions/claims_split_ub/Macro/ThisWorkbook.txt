@@ -1,0 +1,18 @@
+Private Sub Workbook_Open()
+    Select Case MN.OLEObjects("chkDetails").Object.Value
+        Case True
+            INF.Visible = -1
+            SVL.Visible = -1
+        Case False
+            INF.Visible = 2
+            SVL.Visible = 2
+    End Select
+    With MN
+        .Range("F1") = "6": .Range("F2") = "6": .Range("G2") = "6"
+        .Range("Z2") = "NON SCRATCH"
+        .Range("Z3") = "BY DATE OF SERVICE"
+        .OLEObjects("chk2Lines").Object.Value = False
+    End With
+    MACRO_LIST_AND_LOG_SETUP
+    Force_Excel_ToNew_Instance True
+End Sub

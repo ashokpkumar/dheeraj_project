@@ -1,0 +1,91 @@
+Public Sub RegisterDLL(DLLPath As String)
+   'Path to RegAsm, adjust to the version of the .Net framework you're targeting
+    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, ws As WshShell, strRegFileContent As String, fileNo As Integer
+    RegasmPath = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
+    Set ws = New WshShell
+    #If Win64 Then
+        Const Win64 = True
+    #Else
+        Const Win64 = False
+    #End If
+    LibraryPath = Left(DLLPath, Len(DLLPath) - 4)
+    If Dir(DLLPath) = "" Then 'Check if file exists
+        Err.Raise 1, Description:="Missing DLL!"
+        Exit Sub
+    End If
+    ws.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
+        strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
+    Else
+        strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes" 'Default registry path
+    End If
+    fileNo = FreeFile
+    Open LibraryPath & ".reg" For Binary Access Read Write As #fileNo
+        strRegFileContent = String(LOF(fileNo), vbNullChar)
+        Get #fileNo, , strRegFileContent 'Read reg contents
+        strRegFileContent = Replace(strRegFileContent, "HKEY_CLASSES_ROOT", strNewRegPath) 'Change reg path
+        Put #fileNo, 1, strRegFileContent 'Overwrite, always extends so no need to truncate
+    Close #fileNo
+    ws.Run "regedit.exe /s """ & LibraryPath & ".reg""", 0, True  'Merge silently into registry
+    Kill LibraryPath & ".reg" 'Clean up registry
+    Set ws = Nothing
+End Sub
+
+Public Sub UnregisterDLL(DLLPath As String)
+    Dim RegasmPath As String, LibraryPath As String, strNewRegPath As String, ws As WshShell, strRegFileContent As String, fileNo As Integer, fileOutput As Integer
+    RegasmPath = "C:\Windows\Microsoft.NET\Framework\" & Dir("C:\Windows\Microsoft.NET\Framework\v4*", vbDirectory) & "\RegAsm.exe"
+    Set ws = New WshShell
+    #If Win64 Then
+        Const Win64 = True
+    #Else
+        Const Win64 = False
+    #End If
+    LibraryPath = Left(DLLPath, Len(DLLPath) - 4)
+    If Dir(DLLPath) = "" Then 'Check if file exists
+        Err.Raise 1, Description:="Missing DLL!"
+        Exit Sub
+    End If
+    ws.Run """" & RegasmPath & """ """ & DLLPath & """ /codebase /regfile", 0, True 'Create .reg file using RegAsm
+    If Not Win64 And Environ$("ProgramW6432") <> vbNullString Then
+        strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes\Wow6432Node" '32 bits Office on Win 64
+    Else
+        strNewRegPath = "HKEY_CURRENT_USER\SOFTWARE\Classes" 'Default registry path
+    End If
+    fileNo = FreeFile
+    fileOutput = FreeFile + 1
+    Open LibraryPath & ".reg" For Input As #fileNo
+    Open LibraryPath & "remove.reg" For Output As #fileOutput
+        Line Input #fileNo, strRegFileContent 'Read reg contents
+        Print #fileOutput, strRegFileContent 'Copy first line blindly
+        Do While Not EOF(fileNo)
+            Line Input #fileNo, strRegFileContent 'Read reg contents
+            strRegFileContent = Replace(strRegFileContent, "HKEY_CLASSES_ROOT", strNewRegPath) 'Change reg path
+            If Left(strRegFileContent, 1) = "[" Then 'If new key
+                Print #fileOutput, "[-" & Mid(strRegFileContent, 2) 'Change to remove key
+            End If
+        Loop
+    Close #fileOutput
+    Close #fileNo
+    Kill LibraryPath & ".reg" 'Remove create file
+    ws.Run "regedit.exe /s """ & LibraryPath & "remove.reg"""  'Merge silently into registry
+    Kill LibraryPath & "remove.reg" 'Remove delete file
+    Set ws = Nothing
+End Sub
+
+Public Sub Add_Reference_Library(ByVal oLibFullPath As String) ' ByVal dllFile As String
+    Dim objRef As Object, blnFound As Boolean
+    UnregisterDLL Replace(oLibFullPath, "tlb", "dll")
+    RegisterDLL Replace(oLibFullPath, "tlb", "dll")
+    With ThisWorkbook
+        For Each objRef In .VBProject.References ' .Application.VBE.ActiveVBProject.References
+            blnFound = False
+            Select Case objRef.Name 'Debug.Print R.Name & ":" & R.GUID & " " & R.fullpath
+                Case "PdfClaimImageDetails"
+                    blnFound = True
+                   .VBProject.References.Remove .VBProject.References(objRef.Name)
+                    Exit For
+            End Select
+        Next objRef
+       '.VBProject.References.AddFromFile oLibFullPath
+    End With
+End Sub
