@@ -1,300 +1,282 @@
-
-Public Sub GetCPS_Discounts(ByVal CCN As String) 'Added 2023.05.04
-    Dim R As Integer, i As Integer, ln As String, rng As Range, lstRw As Long, L As Range, k As Integer
-    Dim BgnDt As Date
-    If MN.AutoFilterMode Then MN.AutoFilterMode = False
-'    MN.Application.ScreenUpdating = False
-    lstRw = MN.Cells(MN.Rows.Count, "S").End(xlUp).Row
+Public Function ClaimPgCount(ByVal CCN As String) As Integer ' ADDED 2023.08.03
+    Dim PgCnt As Integer
+    ClaimPgCount = 0
     With objSession.screen
-ReCountDraft:
-        For R = 6 To 18 Step 2
-            ln = Trim(.GetString(R, 2, 2))
-            If Len(ln) > 0 Then
-                PLACEVALUE ln, 3, 26
-               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                k = 9
-                For i = 5 To 11 Step 2
-                    If Len(Trim(.GetString(i, 4, 6))) > 0 Then
-                        BgnDt = CDate(Trim(.GetString(i, 4, 2)) & "/" & Trim(.GetString(i, 6, 2)) & "/" & Trim(.GetString(i, 8, 2)))
-                        MN.Range("$S$5:$AI" & lstRw).AutoFilter Field:=1, Criteria1:=CCN
-                        MN.Range("$S$5:$AI" & lstRw).AutoFilter Field:=2, Criteria1:=Format(BgnDt, "MM/DD/YY") 'BGN DATE
-                        MN.Range("$S$5:$AI" & lstRw).AutoFilter Field:=4, Criteria1:=Trim(.GetString(i, 41, 5)) 'CPT CODES
-                        MN.Range("$S$5:$AI" & lstRw).AutoFilter Field:=14, Criteria1:=Trim(.GetString(i + 1, 70, 6)) 'DX CODES
-                        If MN.AutoFilter.Range.Columns("S").SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
-                            Set rng = MN.AutoFilter.Range.Columns(9).Offset(1, 0).Resize(lstRw - 5, 1).SpecialCells(xlCellTypeVisible)
-                            For Each L In rng
-                                L.Value = "'" & IIf(Len(Trim(.GetString(i + k, 2, 11))) > 0, Trim(.GetString(i + k, 2, 11)), "0.00") & "-" & _
-                                IIf(Len(Trim(.GetString(i + k, 14, 3))) > 0, Trim(.GetString(i + k, 14, 3)), "001") ' & "|" & _
-                                Trim (.getstring(i + k, 18, 11)) & "-" & Trim(.getstring(i + k, 30, 3)) '& "|" & _
-                                Trim(.getstring(i + k + 6, 4, 11)) & "-" & Trim(.getstring(i + k + 6, 16, 11)) & "-" & _
-                                Trim(.getstring(i + k + 6, 28, 1)) & "-" & Trim(.getstring(i + k + 6, 31, 1)) & "-" & _
-                                Trim(.getstring(i + k + 6, 36, 11)) & "-" & Trim(.getstring(i + k + 6, 48, 5)) & "-" & _
-                                Trim(.getstring(i + k + 6, 56, 11)) 'INEL-CD1|INDEL-CD2|OIELIG-OIPAID-OI-BN-BNAMT-SP-NDC
-                            Next L
-                        End If
-                    End If: k = k - 1
-                Next i
-            Else
-                Exit For
-            End If
-NxtDraft:
-           .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-            PLACEVALUE CCN, 8, 15
-           .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-        Next R
-        If InStr(1, Trim(.GetString(20, 2, 60)), "MORE DATA", vbTextCompare) > 0 Then
+ReCountPg:
+        ClaimPgCount = ClaimPgCount + 1
+        For i = 6 To 18 Step 2
+            If Len(Trim(.Getstring(i, 2, 2))) < 1 Then Exit For
+        Next i
+        If InStr(1, Trim(.Getstring(20, 2, 60)), "MORE DATA", vbTextCompare) > 0 Then
             .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
-            GoTo ReCountDraft
+            GoTo ReCountPg
         End If
+        .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+         PLACEVALUE CCN, 8, 15
+        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
     End With
-    If MN.AutoFilterMode Then MN.AutoFilterMode = False
-End Sub
+End Function
 
-Public Sub HCFA_NonScratch_Split(ByVal rW As Double)
-    Dim rLine As Integer, totSvcLns As Integer, xlLoc As Integer, i As Integer, bln2Lines As Boolean, LineCtr As Integer, DxCode As String
+Public Function GetCPS_Discounts(ByVal CCN As String) As Integer  'Added 2023.08.01
+    Dim r As Integer, i As Integer, ln As String, wS As Worksheet, rng As Range, lstRw As Long, l As Range, PgCnt As Integer, Pg As Integer, p As Integer
+    Set wS = ThisWorkbook.Worksheets("Main"):
+    If wS.AutoFilterMode Then wS.AutoFilterMode = False
+    wS.Application.ScreenUpdating = False
+    lstRw = wS.Cells(wS.Rows.Count, "S").End(xlUp).Row
+    With objSession.screen
+        PgCnt = ClaimPgCount(CCN): p = 1
+ReCountDraft:
+        For Pg = 1 To PgCnt ' ADDED 2023.08.03
+            Do While p < Pg ' ADDED 2023.08.03
+               .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop: p = p + 1 ' ADDED 2023.08.03
+                DoEvents ' ADDED 2023.08.03
+            Loop
+            For r = 6 To 18 Step 2
+                ln = Trim(.Getstring(r, 2, 2))
+                If Len(ln) > 0 Then
+                    PLACEVALUE ln, 3, 26
+                   .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                   .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                    For i = 6 To 9
+                        If Len(Trim(.Getstring(i, 3, 4))) > 0 Then
+                           'If Not colTOS.Exists(Trim(.getstring(i, 3, 4))) Then colTOS.Add Trim(.getstring(i, 3, 4)), Trim(.getstring(i, 14, 2))
+                            wS.Range("$S$5:$AE" & lstRw).AutoFilter Field:=1, Criteria1:=CCN
+                            wS.Range("$S$5:$AE" & lstRw).AutoFilter Field:=3, Criteria1:=Trim(.Getstring(i, 3, 4)) 'REVCODE
+                            wS.Range("$S$5:$AE" & lstRw).AutoFilter Field:=4, Criteria1:=Trim(.Getstring(i, 8, 5)) 'HCPCS/CPT
+                            wS.Range("$S$5:$AE" & lstRw).AutoFilter Field:=2, Criteria1:=Left(Trim(.Getstring(i, 17, 6)), 2) & "/" & Mid(Trim(.Getstring(i, 17, 6)), 3, 2) & "/" & Right(Trim(.Getstring(i, 17, 6)), 2) 'SERDT
+                            If wS.AutoFilter.Range.Columns("S").SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+                                Set rng = wS.AutoFilter.Range.Columns(5).Offset(1, 0).Resize(lstRw - 5, 1).SpecialCells(xlCellTypeVisible)
+                                For Each l In rng
+                                   'l.Value = "'" & Trim(.getstring(1, 26, 2)) & "-" & Trim(.getstring(i, 14, 2))
+                                    If Format(wS.Range("Y" & l.Row), "0.00") = Trim(.Getstring(i, 40, 11)) Then
+                                       'If Len(Trim(.getstring(i + 6, 2, 11))) > 0 Then
+                                        wS.Range("AA" & l.Row) = IIf(Len(Trim(.Getstring(i + 6, 2, 11))) < 1, "0.00", Trim(.Getstring(i + 6, 2, 11))) & _
+                                        "-" & IIf(Len(Trim(.Getstring(i + 6, 14, 3))) > 0, Trim(.Getstring(i + 6, 14, 3)), "001")
+                                    End If
+                                Next l
+                               'rng.Value = "'" & Trim(.getstring(1, 26, 2)) & "-" & Trim(.getstring(i, 14, 2))
+                            End If
+                        End If
+                    Next i
+                Else
+                    Exit For
+                End If
+NxtDraft:
+               .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                PLACEVALUE CCN, 8, 15
+               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                p = 1 ' ADDED 2023.08.03
+                Do While p < Pg ' ADDED 2023.08.03
+                    .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop: p = p + 1 ' ADDED 2023.08.03
+                    DoEvents ' ADDED 2023.08.03
+                Loop ' ADDED 2023.08.03
+            Next r
+        Next Pg
+'        If InStr(1, Trim(.getstring(20, 2, 60)), "MORE DATA", vbTextCompare) > 0 Then 'REMOVED 2023.08.03
+'            .SendKeys "<Pf11>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
+'            GoTo ReCountDraft
+'        End If
+    End With
+    With wS
+        GetCPS_Discounts = 0
+        If .AutoFilterMode Then .AutoFilterMode = False
+       .Range("$S$5:$AE" & lstRw).AutoFilter Field:=1, Criteria1:=CCN
+        If .AutoFilter.Range.Columns("S").SpecialCells(xlCellTypeVisible).Cells.Count - 1 > 0 Then
+            Set rng = .AutoFilter.Range.Columns(5).Offset(1, 0).Resize(lstRw - 5, 1).SpecialCells(xlCellTypeVisible)
+            For Each l In rng
+                If Len(l.Value) < 1 Then
+                    GetCPS_Discounts = GetCPS_Discounts + 1
+                End If
+            Next l
+        End If
+        If .AutoFilterMode Then .AutoFilterMode = False
+       .Sort.SortFields.Clear
+       .Sort.SortFields.Add Key:=.Range("S5" & ":S" & lstRw), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+       .Sort.SortFields.Add Key:=.Range("T5" & ":T" & lstRw), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption:=xlSortTextAsNumbers
+       .Sort.SortFields.Add Key:=.Range("U5" & ":U" & lstRw), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption:=xlSortTextAsNumbers
+       .Sort.SortFields.Add Key:=.Range("W5" & ":W" & lstRw), SortOn:=xlSortOnValues, Order:=xlDescending, DataOption:=xlSortTextAsNumbers
+        With .Sort
+            .SetRange wS.Range("S5:AE" & lstRw)
+            .Header = xlYes
+            .MatchCase = False
+            .Orientation = xlTopToBottom
+            .SortMethod = xlPinYin
+            .Apply
+        End With
+       .Application.ScreenUpdating = True
+    End With
+    Set wS = Nothing
+   'End
+End Function
+
+Public Sub UB_NonScratch_Split(ByVal rW As Double)
+    Dim wS As Worksheet, rLine As Integer, totSvcLns As Integer, xlLoc As Integer, i As Integer, bln2Lines As Boolean, LineCtr As Integer, c As Integer
     Dim CCN As String, DtFrom As String, DtThru As String, SrvcLineCntr As Integer, DraftsCreatedCntr As Integer
-    Dim PendNote As String, ScrnPos As String, DtCo As String, BGNCND As String
-STEP1:
-    DraftsCreatedCntr = 0:  ScrnPos = "": CCN = MN.Range("C" & rW): DtFrom = Format(Trim(MN.Range("F" & rW)), "MMDDYY"): DtThru = Format(Trim(MN.Range("G" & rW)), "MMDDYY")
-    totSvcLns = MN.Range("K" & rW): xlLoc = MN.Range("L" & rW)
+    Dim PendNote As String, POS_460 As String, DtCo As String
+    Set wS = ThisWorkbook.Worksheets("MAIN")
+Step1:
+   'Default Values
+    DraftsCreatedCntr = 0:  POS_460 = ""
+    CCN = wS.Range("C" & rW): DtFrom = Format(Trim(wS.Range("F" & rW)), "MMDDYY"): DtThru = Format(Trim(wS.Range("G" & rW)), "MMDDYY")
+    totSvcLns = wS.Range("K" & rW): xlLoc = wS.Range("L" & rW)
     
     With objSession.screen
         If INCORRECTSCREEN("CPS520.01", 1, 2, 11) Then
              PLACEVALUE CCN, 8, 15
             .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
             If INCORRECTSCREEN("CPS500.01", 1, 2, 11) Then
-                If MN.OLEObjects("chkCPSDisc").Object.Value = True Then GetCPS_Discounts CCN 'Added 2023.08.01
+                If ThisWorkbook.Worksheets("Main").OLEObjects("chkCPSDisc").Object.Value = True Then GetCPS_Discounts CCN 'Added 2023.08.01
                .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                 If INCORRECTSCREEN("CPS850.01", 1, 2, 11) Then
                     .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-STEP2:
-                    If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then 'BLX2460.01
-                        ScrnPos = Trim(.GetString(2, 6, 2))
-                       'PlaceValue DtFrom, 2, 63: PlaceValue DtThru, 2, 75
+Step2:
+                    If INCORRECTSCREEN("BLX2460.01", 1, 2, 11) Then
+                        POS_460 = Trim(.Getstring(1, 26, 2))
+                        PLACEVALUE DtFrom, 2, 63: PLACEVALUE DtThru, 2, 75
+                       
                        'Removed logic 2023.07.28
-                       'If Len(Trim(.getstring(14, 2, 11))) > 0 Then PlaceValue ByPassCode, 14, 14
-                       'If Len(Trim(.getstring(15, 2, 11))) > 0 Then PlaceValue ByPassCode, 15, 14
-                       'If Len(Trim(.getstring(16, 2, 11))) > 0 Then PlaceValue ByPassCode, 16, 14
-                       'If Len(Trim(.getstring(17, 2, 11))) > 0 Then PlaceValue ByPassCode, 17, 14
+                        'If Len(Trim(.getstring(12, 2, 11))) > 0 Then PlaceValue ByPassCode, 12, 14
+                        'If Len(Trim(.getstring(13, 2, 11))) > 0 Then PlaceValue ByPassCode, 13, 14
+                        'If Len(Trim(.getstring(14, 2, 11))) > 0 Then PlaceValue ByPassCode, 14, 14
+                        'If Len(Trim(.getstring(15, 2, 11))) > 0 Then PlaceValue ByPassCode, 15, 14
+                        
+                        PLACEVALUE ByPassCode, 12, 14
+                        PLACEVALUE ByPassCode, 13, 14
                         PLACEVALUE ByPassCode, 14, 14
                         PLACEVALUE ByPassCode, 15, 14
-                        PLACEVALUE ByPassCode, 16, 14
-                        PLACEVALUE ByPassCode, 17, 14
+                        
                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-RE_CHK:
-                        If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then 'ADDED 2026.03.24
-                            If InStr(1, Trim(.GetString(31, 1, 80)), "PRIOR TO CND ONSET", 0) > 0 Then
-                                Select Case Trim(Left(Trim(.GetString(31, 1, 80)), 6))
-                                    Case "SAD 01": BGNCND = Trim(.GetString(5, 4, 6))
-                                    Case "SAD 02": BGNCND = Trim(.GetString(7, 4, 6))
-                                    Case "SAD 03": BGNCND = Trim(.GetString(9, 4, 6))
-                                    Case "SAD 04": BGNCND = Trim(.GetString(11, 4, 6))
-                                End Select
-                                PLACEVALUE "x", 29, 41
-                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                PLACEVALUE BGNCND, 5, 24 'CPS910.01
-                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                GoTo STEP2
-                            End If
-                            If InStr(1, Trim(.GetString(31, 1, 80)), "PMNT PAST TERM", 0) > 0 Then 'ADDED 2026.03.24
-                                Select Case Trim(Left(Trim(.GetString(31, 1, 80)), 6))
-                                    Case "SAD 01"
-                                        PLACEVALUE Trim(.GetString(5, 21, 11)), 14, 2
-                                        PLACEVALUE "033", 14, 14
-                                    Case "SAD 02"
-                                        PLACEVALUE Trim(.GetString(7, 21, 11)), 15, 2
-                                        PLACEVALUE "033", 15, 14
-                                    Case "SAD 03"
-                                        PLACEVALUE Trim(.GetString(9, 21, 11)), 16, 2
-                                        PLACEVALUE "033", 16, 14
-                                    Case "SAD 04"
-                                        PLACEVALUE Trim(.GetString(11, 21, 11)), 17, 2
-                                        PLACEVALUE "033", 17, 14
-                                End Select
-                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                GoTo RE_CHK
-                            End If
-                        End If
+                       
                        If INCORRECTSCREEN("CPS445.01", 1, 2, 11) Then
                         .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                         .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                         PLACEVALUE "450", 2, 37
+                         PLACEVALUE "460", 2, 37
                         .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                         'PlaceValue "x", 29, 16 'HSP
                        '.SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                         PLACEVALUE "x", 29, 76 'DPSV
+                         PLACEVALUE "x", 29, 78 'DPSV
                         .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                        End If
+                       
                        If INCORRECTSCREEN("CPS506.01", 1, 2, 11) Then
                             PLACEVALUE RlsCode, 3, 13: PLACEVALUE LstRls, 3, 39: PLACEVALUE PendRsn, 3, 53
                             PLACEVALUE FlupDays, 4, 38: PLACEVALUE Payee, 7, 8: PLACEVALUE "Old Line", 4, 50
+                           'PlaceValue "O5JN", 4, 13
                            .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                             If INCORRECTSCREEN("CPS520.01", 1, 2, 11) Then
                                 .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                 PLACEVALUE "450", 2, 37
+                                 PLACEVALUE "460", 2, 37
                                 .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                                  For rLine = 1 To totSvcLns
-                                        MN.Range("T" & xlLoc).Select: j = 14: LineCtr = 0
-                                        DtCo = Format(MN.Range("T" & xlLoc), "MMDDYY")
-                                        DxCode = Trim(MN.Range("AF" & xlLoc))
-                                        PLACEVALUE ScrnPos, 2, 6 'POS
-                                        For i = 5 To 12 Step 2
-                                            If MN.OLEObjects("chk2Lines").Object.Value <> False Then If LineCtr >= 2 Then Exit For
-                                            PLACEVALUE Format(Trim(MN.Range("T" & xlLoc)), "MMDDYY"), i, 4  'BGN
-                                            PLACEVALUE Format(Trim(MN.Range("U" & xlLoc)), "MMDDYY"), i, 11 'END
-                                            PLACEVALUE Trim(MN.Range("W" & xlLoc)), i, 18 'TOS
-                                            PLACEVALUE Trim(MN.Range("Y" & xlLoc)), i, 21 'CHARGE
-                                            PLACEVALUE Trim(MN.Range("X" & xlLoc)), i, 33 'OC
-                                            PLACEVALUE Trim(MN.Range("V" & xlLoc)), i, 41 'HCPCS
-                                            PLACEVALUE Trim(MN.Range("AB" & xlLoc)), i, 47 'MOD1
-                                            PLACEVALUE Trim(MN.Range("AC" & xlLoc)), i, 51 'MOD2
-                                            PLACEVALUE Trim(MN.Range("AD" & xlLoc)), i, 55 'MOD3
-                                            PLACEVALUE Trim(MN.Range("AE" & xlLoc)), i, 59 'MOD4
-                                            PLACEVALUE Trim(MN.Range("AF" & xlLoc)), i + 1, 70 'DXCODES
-                                            If Len(Trim(MN.Range("AA" & xlLoc))) > 0 Then 'Discounts
-                                                If InStr(1, Trim(MN.Range("AA" & xlLoc)), "-") > 0 Then
-                                                    PLACEVALUE Split(Trim(MN.Range("AA" & xlLoc)), "-")(0), j, 2 'Amt
-                                                    PLACEVALUE Split(Trim(MN.Range("AA" & xlLoc)), "-")(1), j, 14 '908
-                                                    PLACEVALUE ByPassCode, j, 30 '001
+                                        LineCtr = 0: c = 3
+                                        DtCo = Format(wS.Range("T" & xlLoc), "MMDDYY")
+                                        PLACEVALUE POS_460, 1, 26 'POS
+                                        PLACEVALUE DtFrom, 2, 63 'FROM
+                                        PLACEVALUE DtThru, 2, 75 'THRU
+                                       'PlaceValue Format(ws.Range("T" & xlLoc), "MMDDYY"), 2, 63 'FROM
+                                       'PlaceValue Format(ws.Range("T" & xlLoc), "MMDDYY"), 2, 75 'THRU
+                                        For i = 6 To 9
+                                            If wS.OLEObjects(4).Object.Value <> False Then If LineCtr >= 2 Then Exit For
+                                            PLACEVALUE Trim(wS.Range("U" & xlLoc)), i, 3 'RC
+                                            PLACEVALUE Trim(wS.Range("V" & xlLoc)), i, 8 'HCPCS
+                                            PLACEVALUE Trim(wS.Range("W" & xlLoc)), i, 14 'TOS
+                                            PLACEVALUE Format(Trim(wS.Range("T" & xlLoc)), "MMDDYY"), i, 17 'SERDT
+                                            PLACEVALUE Trim(wS.Range("X" & xlLoc)), i, 32 'BU
+                                            PLACEVALUE Trim(wS.Range("Y" & xlLoc)), i, 40 'CHARGE
+                                            PLACEVALUE Trim(wS.Range("AB" & xlLoc)), i, 52 'MOD1
+                                            PLACEVALUE Trim(wS.Range("AC" & xlLoc)), i, 56 'MOD2
+                                            PLACEVALUE Trim(wS.Range("AD" & xlLoc)), i, 60 'MOD3
+                                            PLACEVALUE Trim(wS.Range("AE" & xlLoc)), i, 64 'MOD4
+                                            PLACEVALUE Trim(Trim(.Getstring(24, 5, 7))), 10, c: Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                            
+                                            If Len(Trim(wS.Range("AA" & xlLoc))) > 0 Then 'Discounts
+                                                If InStr(1, Trim(wS.Range("AA" & xlLoc)), "-") > 0 Then
+                                                    PLACEVALUE Split(Trim(wS.Range("AA" & xlLoc)), "-")(0), i + 6, 2 'Amt
+                                                    PLACEVALUE Split(Trim(wS.Range("AA" & xlLoc)), "-")(1), i + 6, 14
+                                                    PLACEVALUE ByPassCode, i + 6, 30 '001
                                                 Else
-                                                    PLACEVALUE Trim(MN.Range("AA" & xlLoc)), j, 2 'Amt
-                                                    PLACEVALUE InelCode, j, 14 '908
-                                                    PLACEVALUE ByPassCode, j, 30 '001
+                                                    PLACEVALUE Trim(wS.Range("AA" & xlLoc)), i + 6, 2 'Amt
+                                                    PLACEVALUE InelCode, i + 6, 14 '908
+                                                    PLACEVALUE ByPassCode, i + 6, 30 '001
                                                 End If
-                                                j = j + 1
                                             Else
-                                                PLACEVALUE ByPassCode, j, 14 '001
-                                                j = j + 1
+                                                PLACEVALUE ByPassCode, i + 6, 14 '001
                                             End If
-                                            xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1
-                                            Select Case MN.Range("Z3")
+                                            xlLoc = xlLoc + 1: DoEvents: rLine = rLine + 1: LineCtr = LineCtr + 1: c = c + 10
+                                            Select Case wS.Range("X3")
                                                 Case "BY DATE OF SERVICE"
-                                                    If DtCo <> Format(MN.Range("T" & xlLoc), "MMDDYY") Then Exit For
-                                                Case "BY DIAGNOSIS"
-                                                    If DxCode <> Trim(MN.Range("AF" & xlLoc)) Then Exit For
+                                                    If DtCo <> Format(wS.Range("T" & xlLoc), "MMDDYY") Then Exit For
                                             End Select
-                                            If CCN <> Trim(MN.Range("S" & xlLoc)) Then Exit For
+                                            If CCN <> Trim(wS.Range("S" & xlLoc)) Then Exit For
                                         Next i
                                         DraftsCreatedCntr = DraftsCreatedCntr + 1: DoEvents
                                        .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
+                                       Application.Wait (Now + TimeValue("0:00:2"))
                                         If INCORRECTSCREEN("CPS445.01", 1, 2, 11) Then
+                                            PLACEVALUE "x", 29, 16 'HSP
                                            .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                            PLACEVALUE "x", 29, 76 'DPSV
+                                            PLACEVALUE "x", 29, 78 'HSP
                                            .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
                                         End If
-CPS506:
+                                        Application.Wait (Now + TimeValue("0:00:1"))
                                         If INCORRECTSCREEN("CPS506.01", 1, 2, 11) Then
                                              PLACEVALUE RlsCode, 3, 13: PLACEVALUE LstRls, 3, 39: PLACEVALUE PendRsn, 3, 53
                                              PLACEVALUE FlupDays, 4, 38: PLACEVALUE Payee, 7, 8: PLACEVALUE "Split Macro " & DraftsCreatedCntr, 4, 50
+                                            'PlaceValue "O5JN", 4, 13
                                             .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                             If INCORRECTSCREEN("CPS506.01", 1, 2, 11) Then 'ADDED 2026.03.24
-                                                MN.Range("A" & rW) = "CANCELLED."
-                                                MN.Range("B" & rW) = "DRAFTS CREATED: " & DraftsCreatedCntr
-                                                MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) & " " & Trim(.GetString(32, 1, 80))
-                                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                               .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                                GoTo objRelease
-                                             End If
+                                             
                                             .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                             PLACEVALUE "450", 2, 37
+                                             PLACEVALUE "460", 2, 37
                                             .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                        Else 'SERVICE LINES EDIT
-                                            If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then 'ADDED 2026.03.24
-                                                If InStr(1, Trim(.GetString(31, 1, 80)), "PRIOR TO CND ONSET", 0) > 0 Then
-                                                    Select Case Trim(Left(Trim(.GetString(31, 1, 80)), 6))
-                                                        Case "SAD 01": BGNCND = Trim(.GetString(5, 4, 6))
-                                                        Case "SAD 02": BGNCND = Trim(.GetString(7, 4, 6))
-                                                        Case "SAD 03": BGNCND = Trim(.GetString(9, 4, 6))
-                                                        Case "SAD 04": BGNCND = Trim(.GetString(11, 4, 6))
-                                                    End Select
-                                                    PLACEVALUE "x", 29, 41
-                                                   .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                                    PLACEVALUE BGNCND, 5, 24 'CPS910.01
-                                                   .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                                    GoTo CPS506
-                                                End If
-                                            End If
-                                            If InStr(1, Trim(.GetString(31, 1, 80)), "PMNT PAST TERM", 0) > 0 Then 'ADDED 2026.03.24
-                                                Select Case Trim(Left(Trim(.GetString(31, 1, 80)), 6))
-                                                    Case "SAD 01"
-                                                        PLACEVALUE Trim(.GetString(5, 21, 11)), 14, 2
-                                                        PLACEVALUE "033", 14, 14
-                                                    Case "SAD 02"
-                                                        PLACEVALUE Trim(.GetString(7, 21, 11)), 15, 2
-                                                        PLACEVALUE "033", 15, 14
-                                                    Case "SAD 03"
-                                                        PLACEVALUE Trim(.GetString(9, 21, 11)), 16, 2
-                                                        PLACEVALUE "033", 16, 14
-                                                    Case "SAD 04"
-                                                        PLACEVALUE Trim(.GetString(11, 21, 11)), 17, 2
-                                                        PLACEVALUE "033", 17, 14
-                                                End Select
-                                               .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                                GoTo CPS506
-                                            End If
-                                            MN.Range("A" & rW) = "CANCELLED."
-                                            MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                                        Else
+                                            wS.Range("A" & rW) = "Cancelled."
+                                            wS.Range("B" & rW) = Trim(.Getstring(31, 1, 80)) 'Edit
                                             GoTo objRelease
                                         End If
                                         rLine = rLine - 1
                                  Next rLine
                                 .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                 MN.Range("A" & rW) = "DONE."
-                                 MN.Range("B" & rW) = "DRAFTS CREATED: " & DraftsCreatedCntr
+                                 wS.Range("A" & rW) = "DONE."
+                                 wS.Range("B" & rW) = "DRAFTS CREATED: " & DraftsCreatedCntr
                                  GoTo objRelease
                             Else
-                                MN.Range("A" & rW) = "CANCELLED."
-                                MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                                wS.Range("A" & rW) = "Cancelled."
+                                wS.Range("B" & rW) = Trim(.Getstring(31, 1, 80)) 'Edit
                                 GoTo objRelease
                             End If
                        Else
-                            If INCORRECTSCREEN("CPS445.01", 1, 2, 11) Then
-                                .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                                 If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then
-                                    PLACEVALUE "x", 29, 76 'DPSV
-                                 End If
-                                 GoTo STEP2
-                            End If
-                            MN.Range("A" & rW) = "CANCELLED."
-                            MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                            wS.Range("A" & rW) = "Cancelled."
+                            wS.Range("B" & rW) = Trim(.Getstring(31, 1, 80)) 'Edit
                             GoTo objRelease
                        End If
                     Else
-                        If INCORRECTSCREEN("BLX2460.01", 1, 2, 11) Then
+                        If INCORRECTSCREEN("CPS450.01", 1, 2, 11) Then
                             .SendKeys ("<Pf8>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                             PLACEVALUE "450", 2, 37
+                             PLACEVALUE "460", 2, 37
                             .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-                             GoTo STEP2
+                             GoTo Step2
                         Else
-                            MN.Range("A" & rW) = "CANCELLED."
-                            MN.Range("B" & rW) = "Not Found: HCFA Service Add Screen"
+                            wS.Range("A" & rW) = "Cancelled."
+                            wS.Range("B" & rW) = "Not Found: Hospital Service Add Screen"
                             GoTo objRelease
                         End If
 
                     End If
                 Else
-                    MN.Range("A" & rW) = "CANCELLED."
-                    MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                    wS.Range("A" & rW) = "Cancelled."
+                    wS.Range("B" & rW) = Trim(.Getstring(31, 1, 80)) 'Edit
                     GoTo objRelease
                 End If
             Else
-                MN.Range("A" & rW) = "CANCELLED."
-                MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) 'Edit
+                wS.Range("A" & rW) = "Cancelled."
+                wS.Range("B" & rW) = Trim(.Getstring(31, 1, 80)) 'Edit
                 GoTo objRelease
             End If
         Else
-            If INCORRECTSCREEN("CPS506.01", 1, 2, 11) Then 'ADDED 2026.03.24
-               MN.Range("A" & rW) = "CANCELLED."
-               MN.Range("B" & rW) = "DRAFTS CREATED: " & DraftsCreatedCntr
-               MN.Range("B" & rW) = Trim(.GetString(31, 1, 80)) & " " & Trim(.GetString(32, 1, 80))
-              .SendKeys ("<Enter>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-              .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-               GoTo objRelease
-            End If
             .SendKeys ("<Pf9>"): Do While .OIA.Xstatus <> 0: DoEvents: Loop
-             GoTo STEP1
+             GoTo Step1
         End If
     End With
 objRelease:
+    Set wS = Nothing
 End Sub
