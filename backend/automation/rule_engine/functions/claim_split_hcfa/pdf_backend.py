@@ -193,7 +193,17 @@ class ClaimPdfReader:
         # with no other field sharing their x-range, unlike the wider
         # Box24 service-line columns where "any overlap" (`crop()`, see
         # below) pulled in a vertically neighboring row's whole label.
-        is_marker_box = (x1 - x0) <= 20 and (bottom_pp - top_pp) <= 20
+        #
+        # Threshold is 15, not 20: every real checkbox field is <=13pt
+        # wide/tall (Box3 Sex, Box6 Relationship, Box11 Sex), but three of
+        # Box24's own columns are 17-20pt wide at the same 13pt row height
+        # (MOD 03 = 20, EPSDT Family Plan = 17, I.D. Qual = 19) — a first
+        # attempt at 20 swept those three in too, reopening the exact
+        # neighboring-row-bleed bug this box-size split exists to avoid
+        # (Box 27 "ACCEPT ASSIGNMENT" bled into the last service line's
+        # MOD 03/EPSDT/ID Qual columns on claims whose grid ends right
+        # against it). 15 sits in the gap between the two groups.
+        is_marker_box = (x1 - x0) <= 15 and (bottom_pp - top_pp) <= 15
 
         picked = []
         for w in pg.extract_words(use_text_flow=False, keep_blank_chars=False):
