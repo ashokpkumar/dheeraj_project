@@ -108,6 +108,90 @@ def return_blank_value(val: str) -> str:
     return val if len(val) > 2 else ""
 
 
+def _strip_label_lines(text: str, *labels: str) -> str:
+    """
+    Removes any pipe-delimited "line" (see pdf_backend.py's `read_page`
+    line-join) that is JUST one of the given box labels by itself — e.g.
+    Box67's tiny printed "67" caption, or a lettered sub-box's own "A"/"B"/
+    "C" caption, landing as its own separate line right next to the real
+    scraped value.
+
+    The VBA's own `Replace(val, "|67", "")` / `Replace(val, "|A", "")` only
+    strips this when the label lands as a SUFFIX ("VALUE|67") — a plain
+    substring replace. Confirmed against a real claim PDF that on this
+    macro's actual PDF layout the label instead lands as a PREFIX
+    ("67|X9934 02 A", "A|M25572", ...), which the VBA's own replace can
+    never match (searching for "|67", not "67|"). This strips either order,
+    matching the VBA's evident INTENT rather than its exact (apparently
+    order-mismatched even in the source macro) string replace. Exact-token
+    matched on a whole "|"-split line, not a blind substring replace, so it
+    can't accidentally eat a real value that merely contains the label
+    character sequence.
+    """
+    labels_upper = {l.upper().rstrip(".") for l in labels}
+    parts = [p.strip() for p in (text or "").split("|")]
+    kept = [p for p in parts if p.upper().rstrip(".") not in labels_upper]
+    return " ".join(p for p in kept if p).strip()
+
+
+def _fix_amount_decimal(raw: str) -> str:
+    """
+    Best-effort recovery of a decimal point on a bare-digit currency box —
+    same trick oReadPdf.txt's own "ADDED 2025.11.05" comment uses for Box47
+    service-line charges (ported as `_format_box47_charges` below), applied
+    here to every OTHER currency box in this module that only ever gets a
+    plain `.replace(" ", ".")` in the VBA (Box39-41 value-code amounts,
+    Box54/55 payer prior-payments/est-amount-due): when pdfplumber's word
+    extraction doesn't preserve a space between whole and cents (unlike
+    whatever spacing the proprietary DLL reader produces — see
+    pdf_backend.py's module docstring on this exact tokenization risk), the
+    VBA's `Replace(val, " ", ".")` is a no-op and a value like "38.00"
+    comes back as the bare digits "3800" instead — confirmed against a real
+    claim (Box39A Value Code Amount). NOT a VBA port — the VBA has no such
+    fallback for these boxes (only Box47 does) — added specifically to
+    correct this.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return raw
+    if " " in raw:
+        return raw.replace(" ", ".").replace(",", "")
+    digits = raw.replace(",", "")
+    if len(digits) > 2 and digits.lstrip("-").isdigit():
+        return f"{digits[:-2]}.{digits[-2:]}"
+    return digits
+
+
+def parse_multiline_name_address(raw: str) -> dict:
+    """
+    Splits a "|"-joined multi-line name/address block (see pdf_backend.py's
+    `read_page` line-joining) into NAME/ADDR1/ADDR2/CITY/STATE/ZIP — used
+    for Box 38 (Responsible Party Name and Address).
+
+    NOT a VBA port: oReadPdf.txt reads Box 38 as ONE raw block with no
+    further splitting at all (`CI.Range("BX" & rW) = NORMALIZE_EDIT_MSG(
+    .ReadPage(pFile, 1, 9, 588, 308, 642)) 'Box38`, oReadPdf.txt:78) — the
+    breakdown here is a Python-side addition, added to match the reference
+    workbook's own Address1/Address2/City/State/Zipcode columns for this
+    box. Reuses this module's own space-separated `reformat_city_state_zip`
+    for the last line (this form's own convention — NOT claim_split_hcfa's
+    comma-separated "City, ST Zip" shape, which doesn't apply here).
+    """
+    parts = [p.strip() for p in (raw or "").split("|") if p.strip()]
+    out = {"NAME": "", "ADDR1": "", "ADDR2": "", "CITY": "", "STATE": "", "ZIP": ""}
+    if not parts:
+        return out
+    out["NAME"] = parts[0]
+    if len(parts) >= 2:
+        out["ADDR1"] = po_box_normalize(parts[1])
+    if len(parts) >= 4:
+        out["ADDR2"] = po_box_normalize(parts[2])
+    if len(parts) >= 3:
+        csz = reformat_city_state_zip(parts[-1])
+        out["CITY"], out["STATE"], out["ZIP"] = csz["CITY"], csz["STATE"], csz["ZIP"]
+    return out
+
+
 # ---------------------------------------------------------------------------
 # CLAIM_DEMOGRAPHICS_INFORMATION — Box-by-box UB-04 page-1 extraction
 # ---------------------------------------------------------------------------
@@ -191,7 +275,15 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     d["OCC_SPAN_B_36_THRU"] = rp(489, 649, 539, 662)
     d["BOX37B"] = rp(539, 662, 596, 672)  # VBA reads the SAME T=662..672 band as Box37A (oReadPdf.txt:77) — kept as-is
 
-    d["BOX38"] = rp(9, 588, 308, 642)                                          # Box38 (Responsible Party Name/Addr)
+    box38_raw = rp(9, 588, 308, 642)                                           # Box38 (Responsible Party Name/Addr)
+    d["BOX38"] = box38_raw
+    box38 = parse_multiline_name_address(box38_raw)
+    d["BOX38_NAME"] = box38["NAME"]
+    d["BOX38_ADDR1"] = box38["ADDR1"]
+    d["BOX38_ADDR2"] = box38["ADDR2"]
+    d["BOX38_CITY"] = box38["CITY"]
+    d["BOX38_STATE"] = box38["STATE"]
+    d["BOX38_ZIP"] = box38["ZIP"]
 
     # Box39A-41D — 4 value-code/amount pairs x 4 rows
     value_code_boxes = [
@@ -210,7 +302,7 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     ]
     for key, code_box, amt_box in value_code_boxes:
         d[f"{key}_CODE"] = rp(*code_box)
-        d[f"{key}_AMT"] = rp(*amt_box).replace(" ", ".").replace(",", "")
+        d[f"{key}_AMT"] = _fix_amount_decimal(rp(*amt_box))
 
     # Box50A-55A/B/C — payer name / plan ID / release info / assignment / prior payments / est amount due
     for suffix, top, bottom in (("A", 289, 276), ("B", 276, 266), ("C", 266, 253)):
@@ -218,8 +310,8 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         d[f"PAYER_{suffix}_PLAN_ID"] = rp(171, bottom, 279, top)
         d[f"PAYER_{suffix}_REL_INFO"] = rp(279, bottom, 294, top)
         d[f"PAYER_{suffix}_ASG_BEN"] = rp(300, bottom, 315, top)
-        d[f"PAYER_{suffix}_PRIOR_PMT"] = rp(315, bottom, 387, top).replace(" ", ".").replace(",", "")
-        d[f"PAYER_{suffix}_EST_DUE"] = rp(387, bottom, 466, top).replace(" ", ".").replace(",", "")
+        d[f"PAYER_{suffix}_PRIOR_PMT"] = _fix_amount_decimal(rp(315, bottom, 387, top))
+        d[f"PAYER_{suffix}_EST_DUE"] = _fix_amount_decimal(rp(387, bottom, 466, top))
 
     d["NPI_56"] = rp(487, 289, 596, 300)                                       # Box56
     d["BOX57"] = rp(487, 276, 596, 289)                                        # Box57
@@ -238,10 +330,19 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         d[f"DOC_CONTROL_NO_{suffix}"] = rp(228, bottom, 415, top)              # Box64
         d[f"EMPLOYER_NAME_{suffix}"] = rp(415, bottom, 596, top)               # Box65
 
+    # *** Box66 unresolved — see module docstring "Known open issue" note.
+    # A real claim showed this coming back "0|69" instead of a clean "0" —
+    # the "69" doesn't match this box's own label ("66"), so it isn't the
+    # same prefix/suffix-order issue fixed below for Box67/70/72; most
+    # likely pdfplumber picking up a stray word from the vertically
+    # adjacent Box69 (this box's own coordinate, (6,132,14,144), shares its
+    # Y=132 edge exactly with Box69's Y=120-132 box just below it — see
+    # pdf_backend.py's is_marker_box "any overlap" matching for <=15x15pt
+    # boxes). Needs the real PDF to recalibrate; not guessed at here.
     d["BOX66_DX_VERSION"] = rp(6, 132, 14, 144)                                # Box66
 
     # Box67 principal diagnosis + Box67A-Q (17 secondary diagnoses)
-    d["DX_PRIMARY"] = return_blank_value(rp(16, 144, 71, 156)).replace("|67", "")   # Box67 (EW) — see module docstring
+    d["DX_PRIMARY"] = _strip_label_lines(return_blank_value(rp(16, 144, 71, 156)), "67")   # Box67 (EW) — see module docstring
     dx67_boxes = {
         "A": (71, 144, 129, 156), "B": (129, 144, 185, 156), "C": (185, 144, 243, 156), "D": (243, 144, 300, 156),
         "E": (300, 144, 359, 156), "F": (359, 144, 416, 156), "G": (416, 144, 474, 156), "H": (474, 144, 531, 156),
@@ -250,16 +351,16 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         "Q": (474, 132, 531, 144),
     }
     for letter, box in dx67_boxes.items():
-        d[f"DX_67{letter}"] = return_blank_value(rp(*box)).replace(f"|{letter}", "")
+        d[f"DX_67{letter}"] = _strip_label_lines(return_blank_value(rp(*box)), letter)
 
-    d["DX_ADMIT_69"] = return_blank_value(rp(36, 120, 86, 132))                # Box69
-    d["DX_PATIENT_REASON_A_70"] = return_blank_value(rp(121, 120, 171, 132)).replace("|A", "")  # Box70A
-    d["DX_PATIENT_REASON_B_70"] = return_blank_value(rp(171, 120, 222, 132)).replace("|B", "")  # Box70B
-    d["DX_PATIENT_REASON_C_70"] = return_blank_value(rp(222, 120, 274, 132)).replace("|C", "")  # Box70C
-    d["PPS_CODE_71"] = rp(301, 120, 336, 132)                                  # Box71
-    d["ECI_A_72"] = return_blank_value(rp(351, 120, 408, 132)).replace("|A", "")  # Box72A-C
-    d["ECI_B_72"] = return_blank_value(rp(408, 120, 466, 132)).replace("|B", "")
-    d["ECI_C_72"] = return_blank_value(rp(466, 120, 525, 132)).replace("|C", "")
+    d["DX_ADMIT_69"] = _strip_label_lines(return_blank_value(rp(36, 120, 86, 132)), "69")  # Box69
+    d["DX_PATIENT_REASON_A_70"] = _strip_label_lines(return_blank_value(rp(121, 120, 171, 132)), "A")  # Box70A
+    d["DX_PATIENT_REASON_B_70"] = _strip_label_lines(return_blank_value(rp(171, 120, 222, 132)), "B")  # Box70B
+    d["DX_PATIENT_REASON_C_70"] = _strip_label_lines(return_blank_value(rp(222, 120, 274, 132)), "C")  # Box70C
+    d["PPS_CODE_71"] = _strip_label_lines(rp(301, 120, 336, 132), "71")        # Box71
+    d["ECI_A_72"] = _strip_label_lines(return_blank_value(rp(351, 120, 408, 132)), "A")  # Box72A-C
+    d["ECI_B_72"] = _strip_label_lines(return_blank_value(rp(408, 120, 466, 132)), "B")
+    d["ECI_C_72"] = _strip_label_lines(return_blank_value(rp(466, 120, 525, 132)), "C")
 
     d["PRINCIPAL_PROC_CODE_74"] = rp(6, 97, 65, 109)                           # Box74
     d["PRINCIPAL_PROC_DATE_74"] = rp(65, 97, 114, 109)

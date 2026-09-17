@@ -80,8 +80,13 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX3B", "MED REC #", "MED_REC_NO"),
     ("BOX4", "TYPE OF BILL", "TYPE_OF_BILL"),
     ("BOX5", "FEDERAL TAX I.D. NUMBER", "FED_TAX_ID"),
-    ("BOX6", "PERIOD COVERED FROM", "PERIOD_COV_FROM"),
-    ("BOX6", "PERIOD COVERED TO", "PERIOD_COV_TO"),
+    ("BOX6", "STATEMENT COVERS FROM", "PERIOD_COV_FROM"),
+    ("BOX6", "STATEMENT COVERS THROUGH", "PERIOD_COV_TO"),
+    # Box 7 is unlabeled/reserved on the real UB-04 form and the VBA never
+    # extracts it either (oReadPdf.txt:23 — `'CI.Range("U" & rw) = ... 'Box7`
+    # commented out) — kept blank so the box numbering stays contiguous,
+    # same convention as BOX29/BOX30/BOX68/BOX73/BOX75 below.
+    ("BOX7", "(UNUSED)", "BOX7_UNPOPULATED"),
     ("BOX8A", "PATIENT'S NAME", "PATIENT_NAME"),
     ("BOX9A", "PATIENT'S ADDRESS", "PATIENT_ADDR"),
     ("BOX10", "PATIENT'S BIRTHDATE", "PATIENT_DOB"),
@@ -92,12 +97,23 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX15", "ADMISSION SRC", "ADMISSION_SRC"),
     ("BOX16", "DHR", "DHR"),
     ("BOX17", "STAT", "STAT"),
-    ("COND CODES (18-28)", "18", "COND_CODE_18"), ("COND CODES (18-28)", "19", "COND_CODE_19"),
-    ("COND CODES (18-28)", "20", "COND_CODE_20"), ("COND CODES (18-28)", "21", "COND_CODE_21"),
-    ("COND CODES (18-28)", "22", "COND_CODE_22"), ("COND CODES (18-28)", "23", "COND_CODE_23"),
-    ("COND CODES (18-28)", "24", "COND_CODE_24"), ("COND CODES (18-28)", "25", "COND_CODE_25"),
-    ("COND CODES (18-28)", "26", "COND_CODE_26"), ("COND CODES (18-28)", "27", "COND_CODE_27"),
-    ("COND CODES (18-28)", "28", "COND_CODE_28"), ("COND CODES (18-28)", "29", "COND_CODE_29"),
+    ("CONDITION CODES BOX(18-28)", "18", "COND_CODE_18"), ("CONDITION CODES BOX(18-28)", "19", "COND_CODE_19"),
+    ("CONDITION CODES BOX(18-28)", "20", "COND_CODE_20"), ("CONDITION CODES BOX(18-28)", "21", "COND_CODE_21"),
+    ("CONDITION CODES BOX(18-28)", "22", "COND_CODE_22"), ("CONDITION CODES BOX(18-28)", "23", "COND_CODE_23"),
+    ("CONDITION CODES BOX(18-28)", "24", "COND_CODE_24"), ("CONDITION CODES BOX(18-28)", "25", "COND_CODE_25"),
+    ("CONDITION CODES BOX(18-28)", "26", "COND_CODE_26"), ("CONDITION CODES BOX(18-28)", "27", "COND_CODE_27"),
+    ("CONDITION CODES BOX(18-28)", "28", "COND_CODE_28"),
+    # Box 29 is a DIFFERENT field (Accident State), not another condition
+    # code — oReadPdf.txt's own comment on this coordinate is
+    # 'Box29_ACDT_State, distinct from the Box18-28 condition-code slots
+    # above. Kept its own single-column group rather than folding it into
+    # "CONDITION CODES BOX(18-28)".
+    ("BOX29", "ACDT STATE", "COND_CODE_29"),
+    # Box 30 is unlabeled/reserved on the real UB-04 form and the VBA never
+    # extracts it either (oReadPdf.txt: `'CI.Range("AR" & rw) = ... 'Box30`
+    # — commented out) — kept as a blank placeholder column so the box
+    # numbering stays contiguous with the reference workbook's own layout.
+    ("BOX30", "(UNUSED)", "BOX30_UNPOPULATED"),
     ("OCCURRENCE A (31-34)", "31 CODE", "OCC_A_31_CODE"), ("OCCURRENCE A (31-34)", "31 DATE", "OCC_A_31_DATE"),
     ("OCCURRENCE A (31-34)", "32 CODE", "OCC_A_32_CODE"), ("OCCURRENCE A (31-34)", "32 DATE", "OCC_A_32_DATE"),
     ("OCCURRENCE A (31-34)", "33 CODE", "OCC_A_33_CODE"), ("OCCURRENCE A (31-34)", "33 DATE", "OCC_A_33_DATE"),
@@ -109,6 +125,10 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("OCC SPAN A (35-36)", "36 FROM", "OCC_SPAN_A_36_FROM"),
     ("OCC SPAN A (35-36)", "36 THRU", "OCC_SPAN_A_36_THRU"),
     ("BOX37A", "37A", "BOX37A"),
+    # Blank, no box number in the VBA at all (oReadPdf.txt:62 —
+    # `'CI.Range("BH" & rw) =`, no comment) — kept as a placeholder column
+    # so the occurrence-B block below lines up with the reference workbook.
+    (None, "(UNUSED)", "BOX_BH_UNPOPULATED"),
     ("OCCURRENCE B (31-34)", "31 CODE", "OCC_B_31_CODE"), ("OCCURRENCE B (31-34)", "31 DATE", "OCC_B_31_DATE"),
     ("OCCURRENCE B (31-34)", "32 CODE", "OCC_B_32_CODE"), ("OCCURRENCE B (31-34)", "32 DATE", "OCC_B_32_DATE"),
     ("OCCURRENCE B (31-34)", "33 CODE", "OCC_B_33_CODE"), ("OCCURRENCE B (31-34)", "33 DATE", "OCC_B_33_DATE"),
@@ -120,19 +140,24 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("OCC SPAN B (35-36)", "36 FROM", "OCC_SPAN_B_36_FROM"),
     ("OCC SPAN B (35-36)", "36 THRU", "OCC_SPAN_B_36_THRU"),
     ("BOX37B", "37B", "BOX37B"),
-    ("BOX38", "RESPONSIBLE PARTY NAME/ADDRESS", "BOX38"),
-    ("VALUE CODES (39-41)", "39A CODE", "VALUE_39A_CODE"), ("VALUE CODES (39-41)", "39A AMT", "VALUE_39A_AMT"),
-    ("VALUE CODES (39-41)", "39B CODE", "VALUE_39B_CODE"), ("VALUE CODES (39-41)", "39B AMT", "VALUE_39B_AMT"),
-    ("VALUE CODES (39-41)", "39C CODE", "VALUE_39C_CODE"), ("VALUE CODES (39-41)", "39C AMT", "VALUE_39C_AMT"),
-    ("VALUE CODES (39-41)", "39D CODE", "VALUE_39D_CODE"), ("VALUE CODES (39-41)", "39D AMT", "VALUE_39D_AMT"),
-    ("VALUE CODES (39-41)", "40A CODE", "VALUE_40A_CODE"), ("VALUE CODES (39-41)", "40A AMT", "VALUE_40A_AMT"),
-    ("VALUE CODES (39-41)", "40B CODE", "VALUE_40B_CODE"), ("VALUE CODES (39-41)", "40B AMT", "VALUE_40B_AMT"),
-    ("VALUE CODES (39-41)", "40C CODE", "VALUE_40C_CODE"), ("VALUE CODES (39-41)", "40C AMT", "VALUE_40C_AMT"),
-    ("VALUE CODES (39-41)", "40D CODE", "VALUE_40D_CODE"), ("VALUE CODES (39-41)", "40D AMT", "VALUE_40D_AMT"),
-    ("VALUE CODES (39-41)", "41A CODE", "VALUE_41A_CODE"), ("VALUE CODES (39-41)", "41A AMT", "VALUE_41A_AMT"),
-    ("VALUE CODES (39-41)", "41B CODE", "VALUE_41B_CODE"), ("VALUE CODES (39-41)", "41B AMT", "VALUE_41B_AMT"),
-    ("VALUE CODES (39-41)", "41C CODE", "VALUE_41C_CODE"), ("VALUE CODES (39-41)", "41C AMT", "VALUE_41C_AMT"),
-    ("VALUE CODES (39-41)", "41D CODE", "VALUE_41D_CODE"), ("VALUE CODES (39-41)", "41D AMT", "VALUE_41D_AMT"),
+    ("BOX38", "NAME", "BOX38_NAME"),
+    ("BOX38", "ADDRESS 1", "BOX38_ADDR1"),
+    ("BOX38", "ADDRESS 2", "BOX38_ADDR2"),
+    ("BOX38", "CITY", "BOX38_CITY"),
+    ("BOX38", "STATE", "BOX38_STATE"),
+    ("BOX38", "ZIPCODE", "BOX38_ZIP"),
+    ("BOX39A", "VALUE CODE", "VALUE_39A_CODE"), ("BOX39A", "VALUE CODE AMOUNT", "VALUE_39A_AMT"),
+    ("BOX39B", "VALUE CODE", "VALUE_39B_CODE"), ("BOX39B", "VALUE CODE AMOUNT", "VALUE_39B_AMT"),
+    ("BOX39C", "VALUE CODE", "VALUE_39C_CODE"), ("BOX39C", "VALUE CODE AMOUNT", "VALUE_39C_AMT"),
+    ("BOX39D", "VALUE CODE", "VALUE_39D_CODE"), ("BOX39D", "VALUE CODE AMOUNT", "VALUE_39D_AMT"),
+    ("BOX40A", "VALUE CODE", "VALUE_40A_CODE"), ("BOX40A", "VALUE CODE AMOUNT", "VALUE_40A_AMT"),
+    ("BOX40B", "VALUE CODE", "VALUE_40B_CODE"), ("BOX40B", "VALUE CODE AMOUNT", "VALUE_40B_AMT"),
+    ("BOX40C", "VALUE CODE", "VALUE_40C_CODE"), ("BOX40C", "VALUE CODE AMOUNT", "VALUE_40C_AMT"),
+    ("BOX40D", "VALUE CODE", "VALUE_40D_CODE"), ("BOX40D", "VALUE CODE AMOUNT", "VALUE_40D_AMT"),
+    ("BOX41A", "VALUE CODE", "VALUE_41A_CODE"), ("BOX41A", "VALUE CODE AMOUNT", "VALUE_41A_AMT"),
+    ("BOX41B", "VALUE CODE", "VALUE_41B_CODE"), ("BOX41B", "VALUE CODE AMOUNT", "VALUE_41B_AMT"),
+    ("BOX41C", "VALUE CODE", "VALUE_41C_CODE"), ("BOX41C", "VALUE CODE AMOUNT", "VALUE_41C_AMT"),
+    ("BOX41D", "VALUE CODE", "VALUE_41D_CODE"), ("BOX41D", "VALUE CODE AMOUNT", "VALUE_41D_AMT"),
     ("PAYER A (50-55)", "NAME", "PAYER_A_NAME"), ("PAYER A (50-55)", "PLAN ID", "PAYER_A_PLAN_ID"),
     ("PAYER A (50-55)", "REL INFO", "PAYER_A_REL_INFO"), ("PAYER A (50-55)", "ASG BEN", "PAYER_A_ASG_BEN"),
     ("PAYER A (50-55)", "PRIOR PAYMENTS", "PAYER_A_PRIOR_PMT"), ("PAYER A (50-55)", "EST AMOUNT DUE", "PAYER_A_EST_DUE"),
@@ -167,19 +192,29 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX67", "J", "DX_67J"), ("BOX67", "K", "DX_67K"), ("BOX67", "L", "DX_67L"),
     ("BOX67", "M", "DX_67M"), ("BOX67", "N", "DX_67N"), ("BOX67", "O", "DX_67O"),
     ("BOX67", "P", "DX_67P"), ("BOX67", "Q", "DX_67Q"),
-    ("BOX69", "ADMITTING DX", "DX_ADMIT_69"),
-    ("BOX70", "A", "DX_PATIENT_REASON_A_70"),
-    ("BOX70", "B", "DX_PATIENT_REASON_B_70"),
-    ("BOX70", "C", "DX_PATIENT_REASON_C_70"),
+    # Box 68 ("Extra Boxes") is unlabeled/reserved and the VBA never
+    # extracts it (oReadPdf.txt:169 — `'CI.Range("FO" & rw) ='Box68 -
+    # Extra Boxes`, commented out).
+    ("BOX68", "(UNUSED)", "BOX68_UNPOPULATED"),
+    ("BOX69", "ADMIT DX", "DX_ADMIT_69"),
+    ("BOX70A", "PATIENT DX", "DX_PATIENT_REASON_A_70"),
+    ("BOX70B", "PATIENT DX", "DX_PATIENT_REASON_B_70"),
+    ("BOX70C", "PATIENT DX", "DX_PATIENT_REASON_C_70"),
     ("BOX71", "PPS CODE", "PPS_CODE_71"),
-    ("BOX72", "A", "ECI_A_72"), ("BOX72", "B", "ECI_B_72"), ("BOX72", "C", "ECI_C_72"),
-    ("BOX74", "PRINCIPAL CODE", "PRINCIPAL_PROC_CODE_74"),
-    ("BOX74", "PRINCIPAL DATE", "PRINCIPAL_PROC_DATE_74"),
-    ("BOX74", "A CODE", "OTHER_PROC_A_CODE_74"), ("BOX74", "A DATE", "OTHER_PROC_A_DATE_74"),
-    ("BOX74", "B CODE", "OTHER_PROC_B_CODE_74"), ("BOX74", "B DATE", "OTHER_PROC_B_DATE_74"),
-    ("BOX74", "C CODE", "OTHER_PROC_C_CODE_74"), ("BOX74", "C DATE", "OTHER_PROC_C_DATE_74"),
-    ("BOX74", "D CODE", "OTHER_PROC_D_CODE_74"), ("BOX74", "D DATE", "OTHER_PROC_D_DATE_74"),
-    ("BOX74", "E CODE", "OTHER_PROC_E_CODE_74"), ("BOX74", "E DATE", "OTHER_PROC_E_DATE_74"),
+    ("BOX72A", "ECI", "ECI_A_72"), ("BOX72B", "ECI", "ECI_B_72"), ("BOX72C", "ECI", "ECI_C_72"),
+    # Box 73 is unlabeled/reserved and the VBA never extracts it either
+    # (oReadPdf.txt:178 — `'CI.Range("FX" & rw) = ... 'Box73`, commented out).
+    ("BOX73", "(UNUSED)", "BOX73_UNPOPULATED"),
+    ("BOX74", "PRINCIPAL PROCEDURE CODE", "PRINCIPAL_PROC_CODE_74"),
+    ("BOX74", "PRINCIPAL PROCEDURE DATE", "PRINCIPAL_PROC_DATE_74"),
+    ("BOX74A", "OTHER PROCEDURE CODE", "OTHER_PROC_A_CODE_74"), ("BOX74A", "OTHER PROCEDURE DATE", "OTHER_PROC_A_DATE_74"),
+    ("BOX74B", "OTHER PROCEDURE CODE", "OTHER_PROC_B_CODE_74"), ("BOX74B", "OTHER PROCEDURE DATE", "OTHER_PROC_B_DATE_74"),
+    ("BOX74C", "OTHER PROCEDURE CODE", "OTHER_PROC_C_CODE_74"), ("BOX74C", "OTHER PROCEDURE DATE", "OTHER_PROC_C_DATE_74"),
+    ("BOX74D", "OTHER PROCEDURE CODE", "OTHER_PROC_D_CODE_74"), ("BOX74D", "OTHER PROCEDURE DATE", "OTHER_PROC_D_DATE_74"),
+    ("BOX74E", "OTHER PROCEDURE CODE", "OTHER_PROC_E_CODE_74"), ("BOX74E", "OTHER PROCEDURE DATE", "OTHER_PROC_E_DATE_74"),
+    # Box 75 is unlabeled/reserved and the VBA never extracts it either
+    # (oReadPdf.txt:191 — `'CI.Range("GK" & rw) =`, no comment at all).
+    ("BOX75", "(UNUSED)", "BOX75_UNPOPULATED"),
     ("BOX76", "NPI", "ATTENDING_NPI_76"), ("BOX76", "QUAL", "ATTENDING_QUAL_76"),
     ("BOX76", "LAST", "ATTENDING_LAST_76"), ("BOX76", "FIRST", "ATTENDING_FIRST_76"),
     ("BOX77", "NPI", "OPERATING_NPI_77"), ("BOX77", "QUAL", "OPERATING_QUAL_77"),
