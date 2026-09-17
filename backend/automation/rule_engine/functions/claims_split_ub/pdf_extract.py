@@ -536,25 +536,43 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
                         l2, b2 = l, b - 15
                         r2 = r + 10 if pattern in _LEGACY_WIDE else r
                         t2 = b
-                    if rw >= len(service_lines):
-                        rw += 1
-                        continue
-                    svl = service_lines[rw]
+                    # `svl` is None once `rw` runs past the last real
+                    # service line — the VBA has no such bound (it just
+                    # keeps writing CS.Range("S" & rW) etc. into whatever
+                    # row rW reaches next, harmless in Excel), so per-line
+                    # writes below are skipped past the end, but the running
+                    # TOTAL_REPRICED/TOTAL_DISCOUNTS sum is NOT: the VBA
+                    # accumulates unconditionally inside the Select Case,
+                    # with no rW bounds check at all (oReadPdf.txt:456-479).
+                    # A prior version of this port gated the whole match
+                    # (read + accumulate) on `rw < len(service_lines)`,
+                    # silently dropping every repricing match beyond the
+                    # last service line from the total — confirmed against
+                    # a real claim where that undercounted TOTAL_REPRICED/
+                    # TOTAL_DISCOUNTS (990.00/330.00 instead of the real
+                    # macro's 1390.50/463.50).
+                    svl = service_lines[rw] if rw < len(service_lines) else None
                     if pattern in ("Date Frm", "DATE FRM"):
-                        svl["REPRICE_DATE_FROM"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
+                        if svl is not None:
+                            svl["REPRICE_DATE_FROM"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
                     elif pattern in ("Date Thr", "DATE THR"):
-                        svl["REPRICE_DATE_TO"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
+                        if svl is not None:
+                            svl["REPRICE_DATE_TO"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
                     elif pattern in ("HCPCS", "CPT/HCPCS"):
-                        svl["REPRICE_HCPCS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
+                        if svl is not None:
+                            svl["REPRICE_HCPCS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
                     elif pattern in ("Charges", "CHARGES"):
-                        svl["REPRICE_CHARGES"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
+                        if svl is not None:
+                            svl["REPRICE_CHARGES"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
                     elif pattern == "Units":
-                        svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace(",", "")
+                        if svl is not None:
+                            svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace(",", "")
                     elif pattern in ("/Repriced", "Allowed/"):
                         val = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
                         if pattern == "Allowed/":
                             val = val.replace("REPRICED|", "").replace("REPRICED", "")
-                        svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
+                        if svl is not None:
+                            svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
                         try:
                             totals["TOTAL_REPRICED"] += float(val) if val else 0.0
                         except ValueError:
@@ -563,10 +581,11 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
                         val = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
                         if pattern == "Discount/":
                             val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
-                        svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
-                        svl["DISCOUNT_REASON"] = _norm(
-                            reader.read_page(pdf_path, page, r2, b2, r2 + 41, t2)
-                        ).replace(",", "")
+                        if svl is not None:
+                            svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
+                            svl["DISCOUNT_REASON"] = _norm(
+                                reader.read_page(pdf_path, page, r2, b2, r2 + 41, t2)
+                            ).replace(",", "")
                         try:
                             totals["TOTAL_DISCOUNTS"] += float(val) if val else 0.0
                         except ValueError:
