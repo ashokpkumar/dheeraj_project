@@ -127,14 +127,30 @@ def _strip_label_lines(text: str, *labels: str) -> str:
     matched, not a blind substring replace, so it can't accidentally eat a
     real value that merely contains the label character sequence.
 
-    Handles the label landing TWO different ways, both confirmed against
-    real claims: as its own separate "|"-joined LINE (stripped whole), or —
-    confirmed on a second claim, where the printed box caption ("66 DX",
-    "67", ...) apparently sits close enough to the real value that
-    pdfplumber picks both up as words on the SAME line — as a leading/
-    trailing token on an otherwise-real line, space-joined with the value
-    (e.g. "67 XS62623A"). Only a LEADING or TRAILING token is stripped
-    (never a token in the middle), so a real value can't be corrupted.
+    Handles the label landing THREE different ways, all confirmed against
+    real claims:
+      1. As its own separate "|"-joined LINE (stripped whole).
+      2. The printed box caption ("66 DX", "67", ...) sitting close enough
+         to the real value that pdfplumber picks both up as words on the
+         SAME line — as a leading/trailing TOKEN, space-joined with the
+         value (e.g. "67 XS62623A"). Only a leading/trailing token is
+         stripped (never a token in the middle), so a real value can't be
+         corrupted by this pass.
+      3. Confirmed via a real claim's Excel formula bar (`EW3` read back
+         literally as `67XS62623A`, ZERO separator — not even a space):
+         pdfplumber can fuse the caption directly onto the value as one
+         single "word" with no gap at all, which pass 1/2 above can't
+         detect (there's no line or token boundary to split on). Handled
+         by a final literal-prefix/literal-suffix strip: if what's left
+         after passes 1-2 starts or ends with one of the labels as a plain
+         substring, that many characters are trimmed off the corresponding
+         end. Longer labels are tried first so a short label can't
+         partially eat a longer one. This is the one pass with a real,
+         accepted risk: a genuine value that happens to start/end with the
+         same characters as the label (e.g. a DX code starting with "67")
+         would get over-trimmed — accepted because every confirmed
+         real-claim case so far needed exactly this, and the labels here
+         are short, low-collision box captions, not arbitrary substrings.
     """
     labels_upper = {l.upper().rstrip(".") for l in labels}
     lines = [p.strip() for p in (text or "").split("|")]
@@ -150,7 +166,17 @@ def _strip_label_lines(text: str, *labels: str) -> str:
         line = " ".join(words).strip()
         if line:
             cleaned.append(line)
-    return " ".join(cleaned).strip()
+    result = " ".join(cleaned).strip()
+
+    for label in sorted(labels, key=len, reverse=True):
+        label = label.rstrip(".")
+        if not label:
+            continue
+        if result.upper().startswith(label.upper()):
+            result = result[len(label):]
+        if result.upper().endswith(label.upper()):
+            result = result[: len(result) - len(label)]
+    return result.strip()
 
 
 def _collapse_code_spaces(text: str) -> str:
@@ -365,12 +391,17 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         d[f"EMPLOYER_NAME_{suffix}"] = rp(415, bottom, 596, top)               # Box65
 
     # *** Box66 unresolved — see module docstring "Known open issue" note.
-    # Confirmed against a real claim: this box's own printed caption ("66
-    # DX") was bleeding into the value the same way Box67/70/72's captions
-    # were (see _strip_label_lines' docstring) — strips "66" and "DX" as
-    # leading/trailing tokens now that _strip_label_lines handles the
-    # same-line case too, not just a separate "|"-joined line.
-    d["BOX66_DX_VERSION"] = _collapse_code_spaces(_strip_label_lines(rp(6, 132, 14, 144), "66", "DX"))  # Box66
+    # Confirmed against a real claim (raw fused text "069" instead of a
+    # clean "0"): this box's own printed caption bleeds into the value the
+    # same way Box67/70/72's captions do. Guards against "66"/"DX" (this
+    # box's own caption) AND "69" — the observed raw text ("069") strips
+    # cleanly to "0" against a trailing "69", which doesn't match this
+    # box's own label at all; most likely Box69's neighboring caption
+    # ("69 ADMIT DX", the very next box down) bleeding in rather than
+    # Box66's own — the exact mechanism is still unconfirmed (see the
+    # coordinate-adjacency theory below), but stripping "69" here is a
+    # pragmatic fix matched to the real observed data.
+    d["BOX66_DX_VERSION"] = _collapse_code_spaces(_strip_label_lines(rp(6, 132, 14, 144), "66", "69", "DX"))  # Box66
 
     # Box67 principal diagnosis + Box67A-Q (17 secondary diagnoses). Every
     # code field below also goes through _collapse_code_spaces() — confirmed
