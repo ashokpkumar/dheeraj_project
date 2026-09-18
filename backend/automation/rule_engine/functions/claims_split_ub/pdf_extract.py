@@ -124,14 +124,48 @@ def _strip_label_lines(text: str, *labels: str) -> str:
     never match (searching for "|67", not "67|"). This strips either order,
     matching the VBA's evident INTENT rather than its exact (apparently
     order-mismatched even in the source macro) string replace. Exact-token
-    matched on a whole "|"-split line, not a blind substring replace, so it
-    can't accidentally eat a real value that merely contains the label
-    character sequence.
+    matched, not a blind substring replace, so it can't accidentally eat a
+    real value that merely contains the label character sequence.
+
+    Handles the label landing TWO different ways, both confirmed against
+    real claims: as its own separate "|"-joined LINE (stripped whole), or —
+    confirmed on a second claim, where the printed box caption ("66 DX",
+    "67", ...) apparently sits close enough to the real value that
+    pdfplumber picks both up as words on the SAME line — as a leading/
+    trailing token on an otherwise-real line, space-joined with the value
+    (e.g. "67 XS62623A"). Only a LEADING or TRAILING token is stripped
+    (never a token in the middle), so a real value can't be corrupted.
     """
     labels_upper = {l.upper().rstrip(".") for l in labels}
-    parts = [p.strip() for p in (text or "").split("|")]
-    kept = [p for p in parts if p.upper().rstrip(".") not in labels_upper]
-    return " ".join(p for p in kept if p).strip()
+    lines = [p.strip() for p in (text or "").split("|")]
+    cleaned: list[str] = []
+    for line in lines:
+        if line.upper().rstrip(".") in labels_upper:
+            continue  # the whole line is just the label
+        words = line.split(" ")
+        while words and words[0].upper().rstrip(".") in labels_upper:
+            words.pop(0)
+        while words and words[-1].upper().rstrip(".") in labels_upper:
+            words.pop()
+        line = " ".join(words).strip()
+        if line:
+            cleaned.append(line)
+    return " ".join(cleaned).strip()
+
+
+def _collapse_code_spaces(text: str) -> str:
+    """
+    Removes stray internal spaces from a short alphanumeric code value —
+    ICD-10/procedure/PPS/ECI codes never legitimately contain a space, but
+    pdfplumber's word-boundary detection can split one printed code into
+    two separate "words" on a subtle kerning/spacing gap within the glyphs
+    that `read_page()` then joins back together WITH a space (same-line
+    words are meant to be space-separated — correct for everything else,
+    wrong for a single fused code). Confirmed against a real claim: Box70A
+    Patient Dx read back "S626 23A" instead of "S62623A". Safe to apply to
+    any field where a legitimate value is never more than one token.
+    """
+    return (text or "").replace(" ", "")
 
 
 def _fix_amount_decimal(raw: str) -> str:
@@ -331,18 +365,20 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         d[f"EMPLOYER_NAME_{suffix}"] = rp(415, bottom, 596, top)               # Box65
 
     # *** Box66 unresolved — see module docstring "Known open issue" note.
-    # A real claim showed this coming back "0|69" instead of a clean "0" —
-    # the "69" doesn't match this box's own label ("66"), so it isn't the
-    # same prefix/suffix-order issue fixed below for Box67/70/72; most
-    # likely pdfplumber picking up a stray word from the vertically
-    # adjacent Box69 (this box's own coordinate, (6,132,14,144), shares its
-    # Y=132 edge exactly with Box69's Y=120-132 box just below it — see
-    # pdf_backend.py's is_marker_box "any overlap" matching for <=15x15pt
-    # boxes). Needs the real PDF to recalibrate; not guessed at here.
-    d["BOX66_DX_VERSION"] = rp(6, 132, 14, 144)                                # Box66
+    # Confirmed against a real claim: this box's own printed caption ("66
+    # DX") was bleeding into the value the same way Box67/70/72's captions
+    # were (see _strip_label_lines' docstring) — strips "66" and "DX" as
+    # leading/trailing tokens now that _strip_label_lines handles the
+    # same-line case too, not just a separate "|"-joined line.
+    d["BOX66_DX_VERSION"] = _collapse_code_spaces(_strip_label_lines(rp(6, 132, 14, 144), "66", "DX"))  # Box66
 
-    # Box67 principal diagnosis + Box67A-Q (17 secondary diagnoses)
-    d["DX_PRIMARY"] = _strip_label_lines(return_blank_value(rp(16, 144, 71, 156)), "67")   # Box67 (EW) — see module docstring
+    # Box67 principal diagnosis + Box67A-Q (17 secondary diagnoses). Every
+    # code field below also goes through _collapse_code_spaces() — confirmed
+    # against a real claim that pdfplumber can split one printed code into
+    # two words on a kerning gap (Box70A read back "S626 23A" instead of
+    # "S62623A") — these are all short alphanumeric codes that never
+    # legitimately contain a space.
+    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156)), "67"))   # Box67 (EW) — see module docstring
     dx67_boxes = {
         "A": (71, 144, 129, 156), "B": (129, 144, 185, 156), "C": (185, 144, 243, 156), "D": (243, 144, 300, 156),
         "E": (300, 144, 359, 156), "F": (359, 144, 416, 156), "G": (416, 144, 474, 156), "H": (474, 144, 531, 156),
@@ -351,16 +387,16 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
         "Q": (474, 132, 531, 144),
     }
     for letter, box in dx67_boxes.items():
-        d[f"DX_67{letter}"] = _strip_label_lines(return_blank_value(rp(*box)), letter)
+        d[f"DX_67{letter}"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(*box)), letter))
 
-    d["DX_ADMIT_69"] = _strip_label_lines(return_blank_value(rp(36, 120, 86, 132)), "69")  # Box69
-    d["DX_PATIENT_REASON_A_70"] = _strip_label_lines(return_blank_value(rp(121, 120, 171, 132)), "A")  # Box70A
-    d["DX_PATIENT_REASON_B_70"] = _strip_label_lines(return_blank_value(rp(171, 120, 222, 132)), "B")  # Box70B
-    d["DX_PATIENT_REASON_C_70"] = _strip_label_lines(return_blank_value(rp(222, 120, 274, 132)), "C")  # Box70C
-    d["PPS_CODE_71"] = _strip_label_lines(rp(301, 120, 336, 132), "71")        # Box71
-    d["ECI_A_72"] = _strip_label_lines(return_blank_value(rp(351, 120, 408, 132)), "A")  # Box72A-C
-    d["ECI_B_72"] = _strip_label_lines(return_blank_value(rp(408, 120, 466, 132)), "B")
-    d["ECI_C_72"] = _strip_label_lines(return_blank_value(rp(466, 120, 525, 132)), "C")
+    d["DX_ADMIT_69"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(36, 120, 86, 132)), "69"))  # Box69
+    d["DX_PATIENT_REASON_A_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(121, 120, 171, 132)), "A"))  # Box70A
+    d["DX_PATIENT_REASON_B_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(171, 120, 222, 132)), "B"))  # Box70B
+    d["DX_PATIENT_REASON_C_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(222, 120, 274, 132)), "C"))  # Box70C
+    d["PPS_CODE_71"] = _collapse_code_spaces(_strip_label_lines(rp(301, 120, 336, 132), "71"))        # Box71
+    d["ECI_A_72"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(351, 120, 408, 132)), "A"))  # Box72A-C
+    d["ECI_B_72"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(408, 120, 466, 132)), "B"))
+    d["ECI_C_72"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(466, 120, 525, 132)), "C"))
 
     d["PRINCIPAL_PROC_CODE_74"] = rp(6, 97, 65, 109)                           # Box74
     d["PRINCIPAL_PROC_DATE_74"] = rp(65, 97, 114, 109)
