@@ -223,30 +223,38 @@ CLAIMINFO_COLUMNS: list[tuple[str | None, str, str]] = [
     ("BOX78", "LAST", "OTHER1_LAST_78"), ("BOX78", "FIRST", "OTHER1_FIRST_78"),
     ("BOX79", "NPI", "OTHER2_NPI_79"), ("BOX79", "QUAL", "OTHER2_QUAL_79"),
     ("BOX79", "LAST", "OTHER2_LAST_79"), ("BOX79", "FIRST", "OTHER2_FIRST_79"),
-    (None, "TOTAL CHARGES", "TOTAL_CHARGES"),
-    (None, "TOTAL REPRICED", "TOTAL_REPRICED"),
-    (None, "TOTAL DISCOUNTS", "TOTAL_DISCOUNTS"),
-    (None, "REPRICED IND", "REPRICED_IND"),
-    (None, "HIC NUMBER", "HIC_NUMBER"),
-    (None, "REPRICED BY", "REPRICED_BY"),
-    (None, "CLAIM NOTE", "CLAIM_NTE"),
-    (None, "TIMELY FILING", "TIMELY_FILING"),
-    (None, "METHOD", "METHOD_INFO"),
-    ("COB", "DEDUCTIBLE", "COB_DEDUCTIBLE"),
-    ("COB", "COINSURANCE", "COB_COINSURANCE"),
-    ("COB", "CALC APPROVED AMT", "COB_CALC_APPROVED_AMT"),
-    ("COB", "PAID", "COB_PAID_TOTAL"),
-    ("COB", "PATIENT RESPONSIBILITY", "COB_PATIENT_RESPONSIBILITY"),
-    ("COB", "NON-COVERED", "COB_NON_COVERED"),
-    ("COB", "CONTRACTUAL", "COB_CONTRACTUAL"),
-    ("COB", "MEDICARE ID", "COB_MEDICARE_ID"),
-    ("COB", "OTHER INSURANCE TYPE", "COB_OTHER_INS_TYPE"),
-    ("COB", "ADJUSTMENT DETAIL", "COB_ADJUSTMENT_DETAIL"),
+    # This whole tail section's order/grouping is taken directly from the
+    # reference workbook (its own header row), not the VBA write order in
+    # Main.txt/oReadPdf.txt (which writes these same fields into INF cells
+    # in a different sequence) — matches what the user actually sees.
+    ("ADDITIONAL REFERENCES", "TOTAL CHARGES", "TOTAL_CHARGES"),
+    ("ADDITIONAL REFERENCES", "TOTAL REPRICED", "TOTAL_REPRICED"),
+    ("ADDITIONAL REFERENCES", "TOTAL DISCOUNTS", "TOTAL_DISCOUNTS"),
+    ("ADDITIONAL REFERENCES", "RE-PRICE IND", "REPRICED_IND"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "DEDUCTIBLE", "COB_DEDUCTIBLE"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "CO INSURANCE", "COB_COINSURANCE"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "CALCULATED APPRV AMT", "COB_CALC_APPROVED_AMT"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "PAID", "COB_PAID_TOTAL"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "PATIENT RESPN", "COB_PATIENT_RESPONSIBILITY"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "NON COVERED", "COB_NON_COVERED"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "CONTRACTUAL", "COB_CONTRACTUAL"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "CLAIM ADJUSTMENT", "COB_ADJUSTMENT_DETAIL"),
+    # The reference workbook's own header text for this field is "MEMBER
+    # ID", not "MEDICARE ID" — kept the dict key as COB_MEDICARE_ID (it's
+    # what Medicare_Medicaid_Cob_Information's "Medicare ID" KeyPattern
+    # search populates) but matched the display label the user actually sees.
+    ("MEDICARE/MEDICAID COB INFORMATION", "MEMBER ID", "COB_MEDICARE_ID"),
+    ("MEDICARE/MEDICAID COB INFORMATION", "HIC NUMBER", "HIC_NUMBER"),
     # HP in the original: read as an input on the CPS325 screen (Scratch Not
     # Online mode, oScratchNotOnline:132) but no extraction routine in
     # oReadPdf.txt ever writes it — always blank in the real macro too. See
     # pdf_extract.py's module docstring.
-    (None, "FOR PRV SELECTION", "BOX_HP_UNPOPULATED"),
+    ("FOR PRV SELECTION", "PROVIDER INTERNAL MANUAL ID", "BOX_HP_UNPOPULATED"),
+    (None, "RE-PRICED BY", "REPRICED_BY"),
+    (None, "OTHER INSURANCE TYPE", "COB_OTHER_INS_TYPE"),
+    (None, "METHOD", "METHOD_INFO"),
+    (None, "TIMELY FILING", "TIMELY_FILING"),
+    (None, "CLAIM NTE", "CLAIM_NTE"),
 ]
 
 
