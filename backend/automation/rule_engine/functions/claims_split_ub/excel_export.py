@@ -311,7 +311,15 @@ MAIN_CLAIM_COLUMNS: list[tuple[str, str]] = [
     ("PATIENT'S NAME", "PATIENT_NAME"),
     ("FROM SVDT", "FROM_SVDT"),
     ("THRU SVDT", "THRU_SVDT"),
-    ("TOTAL CHARGE", "TOTAL_CHARGES"),
+    # Distinct key from MAIN_LINE_COLUMNS's "CHARGES" (which also uses
+    # "TOTAL_CHARGES" — that's the per-line field name in each service-line
+    # dict). Merging the claim block over the line block would otherwise
+    # let the LINE's own charge silently overwrite the claim-level total in
+    # the merged row dict (confirmed against a real claim: TOTAL CHARGE
+    # rendered as the first service line's own 268.00 instead of the real
+    # claim total 4756.00) — same class of key-collision bug as
+    # claim_split_hcfa's own CCN_HEADER/CLAIM_NO fix.
+    ("TOTAL CHARGE", "TOTAL_CHARGES_CLAIM"),
     ("TOTAL REPRICED", "TOTAL_REPRICED"),
     ("TOTAL DISCOUNT", "TOTAL_DISCOUNTS"),
     ("NO. OF SV LINES", "TOTAL_SVLINES"),
@@ -377,6 +385,7 @@ def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict
             # service lines, not anything read off the PDF directly.
             "FROM_SVDT": min(dos_parsed)[1] if dos_parsed else "",
             "THRU_SVDT": max(dos_parsed)[1] if dos_parsed else "",
+            "TOTAL_CHARGES_CLAIM": claim.get("TOTAL_CHARGES", ""),
             "TOTAL_SVLINES": len(own_lines),
             # Sequence number of this claim within the run — the original
             # input's own worksheet row isn't carried through
