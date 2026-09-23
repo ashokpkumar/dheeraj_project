@@ -682,84 +682,96 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
     _LEGACY_WIDE = {"Charges", "/Repriced", "/Ineligible"}
 
     for pattern, new_style in key_patterns:
+        # Gather every raw match across ALL pages first, tagged with the
+        # page it came from, instead of slicing `matches[:-1]` fresh on
+        # EACH page. The VBA's `For x = 0 To UBound(olSet) - 1` does the
+        # latter — drops the last match on every single page — which
+        # assumes each page's TextCoordinates() call always returns one
+        # "junk" match beyond the real per-line ones. Confirmed against a
+        # real 11-line claim split across 2 PDF pages (5 lines on one, 6 on
+        # the other) that pdfplumber's own text_coordinates() does NOT
+        # reliably produce that same extra junk match: dropping one match
+        # per page discarded the LAST real service line's REPRICE data on
+        # EACH page (entries #5 and #11 — the last line on page 2 and the
+        # last line on page 3 respectively — came back with blank REPRICE
+        # columns, everything else matched). Dropping is now based on
+        # actual evidence — only when there are more raw matches in total
+        # than real service lines — and applied once across the whole
+        # document, not once per page.
+        all_matches: list[tuple[int, list[str]]] = []
         page = repricing_page
-        rw = 0
         while page <= total_pages:
             coords = reader.text_coordinates(pdf_path, pattern, page)
             if coords:
-                matches = coords.split("|")
-                # Mirrors `For x = 0 To UBound(olSet) - 1` — the VBA
-                # deliberately drops the LAST coordinate match on every
-                # page for every pattern (see claim_split_hcfa's port for
-                # why this off-by-one matters: it desyncs `rw` against the
-                # real service-line index if not dropped).
-                for match in matches[:-1]:
+                for match in coords.split("|"):
                     parts = match.split(",")
-                    if len(parts) < 4:
-                        continue
-                    l, b, r, t = (float(x) for x in parts)
-                    if new_style:
-                        l2, b2, r2, t2 = l, b - 23.25, r, t - 15.25
-                    else:
-                        l2, b2 = l, b - 15
-                        r2 = r + 10 if pattern in _LEGACY_WIDE else r
-                        t2 = b
-                    # `svl` is None once `rw` runs past the last real
-                    # service line — the VBA has no such bound (it just
-                    # keeps writing CS.Range("S" & rW) etc. into whatever
-                    # row rW reaches next, harmless in Excel), so per-line
-                    # writes below are skipped past the end, but the running
-                    # TOTAL_REPRICED/TOTAL_DISCOUNTS sum is NOT: the VBA
-                    # accumulates unconditionally inside the Select Case,
-                    # with no rW bounds check at all (oReadPdf.txt:456-479).
-                    # A prior version of this port gated the whole match
-                    # (read + accumulate) on `rw < len(service_lines)`,
-                    # silently dropping every repricing match beyond the
-                    # last service line from the total — confirmed against
-                    # a real claim where that undercounted TOTAL_REPRICED/
-                    # TOTAL_DISCOUNTS (990.00/330.00 instead of the real
-                    # macro's 1390.50/463.50).
-                    svl = service_lines[rw] if rw < len(service_lines) else None
-                    if pattern in ("Date Frm", "DATE FRM"):
-                        if svl is not None:
-                            svl["REPRICE_DATE_FROM"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
-                    elif pattern in ("Date Thr", "DATE THR"):
-                        if svl is not None:
-                            svl["REPRICE_DATE_TO"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
-                    elif pattern in ("HCPCS", "CPT/HCPCS"):
-                        if svl is not None:
-                            svl["REPRICE_HCPCS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2))
-                    elif pattern in ("Charges", "CHARGES"):
-                        if svl is not None:
-                            svl["REPRICE_CHARGES"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
-                    elif pattern == "Units":
-                        if svl is not None:
-                            svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace(",", "")
-                    elif pattern in ("/Repriced", "Allowed/"):
-                        val = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
-                        if pattern == "Allowed/":
-                            val = val.replace("REPRICED|", "").replace("REPRICED", "")
-                        if svl is not None:
-                            svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
-                        try:
-                            totals["TOTAL_REPRICED"] += float(val) if val else 0.0
-                        except ValueError:
-                            pass
-                    elif pattern in ("/Ineligible", "Discount/"):
-                        val = _norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
-                        if pattern == "Discount/":
-                            val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
-                        if svl is not None:
-                            svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
-                            svl["DISCOUNT_REASON"] = _norm(
-                                reader.read_page(pdf_path, page, r2, b2, r2 + 41, t2)
-                            ).replace(",", "")
-                        try:
-                            totals["TOTAL_DISCOUNTS"] += float(val) if val else 0.0
-                        except ValueError:
-                            pass
-                    rw += 1
+                    if len(parts) >= 4:
+                        all_matches.append((page, parts))
             page += 1
+
+        if len(all_matches) > len(service_lines):
+            all_matches = all_matches[:-1]
+
+        for rw, (match_page, parts) in enumerate(all_matches):
+            l, b, r, t = (float(x) for x in parts)
+            if new_style:
+                l2, b2, r2, t2 = l, b - 23.25, r, t - 15.25
+            else:
+                l2, b2 = l, b - 15
+                r2 = r + 10 if pattern in _LEGACY_WIDE else r
+                t2 = b
+            # `svl` is None once `rw` runs past the last real service line
+            # — the VBA has no such bound (it just keeps writing
+            # CS.Range("S" & rW) etc. into whatever row rW reaches next,
+            # harmless in Excel), so per-line writes below are skipped past
+            # the end, but the running TOTAL_REPRICED/TOTAL_DISCOUNTS sum is
+            # NOT: the VBA accumulates unconditionally inside the Select
+            # Case, with no rW bounds check at all (oReadPdf.txt:456-479).
+            # A prior version of this port gated the whole match (read +
+            # accumulate) on `rw < len(service_lines)`, silently dropping
+            # every repricing match beyond the last service line from the
+            # total — confirmed against a real claim where that
+            # undercounted TOTAL_REPRICED/TOTAL_DISCOUNTS (990.00/330.00
+            # instead of the real macro's 1390.50/463.50).
+            svl = service_lines[rw] if rw < len(service_lines) else None
+            if pattern in ("Date Frm", "DATE FRM"):
+                if svl is not None:
+                    svl["REPRICE_DATE_FROM"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2))
+            elif pattern in ("Date Thr", "DATE THR"):
+                if svl is not None:
+                    svl["REPRICE_DATE_TO"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2))
+            elif pattern in ("HCPCS", "CPT/HCPCS"):
+                if svl is not None:
+                    svl["REPRICE_HCPCS"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2))
+            elif pattern in ("Charges", "CHARGES"):
+                if svl is not None:
+                    svl["REPRICE_CHARGES"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
+            elif pattern == "Units":
+                if svl is not None:
+                    svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace(",", "")
+            elif pattern in ("/Repriced", "Allowed/"):
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
+                if pattern == "Allowed/":
+                    val = val.replace("REPRICED|", "").replace("REPRICED", "")
+                if svl is not None:
+                    svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
+                try:
+                    totals["TOTAL_REPRICED"] += float(val) if val else 0.0
+                except ValueError:
+                    pass
+            elif pattern in ("/Ineligible", "Discount/"):
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
+                if pattern == "Discount/":
+                    val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
+                if svl is not None:
+                    svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
+                    svl["DISCOUNT_REASON"] = _norm(
+                        reader.read_page(pdf_path, match_page, r2, b2, r2 + 41, t2)
+                    ).replace(",", "")
+                try:
+                    totals["TOTAL_DISCOUNTS"] += float(val) if val else 0.0
+                except ValueError:
+                    pass
 
     totals["TOTAL_REPRICED"] = round(totals["TOTAL_REPRICED"], 2)
     totals["TOTAL_DISCOUNTS"] = round(totals["TOTAL_DISCOUNTS"], 2)
