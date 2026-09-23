@@ -305,10 +305,16 @@ _GROUP_LABELS = {"REPRICE": _REPRICE_GROUP_LABEL, "COBDOC": _COBDOC_GROUP_LABEL}
 
 MAIN_CLAIM_COLUMNS: list[tuple[str, str]] = [
     ("MACRO STATUS", "MACRO_STATUS"),
-    ("NOTES", "NOTES"),
+    ("OTHER NOTES", "NOTES"),
     ("*CCN (Required)", "CCN_HEADER"),
     ("CLAIM TYPE", "CLAIM_TYPE"),
-    ("TOTAL SV LINES", "TOTAL_SVLINES"),
+    ("PATIENT'S NAME", "PATIENT_NAME"),
+    ("FROM SVDT", "FROM_SVDT"),
+    ("THRU SVDT", "THRU_SVDT"),
+    ("TOTAL CHARGE", "TOTAL_CHARGES"),
+    ("TOTAL REPRICED", "TOTAL_REPRICED"),
+    ("TOTAL DISCOUNT", "TOTAL_DISCOUNTS"),
+    ("NO. OF SV LINES", "TOTAL_SVLINES"),
     ("XLRW LOC", "XLRW_LOC"),
 ]
 
@@ -327,6 +333,18 @@ MAIN_LINE_COLUMNS: list[tuple[str, str]] = [
     ("MOD 03", "MOD_C"),
     ("MOD 04", "MOD_D"),
 ]
+
+
+def _parse_date(s: str) -> datetime | None:
+    s = (s or "").strip()
+    if not s:
+        return None
+    for fmt in ("%m/%d/%y", "%m/%d/%Y", "%m-%d-%y", "%m-%d-%Y"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict]:
@@ -348,8 +366,17 @@ def _build_main_rows(claims: list[dict], service_lines: list[dict]) -> list[dict
             key=lambda l: (l.get("SERV_DATE", ""), l.get("REV_CD", "")),
         )
 
+        dos_parsed = [(_parse_date(l.get("SERV_DATE", "")), l.get("SERV_DATE", "")) for l in own_lines]
+        dos_parsed = [p for p in dos_parsed if p[0] is not None]
+
         claim_extra = {
             "CCN_HEADER": claim_no,
+            # FROM SVDT / THRU SVDT (MAIN columns F/G) aren't extracted
+            # fields at all — mirrors claim_split_hcfa's own Main sheet
+            # builder: the earliest/latest SERV_DATE across this claim's own
+            # service lines, not anything read off the PDF directly.
+            "FROM_SVDT": min(dos_parsed)[1] if dos_parsed else "",
+            "THRU_SVDT": max(dos_parsed)[1] if dos_parsed else "",
             "TOTAL_SVLINES": len(own_lines),
             # Sequence number of this claim within the run — the original
             # input's own worksheet row isn't carried through
