@@ -409,7 +409,7 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     # two words on a kerning gap (Box70A read back "S626 23A" instead of
     # "S62623A") — these are all short alphanumeric codes that never
     # legitimately contain a space.
-    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156)), "67"))   # Box67 (EW) — see module docstring
+    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156).split("X")[1]), "67"))  # Box67 (EW) — see module docstring
     dx67_boxes = {
         "A": (71, 144, 129, 156), "B": (129, 144, 185, 156), "C": (185, 144, 243, 156), "D": (243, 144, 300, 156),
         "E": (300, 144, 359, 156), "F": (359, 144, 416, 156), "G": (416, 144, 474, 156), "H": (474, 144, 531, 156),
