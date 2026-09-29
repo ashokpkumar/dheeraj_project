@@ -767,21 +767,36 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
                 if svl is not None:
                     svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace(",", "")
             elif pattern in ("/Repriced", "Allowed/"):
-                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
+                # `.replace(",", "")` is required here — a repriced/discount
+                # amount >= $1,000 comes back thousands-comma-formatted
+                # ("1,276.85"), and `float()` rejects that outright
+                # (confirmed crash: `float('1,276.85')` raises ValueError —
+                # NOT fixable with `.strip(',')`, which only trims leading/
+                # trailing characters, not ones in the middle of the
+                # string). REPRICE_CHARGES just above already strips commas
+                # for the same reason; this branch and the DISCOUNT one
+                # below had been missed.
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
                 if pattern == "Allowed/":
                     val = val.replace("REPRICED|", "").replace("REPRICED", "")
                 if svl is not None:
-                    svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
+                    try:
+                        svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
+                    except ValueError:
+                        print(f"[extract_repricing_info] WARNING: non-numeric REPRICED value {val!r} — left unset")
                 try:
                     totals["TOTAL_REPRICED"] += float(val) if val else 0.0
                 except ValueError:
                     pass
             elif pattern in ("/Ineligible", "Discount/"):
-                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
                 if pattern == "Discount/":
                     val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
                 if svl is not None:
-                    svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
+                    try:
+                        svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
+                    except ValueError:
+                        print(f"[extract_repricing_info] WARNING: non-numeric DISCOUNT value {val!r} — left unset")
                     svl["DISCOUNT_REASON"] = _norm(
                         reader.read_page(pdf_path, match_page, r2, b2, r2 + 41, t2)
                     ).replace(",", "")

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .functions.ocr_extraction import views as ocr_views
 
 
 urlpatterns = [
@@ -43,5 +44,15 @@ urlpatterns = [
     path("scheduler/jobs/<int:job_id>/",        views.delete_job,  name="delete-job"),
 
     path("functions/refresh/", views.refresh_functions, name="refresh-functions"),
+
+    # ─── OCR Annotation ───────────────────────────────────────────────
+    path("ocr/upload/",                    ocr_views.upload_pdf,       name="ocr-upload"),
+    path("ocr/page-image/",                ocr_views.page_image,       name="ocr-page-image"),
+    path("ocr/uploads/<str:doc_id>/",      ocr_views.discard_upload,   name="ocr-discard-upload"),
+    path("ocr/templates/",                 ocr_views.list_templates,   name="ocr-list-templates"),
+    path("ocr/templates/save/",            ocr_views.save_template,    name="ocr-save-template"),
+    path("ocr/templates/<str:name>/",      ocr_views.get_template,     name="ocr-get-template"),
+    path("ocr/templates/<str:name>/delete/", ocr_views.delete_template, name="ocr-delete-template"),
+    path("ocr/extract/",                   ocr_views.run_extraction,   name="ocr-run-extraction"),
 
 ]

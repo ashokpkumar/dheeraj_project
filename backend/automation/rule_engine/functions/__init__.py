@@ -6,3 +6,4 @@ from .same_day_reversal import *
 from .new_line_update_release import *
 from .claim_split_hcfa import *
 from .claims_split_ub import *
+from .ocr_extraction import *

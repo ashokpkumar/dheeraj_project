@@ -202,6 +202,183 @@ def claims_split_ub_get_edi_details(
 
 
 # ---------------------------------------------------------------------------
+# PART 1b — claims_split_ub_get_edi_details_ocr (OCR fallback)
+#
+# `claims_split_ub_get_edi_details` above (text/coordinate extraction via
+# pdf_extract.py) is left completely untouched — this is a SEPARATE,
+# additional function for the PDFs where the embedded text layer comes out
+# garbled/confusing to read as plain text, needing actual OCR on the
+# rendered page image instead. Uses the OCR Annotation template system
+# (rule_engine/functions/ocr_extraction) — draw boxes once against a sample
+# PDF of this layout in the "OCR Annotation" UI tab, save it as a named
+# template, then point this function at that template name.
+# ---------------------------------------------------------------------------
+
+def _write_ocr_workbook(claims: list[dict], path: str) -> str:
+    """
+    Generic single-sheet export for the OCR path — unlike
+    excel_export.write_workbook(), which assumes the fixed UB-04
+    CLAIMINFO_COLUMNS schema, an OCR template's cell keys are whatever
+    free-form names the user gave them in the annotation UI (e.g. "R89"),
+    so the column set here is just CLAIM_NO/MACRO_STATUS plus the union of
+    every cell key actually seen across all claims, in first-seen order.
+    """
+    from openpyxl import Workbook
+
+    fixed_cols = ["CLAIM_NO", "MACRO_STATUS", "CLAIM_TYPE"]
+    extra_cols: list[str] = []
+    for row in claims:
+        for key in row:
+            if key not in fixed_cols and key not in extra_cols:
+                extra_cols.append(key)
+    columns = fixed_cols + extra_cols
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ClaimInfo (OCR)"
+    ws.append(columns)
+    for row in claims:
+        ws.append([row.get(c, "") for c in columns])
+    wb.save(path)
+    return path
+
+
+@register_function(
+    name="claims_split_ub_get_edi_details_ocr",
+    tag="Claims Split UB",
+    color="#3f8fb5",
+    inputs=[
+        {"name": "dest_dir", "type": "str", "default": ""},
+        {"name": "ocr_template_name", "type": "str"},
+        {"name": "use_new_api", "type": "str", "options": ["Y", "N"], "default": "N"},
+        {"name": "most_recent_image", "type": "str", "options": ["Y", "N"], "default": "Y"},
+        {"name": "show_pdf", "type": "str", "options": ["Y", "N"], "default": "Y"},
+        {"name": "show_browser", "type": "str", "options": ["Y", "N"], "default": "Y"},
+    ],
+    outputs=[
+        {"name": "success", "type": "bool"},
+        {"name": "claims_df", "type": "dataframe"},
+        {"name": "xlsx_path", "type": "str"},
+    ],
+)
+def claims_split_ub_get_edi_details_ocr(
+    dest_dir: str = "",
+    ocr_template_name: str = "",
+    use_new_api: str = "N",
+    most_recent_image: str = "Y",
+    show_pdf: str = "Y",
+    show_browser: str = "Y",
+    context=None,
+):
+    """
+    OCR-based alternative to claims_split_ub_get_edi_details(). Fetches
+    each claim's PDF the exact same way (web_claims.py — legacy scrape or
+    WebClaims API, same as the text-extraction version), but instead of
+    reading fields via pdf_extract.py's coordinate/text extraction, runs
+    OCR against the boxes defined in a saved OCR Annotation template (see
+    rule_engine/functions/ocr_extraction's run_template()) — same
+    annotate-once/reuse-many-times template a claim's PDF layout gets set
+    up with once in the "OCR Annotation" UI tab.
+
+    Field names in claims_df are whatever cell keys the template's
+    annotations used (e.g. "R89") — there's no fixed schema here the way
+    pdf_extract.py's CLAIMINFO_COLUMNS has one, since those keys are
+    whatever the person who drew the annotations chose. No service-line
+    grid extraction either (unlike the text-extraction version's
+    service_lines_df) — OCR here is scoped to whatever boxes the template
+    actually defines, claim-level or line-level alike, all flattened into
+    one row per claim.
+    """
+    print("[claims_split_ub_get_edi_details_ocr] Starting...")
+    if context is None:
+        return {"success": False, "claims_df": [], "error": "context is None"}
+    if not ocr_template_name:
+        return {"success": False, "claims_df": [], "error": "ocr_template_name is required"}
+
+    df = context.get("df")
+    if df is None or df.empty:
+        print("[claims_split_ub_get_edi_details_ocr] WARNING: context['df'] is empty — nothing to fetch")
+        return {"success": True, "claims_df": [], "xlsx_path": ""}
+
+    # Local import — keeps this function's mere presence/registration from
+    # requiring easyocr to be installed; only calling it does (same
+    # deferred-import reasoning as ocr_extraction/ocr_engine.py itself).
+    from rule_engine.functions.ocr_extraction.script import run_template
+
+    dest_dir = dest_dir or os.environ.get("TEMP", ".")
+    os.makedirs(dest_dir, exist_ok=True)
+    most_recent = most_recent_image == "Y"
+    web_api = use_new_api == "Y"
+    show_pdf_on_screen = show_pdf == "Y"
+    show_browser_window = show_browser == "Y"
+
+    rows = [
+        {k: (str(v).strip() if v is not None else "") for k, v in row.items()}
+        for _, row in df.iterrows()
+    ]
+    print(f"[claims_split_ub_get_edi_details_ocr] {len(rows)} row(s) to fetch, "
+          f"template={ocr_template_name!r}, use_new_api={web_api!r}")
+
+    claims_results: list[dict] = []
+    web_session = WebClaimsSession(show_browser=show_browser_window) if web_api else None
+
+    for i, row in enumerate(rows):
+        claim_no = row.get("CLAIM_NO", "")
+        print(f"[claims_split_ub_get_edi_details_ocr] ({i + 1}/{len(rows)}) fetching {claim_no!r}")
+        claims_row = {"CLAIM_NO": claim_no, "MACRO_STATUS": "", "CLAIM_TYPE": ""}
+        try:
+            if len(claim_no) != 11:
+                claims_row["MACRO_STATUS"] = "INVALID CLAIM NUMBER (must be 11 characters)"
+                claims_results.append(claims_row)
+                continue
+
+            if web_api:
+                claim_type, pdf_path = web_session.fetch_claim(claim_no, dest_dir, most_recent)
+            else:
+                claim_type, pdf_path = get_pdf_claim_legacy(claim_no, dest_dir, most_recent)
+
+            if claim_type == "UB":
+                if not pdf_path or not os.path.exists(pdf_path):
+                    claims_row["MACRO_STATUS"] = "CANCELLED: FILE NOT EXISTS"
+                else:
+                    if show_pdf_on_screen:
+                        _open_pdf_on_screen(pdf_path, claim_no)
+                    claims_row["CLAIM_TYPE"] = "UB"
+                    values = run_template(pdf_path, ocr_template_name)
+                    claims_row.update(values)
+                    if not show_pdf_on_screen:
+                        try:
+                            os.remove(pdf_path)
+                        except OSError:
+                            pass
+            elif claim_type in ("Not Found.", "CCN Missing.", ""):
+                claims_row["MACRO_STATUS"] = "CANCELLED: UNABLE TO VEIW CLAIM"
+            elif claim_type == "HCFA":
+                claims_row["CLAIM_TYPE"] = "HCFA"
+                claims_row["MACRO_STATUS"] = "CANCELLED: CLAIM NOT SUPPORTED BY MACRO."
+            else:
+                claims_row["MACRO_STATUS"] = f"CANCELLED: {claim_type}"
+        except Exception as exc:
+            print(f"[claims_split_ub_get_edi_details_ocr] error on {claim_no}: {exc}")
+            traceback.print_exc()
+            claims_row["MACRO_STATUS"] = f"EXCEPTION: {type(exc).__name__}: {exc}"
+        claims_results.append(claims_row)
+
+    print(f"[claims_split_ub_get_edi_details_ocr] Done. Fetched {len(claims_results)} claim(s).")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    xlsx_path = ""
+    try:
+        xlsx_path = _write_ocr_workbook(claims_results, os.path.join(dest_dir, f"ClaimsSplitUB_OCR_{timestamp}.xlsx"))
+        print(f"[claims_split_ub_get_edi_details_ocr] Wrote Excel workbook: {xlsx_path}")
+    except Exception as exc:
+        print(f"[claims_split_ub_get_edi_details_ocr] WARNING: failed to write Excel workbook: {exc}")
+        traceback.print_exc()
+
+    return {"success": True, "claims_df": claims_results, "xlsx_path": xlsx_path}
+
+
+# ---------------------------------------------------------------------------
 # PART 2 — claims_split_ub_run_batch (cps_entry.py)
 # ---------------------------------------------------------------------------
 

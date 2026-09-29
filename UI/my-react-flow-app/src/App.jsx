@@ -16,6 +16,7 @@ import RuleNode from './components/RuleNode'
 import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule, refreshFunctions } from './api/api'
 import SchedulerPage from './components/SchedulerPage'
 import ProcessingPage from './components/ProcessingPage'
+import OcrAnnotationPage from './components/OcrAnnotationPage'
 
 
 
@@ -544,7 +545,8 @@ console.log(ruleName)
            { id: 'processing', label: '⏱ Dashboard' },
           { id: 'workflow',  label: '⬡ Workflow' },
           { id: 'scheduler', label: '⏱ Scheduler' },
-          
+          { id: 'ocr',       label: '🔍 OCR Annotation' },
+
         ].map((tab) => (
           <button
             key={tab.id}
@@ -582,6 +584,13 @@ console.log(ruleName)
       {currentPage === 'scheduler' && (
         <div style={{ paddingTop: 42, height: '100vh', overflowY: 'auto', background: '#eaf2f7' }}>
           <SchedulerPage />
+        </div>
+      )}
+
+      {/* ── OCR Annotation Page ── */}
+      {currentPage === 'ocr' && (
+        <div style={{ paddingTop: 42, height: '100vh', overflowY: 'auto', background: '#eaf2f7' }}>
+          <OcrAnnotationPage />
         </div>
       )}
 
