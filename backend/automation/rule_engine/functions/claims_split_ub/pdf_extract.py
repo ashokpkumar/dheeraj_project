@@ -409,24 +409,24 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     # two words on a kerning gap (Box70A read back "S626 23A" instead of
     # "S62623A") — these are all short alphanumeric codes that never
     # legitimately contain a space.
-    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156).split("X")[1]), "67"))  # Box67 (EW) — see module docstring
-    d["DX_67A"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp (71, 144, 129, 156).split("|")[1]), "")) 
-    d["DX_67B"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(129, 144, 185, 156)), "B"))
-    d["DX_67C"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(185, 144, 243, 156)), "C"))
-    d["DX_67D"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(243, 144, 300, 156)), "D"))
-    d["DX_67E"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(300, 144, 359, 156)), "E"))
-    d["DX_67F"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(359, 144, 416, 156)), "F"))
-    d["DX_67G"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(416, 144, 474, 156)), "G"))
-    d["DX_67H"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(474, 144, 531, 156)), "H"))
-    d["DX_67I"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 132, 71, 144)), "I"))
-    d["DX_67J"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(71, 132, 129, 144)), "J"))
-    d["DX_67K"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(129, 132, 185, 144)), "K"))
-    d["DX_67L"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(185, 132, 243, 144)), "L"))
-    d["DX_67M"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(243, 132, 300, 144)), "M"))
-    d["DX_67N"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(300, 132, 359, 144)), "N"))
-    d["DX_67O"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(359, 132, 416, 144)), "O"))
-    d["DX_67P"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(416, 132, 474, 144)), "P"))
-    d["DX_67Q"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(474, 132, 531, 144)), "Q"))
+    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156).split("X")[-1]), "67"))  # Box67 (EW) — see module docstring
+    d["DX_67A"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp (71, 144, 129, 156).split("|")[-1]), "")) 
+    d["DX_67B"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(129, 144, 185, 156).split("|")[-1]), ""))
+    d["DX_67C"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(185, 144, 243, 156).split("|")[-1]), ""))
+    d["DX_67D"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(243, 144, 300, 156).split("|")[-1]), ""))
+    d["DX_67E"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(300, 144, 359, 156).split("|")[-1]), ""))
+    d["DX_67F"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(359, 144, 416, 156).split("|")[-1]), ""))
+    d["DX_67G"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(416, 144, 474, 156).split("|")[-1]), ""))
+    d["DX_67H"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(474, 144, 531, 156).split("|")[-1]), ""))
+    d["DX_67I"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 132, 71, 144).split("|")[-1]), ""))
+    d["DX_67J"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(71, 132, 129, 144).split("|")[-1]), ""))
+    d["DX_67K"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(129, 132, 185, 144).split("|")[-1]), ""))
+    d["DX_67L"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(185, 132, 243, 144).split("|")[-1]), ""))
+    d["DX_67M"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(243, 132, 300, 144).split("|")[-1]), ""))
+    d["DX_67N"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(300, 132, 359, 144).split("|")[-1]), ""))
+    d["DX_67O"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(359, 132, 416, 144).split("|")[-1]), ""))
+    d["DX_67P"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(416, 132, 474, 144).split("|")[-1]), ""))
+    d["DX_67Q"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(474, 132, 531, 144).split("|")[-1]), ""))
     # dx67_boxes = {
     #     #"A": (71, 144, 129, 156), "B": (129, 144, 185, 156), "C": (185, 144, 243, 156), "D": (243, 144, 300, 156),
     #     "E": (300, 144, 359, 156), "F": (359, 144, 416, 156), "G": (416, 144, 474, 156), "H": (474, 144, 531, 156),
@@ -438,9 +438,9 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     #     d[f"DX_67{letter}"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(*box)), ""))
 
     d["DX_ADMIT_69"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(36, 120, 86, 132)), "69"))  # Box69
-    d["DX_PATIENT_REASON_A_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(121, 120, 171, 132).split("|")[1]), ""))  # Box70A
-    d["DX_PATIENT_REASON_B_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(171, 120, 222, 132)), "B"))  # Box70B
-    d["DX_PATIENT_REASON_C_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(222, 120, 274, 132)), "C"))  # Box70C
+    d["DX_PATIENT_REASON_A_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(121, 120, 171, 132).split("|")[-1]), ""))  # Box70A
+    d["DX_PATIENT_REASON_B_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(171, 120, 222, 132).split("|")[-1]), ""))  # Box70B
+    d["DX_PATIENT_REASON_C_70"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(222, 120, 274, 132).split("|")[-1]), ""))  # Box70C
     d["PPS_CODE_71"] = _collapse_code_spaces(_strip_label_lines(rp(301, 120, 336, 132), "71"))        # Box71
     d["ECI_A_72"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(351, 120, 408, 132)), "A"))  # Box72A-C
     d["ECI_B_72"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(408, 120, 466, 132)), "B"))
@@ -767,36 +767,22 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
                 if svl is not None:
                     svl["REPRICE_UNITS"] = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace(",", "")
             elif pattern in ("/Repriced", "Allowed/"):
-                # `.replace(",", "")` is required here — a repriced/discount
-                # amount >= $1,000 comes back thousands-comma-formatted
-                # ("1,276.85"), and `float()` rejects that outright
-                # (confirmed crash: `float('1,276.85')` raises ValueError —
-                # NOT fixable with `.strip(',')`, which only trims leading/
-                # trailing characters, not ones in the middle of the
-                # string). REPRICE_CHARGES just above already strips commas
-                # for the same reason; this branch and the DISCOUNT one
-                # below had been missed.
-                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
                 if pattern == "Allowed/":
                     val = val.replace("REPRICED|", "").replace("REPRICED", "")
                 if svl is not None:
-                    try:
-                        svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"
-                    except ValueError:
-                        print(f"[extract_repricing_info] WARNING: non-numeric REPRICED value {val!r} — left unset")
+                    #svl["REPRICED"] = f"{float(val):.2f}" if val else "0.00"  #ValueError: could not convert string to float
+                    svl["REPRICED"] = f"{float(val.replace(",", "")):.2f}" if val else "0.00"
                 try:
-                    totals["TOTAL_REPRICED"] += float(val) if val else 0.0
+                    totals["TOTAL_REPRICED"] += float(val.replace(",", "")) if val else 0.0
                 except ValueError:
                     pass
             elif pattern in ("/Ineligible", "Discount/"):
-                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "").replace(",", "")
+                val = _norm(reader.read_page(pdf_path, match_page, l2, b2, r2, t2)).replace("$", "")
                 if pattern == "Discount/":
                     val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
                 if svl is not None:
-                    try:
-                        svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
-                    except ValueError:
-                        print(f"[extract_repricing_info] WARNING: non-numeric DISCOUNT value {val!r} — left unset")
+                    svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
                     svl["DISCOUNT_REASON"] = _norm(
                         reader.read_page(pdf_path, match_page, r2, b2, r2 + 41, t2)
                     ).replace(",", "")
