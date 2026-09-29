@@ -42,6 +42,17 @@ memory for the coordinate-convention and line-join bugs found there):
     neighbors work, recheck this threshold and the checkbox-merge issue
     that motivated it (see the inline comment on `is_marker_box` below)
     before assuming it's a coordinate bug.
+
+Form "watermark" filtering: the UB-04 template itself (the red/pink box
+captions "66 DX", "67", "69 ADMIT DX", the big pale "A"/"B"/"I"/"J"/... sub-
+box letters, etc.) is real text in these PDFs, not an image, so pdfplumber
+extracts it right alongside the black claim data and scrambles the values
+("0D", "67XS62623A", "069", ...). `read_page` therefore reads *ink-only*
+text by default — it drops characters whose fill colour is reddish or light
+(see `_is_form_ink`), keeping the black typed claim data. `text_coordinates`
+still searches ALL text, since several markers it looks for ("42 REV.CD.")
+are themselves printed in the red form layer. If a page has no dark text at
+all, filtering is skipped for that page rather than returning blanks.
 """
 
 from __future__ import annotations
@@ -49,11 +60,62 @@ from __future__ import annotations
 import pdfplumber
 
 
+def _to_rgb(color) -> tuple[float, float, float] | None:
+    """pdfplumber colour value (gray / RGB / CMYK tuple) -> RGB 0..1, or None if unknown."""
+    if color is None:
+        return None
+    if isinstance(color, (int, float)):
+        color = (color,)
+    try:
+        vals = [float(c) for c in color]
+    except (TypeError, ValueError):
+        return None  # pattern colour or other non-numeric colour space
+    if len(vals) == 1:
+        return vals[0], vals[0], vals[0]
+    if len(vals) == 3:
+        return vals[0], vals[1], vals[2]
+    if len(vals) == 4:
+        c, m, y, k = vals
+        return (1 - c) * (1 - k), (1 - m) * (1 - k), (1 - y) * (1 - k)
+    return None
+
+
+def _is_form_ink(char: dict) -> bool:
+    """
+    True for characters belonging to the printed form / watermark layer
+    rather than the claim data: red/pink (UB-04 template colour) or light
+    (faint grey/pastel watermark). Unknown colour -> treated as data.
+    """
+    rgb = _to_rgb(char.get("non_stroking_color"))
+    if rgb is None:
+        rgb = _to_rgb(char.get("stroking_color"))
+    if rgb is None:
+        return False
+    r, g, b = rgb
+    luminance = 0.299 * r + 0.587 * g + 0.114 * b
+    reddish = r - max(g, b) > 0.3
+    light = luminance > 0.6
+    return reddish or light
+
+
 class ClaimPdfReader:
     """Python stand-in for the VBA `iREADER` (PdfClaimImageDetails.ReadClaimDetails) object."""
 
     def __init__(self):
         self._cache: dict = {}
+        self._words_cache: dict = {}
+
+    def _words(self, path: str, page: int, ink_only: bool) -> list[dict]:
+        """Cached extract_words() for one page, optionally with the form layer removed."""
+        key = (path, page, ink_only)
+        words = self._words_cache.get(key)
+        if words is None:
+            pg = self._pdf(path).pages[page - 1]
+            if ink_only and any(not _is_form_ink(c) for c in pg.chars):
+                pg = pg.filter(lambda obj: obj.get("object_type") != "char" or not _is_form_ink(obj))
+            words = pg.extract_words(use_text_flow=False, keep_blank_chars=False)
+            self._words_cache[key] = words
+        return words
 
     def _pdf(self, path: str):
         pdf = self._cache.get(path)
@@ -68,10 +130,12 @@ class ClaimPdfReader:
             pdf = self._cache.pop(path, None)
             if pdf is not None:
                 pdf.close()
+            self._words_cache = {k: v for k, v in self._words_cache.items() if k[0] != path}
             return
         for pdf in self._cache.values():
             pdf.close()
         self._cache.clear()
+        self._words_cache.clear()
 
     # ------------------------------------------------------------------
     # .TotalPages(path)
@@ -93,7 +157,7 @@ class ClaimPdfReader:
         needle_lower = needle.lower()
 
         matches = []
-        for line in _lines(pg):
+        for line in _group_lines(self._words(path, page, ink_only=False)):
             # See claim_split_hcfa/pdf_backend.py's history: joining with ""
             # instead of " " here collapses multi-word markers ("42 REV.CD.",
             # "MEDICARE/MEDICAID/COB SUPPORT DOCUMENT", ...) into one token
@@ -130,7 +194,10 @@ class ClaimPdfReader:
     # ------------------------------------------------------------------
     # .ReadPage(path, page, L, B, R, T) -> text within that box
     # ------------------------------------------------------------------
-    def read_page(self, path: str, page: int, left: float, bottom: float, right: float, top: float) -> str:
+    def read_page(
+        self, path: str, page: int, left: float, bottom: float, right: float, top: float,
+        ink_only: bool = True,
+    ) -> str:
         pdf = self._pdf(path)
         if page < 1 or page > len(pdf.pages):
             return ""
@@ -158,7 +225,7 @@ class ClaimPdfReader:
         is_marker_box = (x1 - x0) <= 15 and (bottom_pp - top_pp) <= 15
 
         picked = []
-        for w in pg.extract_words(use_text_flow=False, keep_blank_chars=False):
+        for w in self._words(path, page, ink_only):
             if is_marker_box:
                 if w["x0"] < x1 and w["x1"] > x0 and w["top"] < bottom_pp and w["bottom"] > top_pp:
                     picked.append(w)
@@ -181,9 +248,8 @@ class ClaimPdfReader:
         return "|".join(" ".join(w["text"] for w in line) for line in lines).strip()
 
 
-def _lines(page) -> list[list[dict]]:
-    """Group a pdfplumber page's words into visual lines (same 'top' band)."""
-    words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
+def _group_lines(words: list[dict]) -> list[list[dict]]:
+    """Group a page's words into visual lines (same 'top' band)."""
     lines: list[list[dict]] = []
     for w in sorted(words, key=lambda w: (round(w["top"]), w["x0"])):
         if lines and abs(lines[-1][-1]["top"] - w["top"]) <= 2:

@@ -409,7 +409,10 @@ def extract_demographics(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dic
     # two words on a kerning gap (Box70A read back "S626 23A" instead of
     # "S62623A") — these are all short alphanumeric codes that never
     # legitimately contain a space.
-    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156).split("X")[-1]), "67"))  # Box67 (EW) — see module docstring
+    # No `.split("X")` caption hack here — it cut real codes containing an
+    # "X" (S7291XA -> "A" -> blank). The "66 DX" caption is removed by
+    # read_page's form-ink filter; _strip_label_lines is the fallback.
+    d["DX_PRIMARY"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(16, 144, 71, 156)), "67", "66", "DX"))  # Box67 (EW) — see module docstring
     d["DX_67A"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp (71, 144, 129, 156).split("|")[-1]), "")) 
     d["DX_67B"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(129, 144, 185, 156).split("|")[-1]), ""))
     d["DX_67C"] = _collapse_code_spaces(_strip_label_lines(return_blank_value(rp(185, 144, 243, 156).split("|")[-1]), ""))
@@ -876,7 +879,8 @@ def extract_medicare_medicaid_cob_information(reader: ClaimPdfReader, pdf_path: 
         b = round(float(parts[1]))
         t = round(float(parts[3]))
         right = round(float(parts[2]))
-        header_text = reader.read_page(pdf_path, cob_page, 36, b, right, t)
+        # ink_only=False: this checks for a printed header label, not claim data
+        header_text = reader.read_page(pdf_path, cob_page, 36, b, right, t, ink_only=False)
         if "LINE#" in header_text.upper():
             bb, tt = float(b), float(t)
             for _ in range(22):
