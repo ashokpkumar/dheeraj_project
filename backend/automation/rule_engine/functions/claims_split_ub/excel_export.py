@@ -326,20 +326,21 @@ MAIN_CLAIM_COLUMNS: list[tuple[str, str]] = [
     ("XLRW LOC", "XLRW_LOC"),
 ]
 
+# Header text matches the macro workbook's own Main sheet (columns S:AE).
 MAIN_LINE_COLUMNS: list[tuple[str, str]] = [
-    ("CLAIM CONTROL #", "CLAIM_NO"),
-    ("SV DATE", "SERV_DATE"),
-    ("RV CODE", "REV_CD"),
-    ("HCPCS CODE", "HCPCS_CODE"),
-    ("TOS", "TOS"),
-    ("UNITS/BU", "SERV_UNITS"),
-    ("CHARGES", "TOTAL_CHARGES"),
-    ("REPRICED", "REPRICED"),
-    ("DISCOUNT", "DISCOUNT"),
-    ("MOD 01", "MOD_A"),
-    ("MOD 02", "MOD_B"),
-    ("MOD 03", "MOD_C"),
-    ("MOD 04", "MOD_D"),
+    ("CLAIM CONTROL NUMBER", "CLAIM_NO"),
+    ("SERV.DATE", "SERV_DATE"),
+    ("REV.CD.", "REV_CD"),
+    ("HCPCS/RATE/HIPPS CODE", "HCPCS_CODE"),
+    ("POS - TOS", "TOS"),
+    ("SERV UNITS", "SERV_UNITS"),
+    ("TOTAL CHARGES", "TOTAL_CHARGES"),
+    ("ALLOWED / REPRICED", "REPRICED"),
+    ("DISCOUNT / INELIGIBLE", "DISCOUNT"),
+    ("MOD1", "MOD_A"),
+    ("MOD2", "MOD_B"),
+    ("MOD3", "MOD_C"),
+    ("MOD4", "MOD_D"),
 ]
 
 
