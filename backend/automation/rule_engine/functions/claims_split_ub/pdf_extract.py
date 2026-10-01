@@ -800,8 +800,9 @@ def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str) -> dict:
     demographics["TOTAL_CHARGES"] = f"{total_charges:.2f}"
 
     totals = extract_repricing_info(reader, pdf_path, service_lines)
-    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}" if totals["TOTAL_REPRICED"] else "-"
-    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}" if totals["TOTAL_DISCOUNTS"] else "-"
+    # Zero totals print as "0.00", not the VBA's "-" placeholder (Main.txt:68-70)
+    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}"
+    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}"
     demographics["REPRICED_IND"] = totals["REPRICED_IND"]
     demographics["HIC_NUMBER"] = totals["HIC_NUMBER"]
     demographics["REPRICED_BY"] = totals["REPRICED_BY"]
