@@ -77,6 +77,29 @@ STEP2:
                        'If Len(Trim(.getstring(15, 2, 11))) > 0 Then PlaceValue ByPassCode, 15, 14
                        'If Len(Trim(.getstring(16, 2, 11))) > 0 Then PlaceValue ByPassCode, 16, 14
                        'If Len(Trim(.getstring(17, 2, 11))) > 0 Then PlaceValue ByPassCode, 17, 14
+                           
+                        Select Case MN.Range("AA2") 'ADDED 2026.09.15
+                            Case "REMOVE ALL EXISTING INEL"
+                                REMOVEVALUE 14, 2: REMOVEVALUE 14, 14
+                                REMOVEVALUE 15, 2: REMOVEVALUE 15, 14
+                                REMOVEVALUE 16, 2: REMOVEVALUE 16, 14
+                                REMOVEVALUE 17, 2: REMOVEVALUE 17, 14
+                                REMOVEVALUE 14, 18: REMOVEVALUE 14, 30
+                                REMOVEVALUE 15, 18: REMOVEVALUE 15, 30
+                                REMOVEVALUE 16, 18: REMOVEVALUE 16, 30
+                                REMOVEVALUE 17, 18: REMOVEVALUE 17, 30
+                            Case "REMOVE EXISTING INEL1"
+                                REMOVEVALUE 14, 2: REMOVEVALUE 14, 14
+                                REMOVEVALUE 15, 2: REMOVEVALUE 15, 14
+                                REMOVEVALUE 16, 2: REMOVEVALUE 16, 14
+                                REMOVEVALUE 17, 2: REMOVEVALUE 17, 14
+                            Case "REMOVE EXISTING INEL2"
+                                REMOVEVALUE 14, 18: REMOVEVALUE 14, 30
+                                REMOVEVALUE 15, 18: REMOVEVALUE 15, 30
+                                REMOVEVALUE 16, 18: REMOVEVALUE 16, 30
+                                REMOVEVALUE 17, 18: REMOVEVALUE 17, 30
+                        End Select
+                       
                         PLACEVALUE ByPassCode, 14, 14
                         PLACEVALUE ByPassCode, 15, 14
                         PLACEVALUE ByPassCode, 16, 14
