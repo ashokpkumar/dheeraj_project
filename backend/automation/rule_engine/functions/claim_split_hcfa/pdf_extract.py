@@ -415,7 +415,11 @@ def extract_repricing_info(
                             if pattern == "Discount/":
                                 val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
                             svl["DISCOUNT_INELIGIBLE"] = val
-                            svl["DISCOUNT_REASON_CODE"] = norm(reader.read_page(pdf_path, page, r2, b2, r2 + 41, t2)).replace(",", "")
+                            # Discount/ reason-code box starts 5pt right of the
+                            # header (oReadPdf.txt:302, changed 2026.10.05);
+                            # legacy /Ineligible still starts at R.
+                            code_l = r2 + 5 if pattern == "Discount/" else r2
+                            svl["DISCOUNT_REASON_CODE"] = norm(reader.read_page(pdf_path, page, code_l, b2, r2 + 41, t2)).replace(",", "")
                             try:
                                 totals["TOTAL_DISCOUNTS"] += float(val) if val else 0.0
                             except ValueError:

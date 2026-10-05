@@ -19,12 +19,13 @@ Shared shape used throughout:
   settings       dict  — the run-level options (mirrors the checkboxes/
                           dropdowns on the VBA MAIN sheet): apply_uc,
                           two_lines_per_draft, get_cps_discount, bypass,
-                          split_grouping ("BY DATE OF SERVICE"/"BY DIAGNOSIS")
+                          split_grouping ("BY DATE OF SERVICE"/"BY DIAGNOSIS"),
+                          remove_existing_inel (Non-Scratch only, MAIN AA2)
 """
 
 from __future__ import annotations
 
-from .utils import is_screen, place_value, send_enter, send_pf
+from .utils import is_screen, place_value, remove_value, send_enter, send_pf
 
 BYPASS_CODE = "001"
 INEL_CODE = "908"
@@ -346,6 +347,7 @@ def hcfa_nonscratch_split(screen, claim_row: dict, service_lines: list[dict], se
         return _cancel(screen, "Not Found: HCFA Service Add Screen")
 
     screen_pos = (screen.GetString(2, 6, 2) or "").strip()
+    _remove_existing_inel(screen, settings.get("remove_existing_inel", "NONE"))
     place_value(screen, BYPASS_CODE, 14, 14)
     place_value(screen, BYPASS_CODE, 15, 14)
     place_value(screen, BYPASS_CODE, 16, 14)
@@ -645,6 +647,23 @@ def _match_billing_address(screen, demographics: dict) -> None:
             continue
         send_pf(screen, 12)
         return
+
+
+def _remove_existing_inel(screen, mode: str) -> None:
+    """
+    Mirrors the `Select Case MN.Range("AA2")` block in HCFA_NonScratch_Split
+    (ADDED 2026.09.15) — clears the original claim's Inel Amt/Cd fields on
+    CPS450 rows 14-17 before the bypass code is keyed. INEL1 is Amt1/Cd1
+    (cols 2/14), INEL2 is Amt2/Cd2 (cols 18/30).
+    """
+    cols = {
+        "REMOVE ALL EXISTING INEL": (2, 14, 18, 30),
+        "REMOVE EXISTING INEL1": (2, 14),
+        "REMOVE EXISTING INEL2": (18, 30),
+    }.get(mode, ())
+    for row in range(14, 18):
+        for col in cols:
+            remove_value(screen, row, col)
 
 
 def _resolve_cond_onset_and_past_term_edits(screen) -> None:

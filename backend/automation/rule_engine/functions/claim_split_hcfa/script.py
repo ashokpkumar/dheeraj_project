@@ -297,6 +297,9 @@ def _process_split_row(screen, claim_row: dict, demographics: dict, service_line
         {"name": "two_lines_per_draft", "type": "str", "options": ["Y", "N"], "default": "N"},
         {"name": "get_cps_discount", "type": "str", "options": ["Y", "N"], "default": "N"},
         {"name": "bypass", "type": "str", "options": ["Y", "N"], "default": "N"},
+        {"name": "remove_existing_inel", "type": "str",
+         "options": ["NONE", "REMOVE ALL EXISTING INEL", "REMOVE EXISTING INEL1", "REMOVE EXISTING INEL2"],
+         "default": "NONE"},
         {"name": "pos_reference_path", "type": "str", "default": ""},
     ],
     outputs=[
@@ -310,6 +313,7 @@ def claim_split_run_batch(
     two_lines_per_draft: str = "N",
     get_cps_discount: str = "N",
     bypass: str = "N",
+    remove_existing_inel: str = "NONE",
     pos_reference_path: str = "",
     context=None,
 ):
@@ -336,6 +340,7 @@ def claim_split_run_batch(
         "two_lines_per_draft": two_lines_per_draft,
         "get_cps_discount": get_cps_discount,
         "bypass": bypass,
+        "remove_existing_inel": remove_existing_inel,
     }
     pos_reference = _load_pos_reference(pos_reference_path)
 
