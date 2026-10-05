@@ -655,7 +655,7 @@ def extract_repricing_info(reader: ClaimPdfReader, pdf_path: str, service_lines:
                 if pattern == "Discount/":
                     val = val.replace("INELIGIBLE|", "").replace("INELIGIBLE", "")
                 if svl is not None:
-                    svl["DISCOUNT"] = f"{float(val):.2f}" if val else "0.00"
+                    svl["DISCOUNT"] = val.replace(",", "") if val else "0.00"
                     svl["DISCOUNT_REASON"] = _norm(
                         reader.read_page(pdf_path, match_page, r2, b2, r2 + 41, t2)
                     ).replace(",", "")
