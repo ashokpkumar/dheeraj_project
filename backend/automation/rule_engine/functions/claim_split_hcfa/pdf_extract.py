@@ -405,11 +405,15 @@ def extract_repricing_info(
                             val = norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
                             if pattern == "Allowed/":
                                 val = val.replace("REPRICED|", "").replace("REPRICED", "")
-                            svl["ALLOWED_REPRICED"] = val
+                            # VBA: `If Len(Repriced) < 1 Then Repriced = 0`,
+                            # then written as Format(Repriced, "0.00").
+                            val = val.strip() or "0"
                             try:
-                                totals["TOTAL_REPRICED"] += float(val) if val else 0.0
+                                totals["TOTAL_REPRICED"] += float(val)
+                                val = f"{float(val):.2f}"
                             except ValueError:
                                 pass
+                            svl["ALLOWED_REPRICED"] = val
                         elif pattern in ("/Ineligible", "Discount/"):
                             val = norm(reader.read_page(pdf_path, page, l2, b2, r2, t2)).replace("$", "")
                             if pattern == "Discount/":
@@ -586,8 +590,8 @@ def extract_claim(reader: ClaimPdfReader, pdf_path: str, ccn: str, use_new_api: 
     demographics["TOTAL_CHARGES"] = f"{total_charges:.2f}"
 
     totals = extract_repricing_info(reader, pdf_path, service_lines, use_new_api)
-    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}" if totals["TOTAL_REPRICED"] else "-"
-    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}" if totals["TOTAL_DISCOUNTS"] else "-"
+    demographics["TOTAL_REPRICED"] = f"{totals['TOTAL_REPRICED']:.2f}"
+    demographics["TOTAL_DISCOUNTS"] = f"{totals['TOTAL_DISCOUNTS']:.2f}"
     demographics["REPRICED_IND"] = totals["REPRICED_IND"]
     demographics["HIC_MEM_NO"] = totals["HIC_MEM_NO"]
     demographics["REPRICED_BY"] = totals["REPRICED_BY"]
