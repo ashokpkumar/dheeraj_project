@@ -299,7 +299,7 @@ Re_Priced_Ind, HIC_Mem_No, Re_Priced_By, ClaimNTE, TimelyFiling, MethodInfo)
                                 If Len(Trim(TotalDiscounts)) < 1 Then TotalDiscounts = 0
                                 If Len(Trim(Discount)) > 0 Then TotalDiscounts = CDbl(TotalDiscounts) + CDbl(Discount)
                                 SVL.Range("W" & rW) = "'" & Format(Discount, "0.00")
-                                SVL.Range("X" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(2)), _
+                                SVL.Range("X" & rW) = "'" & Replace(NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, CDbl(CordSet(2)) + 5, _
                                 CDbl(CordSet(1)) - 23.25, CDbl(CordSet(2)) + 41, CDbl(CordSet(3)) - 15.25)), ",", "")
                             Case "iCES/EDC Remark Code" 'ADDED 2025.03.26
                                 SVL.Range("Y" & rW) = "'" & NORMALIZE_EDIT_MSG(.ReadPage(pFile, CurPg, Lc, B - 20, Rc, T - 10))
