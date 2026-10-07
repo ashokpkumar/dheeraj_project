@@ -388,6 +388,9 @@ CPS450_Screen:
                      End Select
                  End If
             End If
+            If mw.Range(s1cell_DA) = "Y" Then 'ADDED 2026.09.01
+                PlaceValue mw.Range(s1cell_DA_VAL), p + q, 76
+            End If
             If mw.Range(slcell_RemTU) = "Y" Then RemoveValue p, 63 'Added 2024.10.14
             If mw.Range(s1cell_addTime) = "Y" And mw.Range(s1col_tmeUnit & rw) <> "" And mw.Range(s1col_tmeUntStat & rw) = "" Then 'Added 05.06.2022
                 AddTime = CInt(mw.Range(s1col_tmeUnit & rw).Text)
@@ -421,6 +424,7 @@ CPS450_Screen:
                 End 'Abort
             End If
         End If
+        'error handler 2026.08.10
        .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop 'will go to release screen!!!!!!!
         If InStr(1, Trim(.GetString(30, 1, 20)), "EDIT ERROR", vbTextCompare) > 0 Then 'Added 06.13.2022
             If Trim(.GetString(24, 2, 4)) = "MPIN" Then RemoveValue 24, 7
@@ -676,7 +680,9 @@ DataEntry_506:
                 End If
             End If
            .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop 'RELEASE
+
             EditMsg = Trim(.GetString(31, 2, 78))
+            
             If InStr(1, EditMsg, "SAF") > 0 Then
                 PlaceValue "SAF", 5, 31 'CK
                .SendKeys "<Enter>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
@@ -707,7 +713,11 @@ DataEntry_506:
                 GoTo DataEntry_506
             End If
             If Trim(.GetString(1, 74, 3)) = "115" Then
-                 mw.Range(s1col_statEdit & rw) = EditMsg
+                If InStr(1, EditMsg, "ROLLBACK!") > 0 Then 'ADDED 2026.08.10
+                    mw.Range(s1col_statEdit & rw) = Trim(.GetString(2, 2, 48)) & " | " & EditMsg
+                Else
+                    mw.Range(s1col_statEdit & rw) = EditMsg
+                End If
                  HCFA_Data_Entry = 0: Exit Function
             End If
             If .GetString(1, 74, 3) = "112" Then
