@@ -42,9 +42,8 @@ from .utils import (
 #     make the "only do this if not already set" checks in hcfa.py/ub.py/
 #     utils.py think the step already ran and skip it.
 #   - irs: not read anywhere in this Python port (same as the VBA).
-#   - denial_rule: its denial_code_ref.csv lookup (VBA LoadDenialCodeRef /
-#     ApplyDenialRefValues) was never ported to this engine, so there's no
-#     consumer for it yet.
+# (denial_rule was dropped 2026.10.07 — the VBA removed slcol_DenialRule and
+# its denial_code_ref.csv lookup, which this port never implemented anyway.)
 _RULE_SEED_COLUMNS = {
     "new_ov_aj": "NEW_OV_AJ",
     "new_oi_ind": "NEW_OI_IND",
@@ -484,7 +483,11 @@ def _process_release_pend_row(screen, row, row_idx, total_rows, rule_ref, codes,
             "DECISION": _decision,
         }, cert_no_skip
     finally:
+        # Mirrors the VBA's NextRw: label — clear a pending "PRESS ENTER"
+        # prompt before the PF9 (ADDED 2026.08.10 in Modules_oShared.txt).
         try:
+            if (screen.GetString(31, 43, 11) or "").strip() == "PRESS ENTER":
+                send_enter(screen)
             send_pf(screen, 9)
         except Exception as _fe:
             print(f"[{claim_no}] WARNING: PF9 in finally block failed: {_fe}")

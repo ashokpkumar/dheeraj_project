@@ -334,6 +334,10 @@ def hcfa_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts
                     status_parts.append("POSSIBLE HCR")
                     return 0
 
+        # DA value on the inel line (VBA s1cell_DA / s1cell_DA_VAL, AI8/AI9 — ADDED 2026.09.01)
+        if settings.get("da", "N") == "Y":
+            place_value(screen_obj, settings.get("da_val", ""), p + q, 76)
+
         if settings.get("rem_tu", "N") == "Y":
             remove_value(screen_obj, p, 63)
 
@@ -550,7 +554,11 @@ def hcfa_data_entry(screen, row: dict, settings: dict, codes: dict, status_parts
 
     screen_code = (screen_obj.GetString(1, 74, 3) or "").strip()
     if screen_code == "115":
-        status_parts.append(edit_msg)
+        # ROLLBACK! edits get the screen's line-2 context prefixed (VBA ADDED 2026.08.10)
+        if "ROLLBACK!" in edit_msg:
+            status_parts.append(f"{(screen_obj.GetString(2, 2, 48) or '').strip()} | {edit_msg}")
+        else:
+            status_parts.append(edit_msg)
         return 0
     if screen_code == "112":
         status_parts.append("Released.")
