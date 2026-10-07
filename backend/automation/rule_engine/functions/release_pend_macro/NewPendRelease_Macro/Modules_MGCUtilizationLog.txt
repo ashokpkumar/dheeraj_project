@@ -27,7 +27,7 @@ Public Sub Create_MGC_Utilization_Log_Entry()
 
     Macro_Name = "NEW.RELEASE.PEND.COMBINED"
     Macro_File_Name = UCase(Trim(ThisWorkbook.Name)) 'This is the Full file name, with extension (i.e "*.xlsm")
-    Macro_Version = "2026.03.31"
+    Macro_Version = "2026.09.01"
     
     team_code = "UMRAT" 'This is NOT the Team Number, but the "shorthand" Code for the team.
    'If you do not know your Team code, contact the Delivery Operations Tools & Reporting group.
