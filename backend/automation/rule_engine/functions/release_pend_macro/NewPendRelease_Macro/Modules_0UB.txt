@@ -365,7 +365,7 @@ BLX2460_Screen:
                  End If
                 
                     If Trim(mw.Range(s1cell_removeAp)) = "Y" Then  'Added 2022.10.21
-                        .MoveTo 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Ap Code 'ADJUSTED 2025.08.08
+                        .MoveTo 10, 54 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop 'Ap Code 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                         .SendKeys "<EraseEOF>": Do While .OIA.Xstatus <> 0: DoEvents: Loop
                     End If
                     If Trim(mw.Range(s1cell_remCodeSet)) = "Y" Then  'Added 2024.01.17
@@ -380,18 +380,18 @@ BLX2460_Screen:
                     End If
 '                   If Len(Trim(mw.Range("H" & rw))) > 0 Then .Putstring Trim(mw.Range("H" & rw)), p, 68: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code
                     If mw.Range(s1cell_aplyDx) = "Y" And Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 And LabCodes.Exists(Trim(.GetString(p, 8, 5))) Then
-                         .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'AP Code 'ADJUSTED 2025.08.08
+                         .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 54 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   'AP Code 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                     End If
                     If mw.Range(s1cell_aplyDx) = "N" And Trim(mw.Range(s1cell_aplyLab)) = "N" Then   '11/10/2021
                          If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 Then _
-                        .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code 'ADJUSTED 2025.08.08
+                        .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 54 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop  'AP Code 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                     End If
                     If mw.Range(s1cell_aplyDx) = "N" And Trim(mw.Range(s1cell_aplyLab)) = "Y" Then   'Added 03162021 11/10/2021
                          If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 And LabCodes.Exists(Trim(.GetString(p, 8, 5))) Then _
-                             If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 46 + l 'ADJUSTED 2025.08.08
+                             If Len(Trim(mw.Range(s1col_newApCd & rw))) > 0 Then .Putstring Trim(mw.Range(s1col_newApCd & rw)), 10, 54 + l 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                     End If
                     If Trim(mw.Range(s1cell_aplyTwoApCd)) = "Y" And Len(Trim(mw.Range(s1col_1stApCd & rw))) > 0 Then '============ Added: 2023.03.23 '============
-                       .Putstring Trim(mw.Range(s1col_1stApCd & rw)), 10, 46 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   '1st AP Code UB 'ADJUSTED 2025.08.08
+                       .Putstring Trim(mw.Range(s1col_1stApCd & rw)), 10, 54 + l: Do While .OIA.Xstatus <> 0: DoEvents: Loop   '1st AP Code UB 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                     End If '============================================
                     If mw.Range(s1cell_remvProvRate) = "Y" Then '============ Updated: 2023.02.17 '============
                         If Len(Trim(.GetString(12, 50, 11))) > 0 Then
@@ -440,10 +440,10 @@ BLX2460_Screen:
                   'Added 03252021 CHECK CPT AND DX IN LIST THEN APPLY #
                    If Trim(mw.Range(s1cell_dxLabRev)) = "Y" Then
                        If UBRevCodes.Exists(Trim(.GetString(p, 3, 4))) And DxCodes.Exists(Trim(.GetString(10, z, 7))) Then
-                            .Putstring "#", 10, 46 + l 'ADJUSTED 2025.08.08
+                            .Putstring "#", 10, 54 + l 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                        End If
                        If LabCodes.Exists(Trim(.GetString(p, 8, 5))) And DxCodes.Exists(Trim(.GetString(10, z, 7))) Then
-                            .Putstring "#", 10, 46 + l 'ADJUSTED 2025.08.08
+                            .Putstring "#", 10, 54 + l 'ADJUSTED 2025.08.08 'ADJUSTED 2026.08.07
                        End If
                    End If
                    Select Case UCase(Trim(mw.Range(s1cell_newOiEligPd)))  'NEW OI ELIG AND PAID AMT 'Added 10062021
