@@ -1,4 +1,5 @@
-from rule_engine.functions.helpers import attach_emulator_sessions, process_claim
+from rule_engine.functions.helpers import attach_emulator_sessions
+from .utils import process_claim
 from rule_engine.registry import register_function
 
 from concurrent.futures import ThreadPoolExecutor
@@ -8,7 +9,9 @@ from typing import List, Dict, Any, Tuple
 import pandas as pd
 
 @register_function(
-    name="convert_claims_data_to_csv", 
+    name="convert_claims_data_to_csv",
+    tag="CPS850 Macro",
+    color="#00838f",
     inputs=[{"name": "output_path", "type": "string"}], # 
     outputs=[{"name": "status", "type": "boolean"}]
 )
@@ -27,7 +30,9 @@ def convert_claims_data_to_csv(output_path,context=None) :
     
 
 @register_function(
-    name="scrap_claims_from_emulator", 
+    name="scrap_claims_from_emulator",
+    tag="CPS850 Macro",
+    color="#00838f",
     inputs=[], # 
     outputs=[{"name": "scrapped_claims", "type": "list"}]
 )

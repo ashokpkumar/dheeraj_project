@@ -10,7 +10,9 @@ import ast
 
 
 @register_function(
-    name="fetch_claim_ids_from_db", 
+    name="fetch_claim_ids_from_db",
+    tag="CPS850 Macro",
+    color="#00838f",
     inputs=[{"name": "rules", "type": "list"}], # 
     outputs=[{"name": "claim_ids", "type": "list"}]
 )
@@ -32,7 +34,9 @@ def fetch_claim_ids_from_db( rules,context=None):
 
 
 @register_function(
-    name="add_scrapped_values_to_db", 
+    name="add_scrapped_values_to_db",
+    tag="CPS850 Macro",
+    color="#00838f",
     inputs=[{"name": "rule_name", "type": "string"}], # 
     outputs=[]
 )
