@@ -94,7 +94,42 @@ def dashboard(request):
             }
             for obj in page
         ]
-        return paginator.get_paginated_response(data)
+        response = paginator.get_paginated_response(data)
+
+        # ---------------- CLAIMS STATUS SUMMARY ----------------
+        claims_qs = ClaimsData.objects.all()
+        if start_date_str:
+            start_date = parse_date(start_date_str)
+            if start_date:
+                claims_qs = claims_qs.filter(processed_date__date__gte=start_date)
+        if end_date_str:
+            end_date = parse_date(end_date_str)
+            if end_date:
+                claims_qs = claims_qs.filter(processed_date__date__lte=end_date)
+
+        total_count = claims_qs.count()
+        
+        # Anything containing this text = Already Released
+        already_released_count = claims_qs.filter(
+        status__icontains="FBR 15   NO FOLLOW UP FOR THIS SELECTION"
+        ).count()
+        
+        # Only exact DONE.
+        processed_count = claims_qs.filter(
+        status__iexact="DONE."
+        ).count()
+
+        # Everything else
+        unprocessed_count = (total_count - processed_count - already_released_count)
+        
+
+        response.data["claims_summary"] = {
+        "processed": processed_count,
+        "already_released": already_released_count,
+        "unprocessed": unprocessed_count,
+        "total": total_count,
+        }
+        return response
 
     # ---------------- AGGREGATE MODE ----------------
     group_by = params.get("group_by")
@@ -143,7 +178,9 @@ def discover_functions(request):
         result.append({
             "function_name": function.function_name,
             "inputs": inputs,
-            "outputs": outputs
+            "outputs": outputs,
+            "tag":   function.tag,
+            "color": function.color,
         })
 
     return Response(result)
@@ -161,7 +198,9 @@ def _get_params(parameter_group_id):
     return [
         {
             "name": param.param_name,
-            "type": param.param_type
+            "type": param.param_type,
+            "options": param.param_options,
+            "default": param.param_default,
         }
         for param in params
     ]
@@ -414,7 +453,7 @@ def export_claims_csv(request):
     rule_name = request.GET.get("rule_name")
     rule_engine_id = request.GET.get("rule_engine_id")
     qs = ClaimsData.objects.all().only(
-        "claims_id", "processed_date", "rule_name", "manual", "status"
+        "claims_id", "processed_date", "rule_name", "manual", "status", "decision"
     )
 
     if rule_name:
@@ -424,7 +463,7 @@ def export_claims_csv(request):
     if rule_engine_id:
         qs = qs.filter(rule_engine_id=rule_engine_id)
 
-    headers = ["claims_id", "processed_date", "rule_name", "manual", "status"]
+    headers = ["claims_id", "processed_date", "rule_name", "manual", "status", "decision"]
     pseudo_buffer = Echo()
     writer = csv.writer(pseudo_buffer)
 
@@ -437,6 +476,7 @@ def export_claims_csv(request):
                 row.rule_name,
                 "TRUE" if row.manual else "FALSE",
                 row.status,
+                row.decision,
             ])
 
     filename = f"claims_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
@@ -592,3 +632,18 @@ def delete_job(request, job_id):
     job.delete()
 
     return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)
+
+
+from .registry import FUNCTION_REGISTRY, sync_registry_to_db
+
+@api_view(["POST"])
+def refresh_functions(request):
+    from django.db import transaction
+
+    with transaction.atomic():
+        ParamModel.objects.all().delete()
+        RuleLogic.objects.all().delete()
+
+    sync_registry_to_db()
+
+    return Response({"message": f"Refreshed {len(FUNCTION_REGISTRY)} function(s)."}, status=status.HTTP_200_OK)
