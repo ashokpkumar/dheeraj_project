@@ -12,6 +12,10 @@ class ParamModel(models.Model):
 
     param_type = models.CharField(max_length=50)
 
+    param_options = models.JSONField(null=True, blank=True)
+
+    param_default = models.CharField(max_length=500, null=True, blank=True)
+
     class Meta:
         db_table = "param_model"
 
@@ -62,6 +66,9 @@ class RuleLogic(models.Model):
 
     output_params = models.IntegerField(null=True,blank=True)
 
+    tag   = models.CharField(max_length=100, null=True, blank=True)
+    color = models.CharField(max_length=20,  null=True, blank=True)
+
     class Meta:
         db_table = "rule_logic"
 
@@ -73,6 +80,8 @@ class ClaimsData(models.Model):
     manual = models.BooleanField()
     status = models.CharField(max_length=255)
     rule_engine_id =  models.CharField(max_length=255)
+    decision = models.CharField(max_length=500, blank=True, default="",null=True)
+    details = models.JSONField(null=True, blank=True, default=dict)
 
     class Meta:
         db_table = "claims_data"
