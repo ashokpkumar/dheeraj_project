@@ -4,12 +4,14 @@ setlocal
 set "BACKEND_DIR=%~dp0backend\automation"
 if not exist "%BACKEND_DIR%\manage.py" (
     echo ERROR: Could not find backend\automation\manage.py.
+    pause
     exit /b 1
 )
 
 pushd "%BACKEND_DIR%"
 if errorlevel 1 (
     echo ERROR: Could not enter "%BACKEND_DIR%".
+    pause
     exit /b 1
 )
 
@@ -22,6 +24,7 @@ if not exist ".venv\Scripts\python.exe" (
         if errorlevel 1 (
             echo ERROR: Python was not found. Install Python and add it to PATH.
             popd
+            pause
             exit /b 1
         )
         python -m venv .venv
@@ -29,6 +32,7 @@ if not exist ".venv\Scripts\python.exe" (
     if errorlevel 1 (
         echo ERROR: Could not create the Python virtual environment.
         popd
+        pause
         exit /b 1
     )
 )
@@ -37,6 +41,7 @@ call ".venv\Scripts\activate.bat"
 if errorlevel 1 (
     echo ERROR: Could not activate the Python virtual environment.
     popd
+    pause
     exit /b 1
 )
 
@@ -56,10 +61,12 @@ echo Starting Django at http://%DJANGO_HOST%:%DJANGO_PORT%/
 python manage.py runserver %DJANGO_HOST%:%DJANGO_PORT%
 set "SERVER_EXIT_CODE=%ERRORLEVEL%"
 popd
+if not "%SERVER_EXIT_CODE%"=="0" pause
 exit /b %SERVER_EXIT_CODE%
 
 :failed
 set "COMMAND_EXIT_CODE=%ERRORLEVEL%"
 popd
 echo ERROR: Backend setup failed with exit code %COMMAND_EXIT_CODE%.
+pause
 exit /b %COMMAND_EXIT_CODE%

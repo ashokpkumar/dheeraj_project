@@ -6,12 +6,14 @@ set "UI_DIR=%~dp0UI\my-react-flow-app"
 where npm >nul 2>nul
 if errorlevel 1 (
     echo ERROR: npm was not found. Install Node.js on the build machine first.
+    pause
     exit /b 1
 )
 
 pushd "%UI_DIR%"
 if errorlevel 1 (
     echo ERROR: Could not find the UI project at "%UI_DIR%".
+    pause
     exit /b 1
 )
 
@@ -34,4 +36,5 @@ exit /b 0
 set "BUILD_EXIT_CODE=%ERRORLEVEL%"
 popd
 echo ERROR: UI build failed with exit code %BUILD_EXIT_CODE%.
+pause
 exit /b %BUILD_EXIT_CODE%
