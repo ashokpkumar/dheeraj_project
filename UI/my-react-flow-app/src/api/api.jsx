@@ -1,4 +1,4 @@
-const API_BASE = "/rule_engine";
+export const API_BASE = `http://${window.location.hostname}:8000/rule_engine`;
 
 export async function loadGraph(ruleEngineId) {
   console.log("Loading graph for rule engine ID:", ruleEngineId);
@@ -21,7 +21,7 @@ export async function saveGraph(ruleName, nodes, edges, ruleId = null) {
     payload.rule_id = ruleId
   }
 
-  const response = await fetch("http://127.0.0.1:8000/rule_engine/rules/save/", {
+  const response = await fetch(`${API_BASE}/rules/save/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -13,7 +13,7 @@ import '@xyflow/react/dist/style.css'
 
 import RuleNode from './components/RuleNode'
 
-import { saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule, refreshFunctions } from './api/api'
+import { API_BASE, saveGraph, loadFunctions, loadRules, loadGraph, loadFirstRuleGraph, deleteRule, executeRule, refreshFunctions } from './api/api'
 import SchedulerPage from './components/SchedulerPage'
 import ProcessingPage from './components/ProcessingPage'
 
@@ -96,7 +96,7 @@ export default function App() {
         page: page.toString(),
         limit: limit.toString(),
       })
-      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/?${params}`)
+      const res = await fetch(`${API_BASE}/dashboard/?${params}`)
       if (!res.ok) throw new Error(`Dashboard API error: ${res.status}`)
       const data = await res.json()
       setDashboardData(data?.results || [])
@@ -143,7 +143,7 @@ const handleCancelEdit = () => {
     const params = new URLSearchParams({ rule_engine_id: rowId,  rule_name })
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/rule_engine/claims/export/?${params}`)
+      const res = await fetch(`${API_BASE}/claims/export/?${params}`)
       if (!res.ok) throw new Error(`Export API error: ${res.status}`)
 
       const reader = res.body.getReader()
@@ -182,7 +182,7 @@ const handleCancelEdit = () => {
         page: page.toString(),
         limit: limit.toString(),
       })
-      const res = await fetch(`http://127.0.0.1:8000/rule_engine/dashboard/?${params}`)
+      const res = await fetch(`${API_BASE}/dashboard/?${params}`)
       if (!res.ok) throw new Error(`Details API error: ${res.status}`)
       const data = await res.json()
       setDateDetails(data?.results || [])
