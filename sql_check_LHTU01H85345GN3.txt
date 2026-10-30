@@ -1,0 +1,140 @@
+**********************
+Windows PowerShell transcript start
+Start time: 20261030104148
+Username: MS\dpaladi2
+RunAs User: MS\dpaladi2
+Configuration Name: 
+Machine: LHTU01H85345GN3 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Process ID: 33744
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+PS C:\Users\dpaladi2\umr-claims-automation-platform> function Section($t) { Write-Output "`n==================== $t ====================" }
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "MACHINE"
+
+==================== MACHINE ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> $cs = Get-CimInstance Win32_ComputerSystem
+PS C:\Users\dpaladi2\umr-claims-automation-platform> $os = Get-CimInstance Win32_OperatingSystem
+PS C:\Users\dpaladi2\umr-claims-automation-platform> [pscustomobject]@{
+    Computer     = $env:COMPUTERNAME
+    OS           = $os.Caption
+    OSVersion    = $os.Version
+    Model        = $cs.Model            # shows VMware / Virtual Machine etc. on a VM
+    DomainJoined = $cs.PartOfDomain
+    Domain       = $cs.Domain
+    User         = "$env:USERDOMAIN\$env:USERNAME"
+    RunningAsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+} | Format-List | Out-String -Width 200
+
+
+Computer       : LHTU01H85345GN3
+OS             : Microsoft Windows 11 Enterprise
+OSVersion      : 10.0.26200
+Model          : HP ZBook Power 16 inch G11 Mobile Workstation PC
+DomainJoined   : True
+Domain         : ms.ds.uhc.com
+User           : MS\dpaladi2
+RunningAsAdmin : False
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "SQL SERVER INSTANCES"
+
+==================== SQL SERVER INSTANCES ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> $instKey = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\SQL'
+PS C:\Users\dpaladi2\umr-claims-automation-platform> if (Test-Path $instKey) {
+    $inst = Get-ItemProperty $instKey
+    $inst.PSObject.Properties | Where-Object { $_.Name -notlike 'PS*' } | ForEach-Object {
+        $setup = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$($_.Value)\Setup" -ErrorAction SilentlyContinue
+        [pscustomobject]@{
+            Instance   = $_.Name
+            InstanceId = $_.Value
+            Edition    = $setup.Edition
+            Version    = $setup.Version
+            PatchLevel = $setup.PatchLevel
+            DataRoot   = $setup.SQLDataRoot
+        }
+    } | Format-List | Out-String -Width 200
+} else { Write-Output "No full SQL Server instances found in registry." }
+
+
+Instance   : SQLEXPRESS2019
+InstanceId : MSSQL15.SQLEXPRESS2019
+Edition    : Express Edition
+Version    : 15.0.2000.5
+PatchLevel : 15.0.2000.5
+DataRoot   : C:\Program Files\Microsoft SQL Server\MSSQL15.SQLEXPRESS2019\MSSQL
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "LOCALDB"
+
+==================== LOCALDB ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> try { sqllocaldb info 2>&1 | Out-String } catch { Write-Output "sqllocaldb not installed." }
+MSSQLLocalDB
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "SQL SERVICES (account each runs as)"
+
+==================== SQL SERVICES (account each runs as) ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Get-CimInstance Win32_Service | Where-Object { $_.Name -like '*SQL*' } |
+    Select-Object Name, State, StartMode, StartName |
+    Format-Table -AutoSize | Out-String -Width 200
+
+Name                           State   StartMode StartName                                
+----                           -----   --------- ---------                                
+MSSQL$SQLEXPRESS2019           Stopped Auto      NT Service\MSSQL$SQLEXPRESS2019          
+MSSQLFDLauncher$SQLEXPRESS2019 Stopped Manual    NT Service\MSSQLFDLauncher$SQLEXPRESS2019
+MSSQLLaunchpad$SQLEXPRESS2019  Stopped Auto      NT Service\MSSQLLaunchpad$SQLEXPRESS2019 
+SQLAgent$SQLEXPRESS2019        Stopped Disabled  NT AUTHORITY\NETWORKSERVICE              
+SQLBrowser                     Running Auto      NT AUTHORITY\LOCALSERVICE                
+SQLPBDMS$SQLEXPRESS2019        Stopped Auto      NT AUTHORITY\NETWORKSERVICE              
+SQLPBENGINE$SQLEXPRESS2019     Stopped Auto      NT AUTHORITY\NETWORKSERVICE              
+SQLTELEMETRY$SQLEXPRESS2019    Stopped Auto      NT Service\SQLTELEMETRY$SQLEXPRESS2019   
+SQLWriter                      Running Auto      LocalSystem
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "WHO HAS 'LOG ON AS A SERVICE' (SeServiceLogonRight)"
+
+==================== WHO HAS 'LOG ON AS A SERVICE' (SeServiceLogonRight) ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> $cfg = Join-Path $env:TEMP "secpol_export.cfg"
+PS C:\Users\dpaladi2\umr-claims-automation-platform> secedit /export /cfg $cfg /areas USER_RIGHTS /quiet | Out-Null
+PS C:\Users\dpaladi2\umr-claims-automation-platform> if (Test-Path $cfg) {
+    $line = Select-String -Path $cfg -Pattern '^SeServiceLogonRight' | Select-Object -First 1
+    if ($line) {
+        ($line.Line -split '=', 2)[1].Trim() -split ',' | ForEach-Object {
+            $e = $_.Trim()
+            if ($e.StartsWith('*')) {
+                $sid = $e.TrimStart('*')
+                try { $name = (New-Object Security.Principal.SecurityIdentifier $sid).Translate([Security.Principal.NTAccount]).Value }
+                catch { $name = '(unresolved)' }
+                "  $name   [$sid]"
+            } else { "  $e" }
+        } | Out-String
+    } else { Write-Output "SeServiceLogonRight is EMPTY - no account may log on as a service." }
+    Remove-Item $cfg -Force
+} else { Write-Output "Could not export policy (run as admin)." }
+Could not export policy (run as admin).
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "GROUP POLICIES APPLIED TO THIS COMPUTER"
+
+==================== GROUP POLICIES APPLIED TO THIS COMPUTER ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> gpresult /r /scope computer 2>&1 | Out-String -Width 200
+gpresult : ERROR: Access Denied.
+At line:1 char:1
++ gpresult /r /scope computer 2>&1 | Out-String -Width 200
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERROR: Access Denied.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Section "SQL ODBC DRIVERS"
+
+==================== SQL ODBC DRIVERS ====================
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Get-OdbcDriver -Platform 64-bit | Where-Object { $_.Name -like '*SQL*' } |
+    Select-Object Name | Format-Table -AutoSize | Out-String
+
+Name                         
+----                         
+SQL Server                   
+SQL Server Native Client 11.0
+ODBC Driver 18 for SQL Server
+PS C:\Users\dpaladi2\umr-claims-automation-platform> Stop-Transcript | Out-Null
+**********************
+Windows PowerShell transcript end
+End time: 20261030104158
+**********************
