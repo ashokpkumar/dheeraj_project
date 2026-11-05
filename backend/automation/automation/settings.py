@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Loads backend/automation/.env (next to manage.py)
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 REACT_BUILD_DIR = r"C:\Users\dpaladi2\umr-claims-automation-platform\UI\my-react-flow-app\dist"  # or "dist" for Vite
 
@@ -97,10 +101,10 @@ DATABASE_ROUTERS = ["automation.dbrouters.MSSQLRouter"]
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'CLAIMS_AUTOMATION',
-        'HOST': 'wp000047650',   # default wp000047650\\SQLEXPRESS
+        'NAME': os.environ['DEFAULT_DB_NAME'],
+        'HOST': os.environ['DEFAULT_DB_HOST'],   # e.g. host or host\\SQLEXPRESS
         'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
+            'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             "extra_params": (
                             "Trusted_Connection=yes;"
                             "Encrypt=yes;"
@@ -110,10 +114,10 @@ DATABASES = {
     },
     "mssql": {
         "ENGINE": "mssql",
-        "NAME": "MACRO_IT_PROJECT",
-        "HOST": "wp000047650",  # or wp000047650\\SQLEXPRESS
+        "NAME": os.environ['MSSQL_DB_NAME'],
+        "HOST": os.environ['MSSQL_DB_HOST'],  # e.g. host or host\\SQLEXPRESS
         "OPTIONS": {
-            "driver": "ODBC Driver 18 for SQL Server",
+            "driver": os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             "extra_params": (
                 "Trusted_Connection=yes;"
                 "Encrypt=yes;"
