@@ -11,6 +11,17 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+REACT_BUILD_DIR = r"C:\Users\dpaladi2\umr-claims-automation-platform\UI\my-react-flow-app\dist"  # or "dist" for Vite
+
+
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [
+    # os.path.join(REACT_BUILD_DIR, "static"),   # CRA
+    REACT_BUILD_DIR# Vite – see note below
+]
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,7 +69,7 @@ ROOT_URLCONF = 'automation.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        "DIRS": [REACT_BUILD_DIR],  
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -86,13 +97,15 @@ DATABASE_ROUTERS = ["automation.dbrouters.MSSQLRouter"]
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'automation',
-        'HOST': '(localdb)\\MSSQLLocalDB',   # default LocalDB instance name
+        'NAME': 'CLAIMS_AUTOMATION',
+        'HOST': 'wp000047650',   # default wp000047650\\SQLEXPRESS
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
-            'trusted_connection': 'yes',     # LocalDB uses your Windows account
-            'encrypt': True,
-            'trustServerCertificate': True,
+            "extra_params": (
+                            "Trusted_Connection=yes;"
+                            "Encrypt=yes;"
+                            "TrustServerCertificate=yes;"
+            ),
         },
     },
     "mssql": {
@@ -145,7 +158,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# STATIC_URL = 'static/'
 
 
 # CORS settings
@@ -155,6 +168,5 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://[^/]+:8080$"]
 
 CORS_ALLOW_CREDENTIALS = True
