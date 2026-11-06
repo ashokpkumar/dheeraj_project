@@ -57,8 +57,8 @@ if errorlevel 1 goto failed
 if not defined DJANGO_HOST set "DJANGO_HOST=0.0.0.0"
 if not defined DJANGO_PORT set "DJANGO_PORT=8000"
 
-echo Starting Django at http://%DJANGO_HOST%:%DJANGO_PORT%/
-python manage.py runserver %DJANGO_HOST%:%DJANGO_PORT%
+echo Starting Django (Waitress) at http://%DJANGO_HOST%:%DJANGO_PORT%/
+python serve.py
 set "SERVER_EXIT_CODE=%ERRORLEVEL%"
 popd
 if not "%SERVER_EXIT_CODE%"=="0" pause

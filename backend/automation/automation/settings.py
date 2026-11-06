@@ -21,6 +21,10 @@ REACT_BUILD_DIR = r"C:\Users\dpaladi2\umr-claims-automation-platform\UI\my-react
 
 
 STATIC_URL = "/static/"
+# WhiteNoise: serve straight from STATICFILES_DIRS (no collectstatic needed),
+# same behaviour runserver had.
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
 STATICFILES_DIRS = [
     # os.path.join(REACT_BUILD_DIR, "static"),   # CRA
     REACT_BUILD_DIR# Vite – see note below
@@ -59,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves /static/ under Waitress
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
