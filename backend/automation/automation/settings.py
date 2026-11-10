@@ -106,8 +106,8 @@ DATABASE_ROUTERS = ["automation.dbrouters.MSSQLRouter"]
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': os.environ['DEFAULT_DB_NAME'],
-        'HOST': os.environ['DEFAULT_DB_HOST'],   # e.g. host or host\\SQLEXPRESS
+        'NAME': os.environ.get('DEFAULT_DB_NAME','CLAIMS_AUTOMATION'),
+        'HOST': os.environ.get('DEFAULT_DB_HOST','wp000047650'),   # e.g. host or host\\SQLEXPRESS
         'OPTIONS': {
             'driver': os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             "extra_params": (
@@ -119,8 +119,8 @@ DATABASES = {
     },
     "mssql": {
         "ENGINE": "mssql",
-        "NAME": os.environ['MSSQL_DB_NAME'],
-        "HOST": os.environ['MSSQL_DB_HOST'],  # e.g. host or host\\SQLEXPRESS
+        "NAME": os.environ.get('DEFAULT_DB_NAME','MACRO_IT_PROJECT'),
+        "HOST": os.environ.get('DEFAULT_DB_HOST','wp000047650'),  # e.g. host or host\\SQLEXPRESS
         "OPTIONS": {
             "driver": os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             "extra_params": (
@@ -131,7 +131,7 @@ DATABASES = {
         },
     }
 }
-
+print(DATABASES)
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
