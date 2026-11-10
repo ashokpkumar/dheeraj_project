@@ -119,8 +119,8 @@ DATABASES = {
     },
     "mssql": {
         "ENGINE": "mssql",
-        "NAME": os.environ.get('DEFAULT_DB_NAME','MACRO_IT_PROJECT'),
-        "HOST": os.environ.get('DEFAULT_DB_HOST','wp000047650'),  # e.g. host or host\\SQLEXPRESS
+        "NAME": os.environ.get('MSSQL_DB_NAME','MACRO_IT_PROJECT'),
+        "HOST": os.environ.get('MSSQL_DB_HOST','wp000047650'),  # e.g. host or host\\SQLEXPRESS
         "OPTIONS": {
             "driver": os.environ.get('DB_DRIVER', 'ODBC Driver 18 for SQL Server'),
             "extra_params": (
