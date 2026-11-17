@@ -1,7 +1,7 @@
 @echo off
 rem One-step deploy for the Windows VM. Push to GitHub, then run this on the VM:
 rem   1. pull latest main (VM copy is reset to match GitHub exactly)
-rem   2. build the React UI
+rem   2. check the prebuilt UI (dist) that came with the pull
 rem   3. create venv, install Python packages, apply migrations
 rem   4. serve backend (port 8000) and UI (port 8080) with Waitress
 rem
@@ -20,7 +20,7 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
     echo [!time:~0,8!] Running as    : %USERNAME% on %COMPUTERNAME%
 
     echo.
-    echo [!time:~0,8!] [1/7] Checking required tools
+    echo [!time:~0,8!] [1/6] Checking required tools
     where git >nul 2>nul
     if errorlevel 1 (
         echo [!time:~0,8!] ERROR: git was not found. Install Git for Windows from https://git-scm.com then run this again.
@@ -50,24 +50,8 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
         for /f "delims=" %%v in ('py -3 --version') do echo [!time:~0,8!]   python : %%v via py launcher
     )
 
-    where npm >nul 2>nul
-    if errorlevel 1 (
-        echo [!time:~0,8!] Node.js was not found. Trying to install it with winget...
-        where winget >nul 2>nul
-        if errorlevel 1 (
-            echo [!time:~0,8!] ERROR: winget is not available. Install Node.js LTS from https://nodejs.org then run this again.
-            pause
-            exit /b 1
-        )
-        winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
-        echo [!time:~0,8!] Node.js installed. Close this window, open a NEW one and run this script again.
-        pause
-        exit /b 0
-    )
-    for /f "delims=" %%v in ('node --version') do echo [!time:~0,8!]   node   : %%v
-
     echo.
-    echo [!time:~0,8!] [2/7] Pulling latest main from GitHub
+    echo [!time:~0,8!] [2/6] Pulling latest main from GitHub
     pushd "%~dp0"
     echo [!time:~0,8!]   remote:
     git remote -v
@@ -98,7 +82,7 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
     popd
 
     echo.
-    echo [!time:~0,8!] [3/7] Verifying project files
+    echo [!time:~0,8!] [3/6] Verifying project files
     if not exist "%~dp0backend\automation\manage.py" (
         echo [!time:~0,8!] ERROR: Could not find "%~dp0backend\automation\manage.py"
         echo [!time:~0,8!] Contents of "%~dp0":
@@ -107,40 +91,16 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
         exit /b 1
     )
     echo [!time:~0,8!]   found manage.py
-    if not exist "%~dp0UI\my-react-flow-app\package.json" (
-        echo [!time:~0,8!] ERROR: Could not find "%~dp0UI\my-react-flow-app\package.json"
+    if not exist "%~dp0UI\my-react-flow-app\dist\index.html" (
+        echo [!time:~0,8!] ERROR: Prebuilt UI not found at "%~dp0UI\my-react-flow-app\dist\index.html"
+        echo [!time:~0,8!] On your build machine run build-ui.bat, then: git add -f UI/my-react-flow-app/dist, commit and push.
         pause
         exit /b 1
     )
-    echo [!time:~0,8!]   found UI package.json
+    echo [!time:~0,8!]   found prebuilt UI in dist
 
     echo.
-    echo [!time:~0,8!] [4/7] Building the UI - this can take a minute or two
-    pushd "%~dp0UI\my-react-flow-app"
-    echo [!time:~0,8!]   npm ci
-    call npm ci
-    if errorlevel 1 (
-        echo [!time:~0,8!] ERROR: npm ci failed.
-        pause
-        exit /b 1
-    )
-    echo [!time:~0,8!]   npm run build
-    call npm run build
-    if errorlevel 1 (
-        echo [!time:~0,8!] ERROR: UI build failed.
-        pause
-        exit /b 1
-    )
-    if not exist "dist\index.html" (
-        echo [!time:~0,8!] ERROR: build finished but dist\index.html is missing.
-        pause
-        exit /b 1
-    )
-    echo [!time:~0,8!]   UI built OK
-    popd
-
-    echo.
-    echo [!time:~0,8!] [5/7] Python virtual environment
+    echo [!time:~0,8!] [4/6] Python virtual environment
     pushd "%~dp0backend\automation"
     if not exist ".venv\Scripts\python.exe" (
         echo [!time:~0,8!]   creating .venv
@@ -177,7 +137,7 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
     )
 
     echo.
-    echo [!time:~0,8!] [6/7] Applying database migrations
+    echo [!time:~0,8!] [5/6] Applying database migrations
     python manage.py migrate --noinput
     if errorlevel 1 (
         echo [!time:~0,8!] ERROR: migrate failed. Read the error above - often a missing .env or ODBC driver.
@@ -186,7 +146,7 @@ rem block reads as empty. Use !VAR! (delayed expansion) for those, and %~dp0 for
     )
 
     echo.
-    echo [!time:~0,8!] [7/7] Starting servers - keep this window open
+    echo [!time:~0,8!] [6/6] Starting servers - keep this window open
     echo [!time:~0,8!]   backend  http://localhost:8000
     echo [!time:~0,8!]   frontend http://localhost:8080
     python serve_all.py
