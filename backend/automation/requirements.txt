@@ -1,11 +1,11 @@
 amqp==5.3.1
 asgiref==3.11.1
 beautifulsoup4==4.14.2
-certifi==2026.5.20
+certifi==2026.10.18
 charset-normalizer==3.4.7
 Django==5.2.11
 django-cors-headers==4.9.0
-djangorestframework==3.16.1
+djangorestframework==3.18.2
 et_xmlfile==2.0.0
 greenlet
 waitress==3.0.2
@@ -25,7 +25,7 @@ pydantic==1.9.0
 pydantic_core==2.41.5
 pyodbc==5.3.0
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.0
+python-dotenv==1.1.1
 pytz==2025.2
 pywin32==312
 requests==2.31.0
@@ -33,7 +33,6 @@ schedule==1.2.2
 six==1.17.0
 SQLAlchemy==2.0.48
 sqlparse==0.5.5
-tornado==6.5.5
+tornado==6.6.1
 typing_extensions==4.15.0
 tzdata==2025.3
-python-dotenv==1.1.1
