@@ -12,6 +12,10 @@ from rule_engine.models import ClaimsData
 
 from django.db import transaction
 
+from app_logging import get_logger
+
+logger = get_logger(__name__)
+
 
 
 def bulk_upsert_claims(data_list: list[dict],rule_name:str,manual:bool,rule_engine_id :str):
@@ -45,10 +49,20 @@ def bulk_upsert_claims(data_list: list[dict],rule_name:str,manual:bool,rule_engi
             )
         )
 
-    with transaction.atomic():
-        created_count = 0
-        ClaimsData.objects.bulk_create(to_create, batch_size=1000)
-        
+    try:
+        with transaction.atomic():
+            created_count = 0
+            ClaimsData.objects.bulk_create(to_create, batch_size=1000)
+    except Exception:
+        logger.exception("bulk_upsert_claims failed for %s row(s)", len(to_create),
+                         extra={"event_name": "claims_save_failed", "rule_name": rule_name,
+                                "rule_engine_id": rule_engine_id, "row_count": len(to_create)})
+        raise
+
+    logger.info("Saved %s claim row(s)", len(to_create),
+                extra={"event_name": "claims_saved", "rule_name": rule_name,
+                       "rule_engine_id": rule_engine_id, "row_count": len(to_create),
+                       "manual": manual})
     return {"created": created_count, "updated": 0}
 
 
@@ -120,6 +134,8 @@ def attach_emulator_sessions(n=4):
 
     if not result:
         raise RuntimeError("No live emulator sessions found (all were stale/disconnected).")
+    logger.info("Attached to %s emulator session(s)", len(result),
+                extra={"event_name": "emulator_sessions_attached", "session_count": len(result)})
 
     # Optional: give host a moment to be quiet
     for s in result:

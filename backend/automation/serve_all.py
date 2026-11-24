@@ -64,6 +64,10 @@ if __name__ == "__main__":
 
     application = get_wsgi_application()
 
+    from app_logging import get_logger
+    logger = get_logger("server")
+    logger.info("Frontend starting on http://%s:%s/ (from %s)", ui_host, ui_port, DIST_DIR,
+                extra={"event_name": "frontend_starting", "port": ui_port})
     print(f"Frontend: http://{ui_host}:{ui_port}/  (from {DIST_DIR})")
     threading.Thread(
         target=serve,
@@ -72,6 +76,8 @@ if __name__ == "__main__":
         daemon=True,
     ).start()
 
+    logger.info("Backend starting on http://%s:%s/ (%s threads)", api_host, api_port, threads,
+                extra={"event_name": "server_starting", "port": api_port, "threads": threads})
     print(f"Backend:  http://{api_host}:{api_port}/  ({threads} threads)")
     serve(
         application,

@@ -3,12 +3,16 @@ import time
 import win32com.client
 import pythoncom
 from rule_engine.registry import register_function
+from app_logging import get_logger
 from .helpers import (
     get_screen_id,
     wait_for_screen,
     send_enter,
     place_value,
 )
+
+
+logger = get_logger(__name__)
 
 
 def _close_window(hwnd, timeout=3) -> None:
@@ -217,6 +221,8 @@ def _automate_session(session, name):
 
     for step_fn in steps:
         ok, msg = step_fn(screen)
+        logger.info("Session %s: %s -> %s (%s)", name, step_fn.__name__, "ok" if ok else "FAILED", msg,
+                    extra={"event_name": "emulator_step", "success": ok})
         if not ok:
             return {"name": name, "success": False, "message": msg}
     return {"name": name, "success": True, "message": "Reached Claim main screen (CPS515.01)"}
@@ -238,11 +244,16 @@ def _automate_session(session, name):
     ]
 )
 def open_emulator(location, context=None):
+    logger.info("open_emulator: location=%s", location, extra={"event_name": "open_emulator_started"})
     if not os.path.isdir(location):
+        logger.error("open_emulator: directory not found: %s", location,
+                     extra={"event_name": "open_emulator_failed"})
         return {"success": False, "sessions": [], "message": f"Directory not found: {location}"}
 
     rd3x_files = [f for f in os.listdir(location) if f.endswith(".rd3x")]
     if not rd3x_files:
+        logger.error("open_emulator: no .rd3x files in %s", location,
+                     extra={"event_name": "open_emulator_failed"})
         return {"success": False, "sessions": [], "message": f"No .rd3x files found in: {location}"}
 
     # session name (derived from filename) -> rd3x filename
@@ -260,6 +271,8 @@ def open_emulator(location, context=None):
     try:
         named_sessions = _attach_named_sessions(session_names)
     except Exception as e:
+        logger.exception("open_emulator: failed to attach to sessions: %s", e,
+                         extra={"event_name": "open_emulator_failed"})
         return {"success": False, "sessions": [], "message": f"Failed to attach to emulator sessions: {e}"}
 
     results = []
@@ -271,6 +284,11 @@ def open_emulator(location, context=None):
         results.append(result)
 
     all_ok = all(r["success"] for r in results)
+    logger.log(20 if all_ok else 40,
+               "open_emulator finished: %s/%s session(s) succeeded",
+               sum(r["success"] for r in results), len(results),
+               extra={"event_name": "open_emulator_completed", "success": all_ok,
+                      "session_results": results})
     return {
         "success": all_ok,
         "sessions": results,

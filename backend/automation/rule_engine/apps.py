@@ -18,6 +18,9 @@ class RuleEngineConfig(AppConfig):
         # view) to sync the registry to the database once the app is up.
         try:
             import rule_engine.functions  # noqa: F401
+            from .registry import FUNCTION_REGISTRY
+            logger.info("rule_engine ready: %s function(s) registered", len(FUNCTION_REGISTRY),
+                        extra={"event_name": "app_ready", "function_count": len(FUNCTION_REGISTRY)})
         except Exception:
             # Make sure failures are visible at startup instead of failing
             # silently (or only as a truncated warning).

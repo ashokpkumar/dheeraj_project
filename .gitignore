@@ -30,3 +30,6 @@ Thumbs.db
 
 # Secrets
 .env
+
+# Application logs (CSV output from app_logging)
+backend/automation/logs/

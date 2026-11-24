@@ -4,7 +4,6 @@ import os
 import django
 import time
 import schedule
-import logging
 from datetime import datetime
 from threading import Thread
 
@@ -18,7 +17,9 @@ django.setup()
 from rule_engine.models import RuleEngine, ScheduledJob
 from rule_engine.executor import GraphRuleExecutor as RuleExecutor
 
-logger = logging.getLogger(__name__)
+from app_logging import get_logger, log_context, new_operation_id
+
+logger = get_logger("scheduler")
 
 # ─────────────────────────────────────────────────────────────
 # In-memory job registry
@@ -32,19 +33,24 @@ _registered_jobs: dict[int, list] = {}
 # ─────────────────────────────────────────────────────────────
 def _make_task(rule_name: str):
     def task():
-        try:
-            print(f"[scheduler] Running rule: {rule_name} at {datetime.utcnow().isoformat()}")
+        with log_context(operation_id=new_operation_id(), rule_name=rule_name,
+                         operation_name=f"scheduled_run {rule_name}"):
+            try:
+                logger.info(f"Running scheduled rule: {rule_name}",
+                            extra={"event_name": "scheduled_run_started"})
 
-            rule_obj = RuleEngine.objects.filter(rule_name=rule_name).first()
-            if not rule_obj:
-                logger.warning(f"[scheduler] Rule '{rule_name}' not found")
-                return
+                rule_obj = RuleEngine.objects.filter(rule_name=rule_name).first()
+                if not rule_obj:
+                    logger.warning(f"Rule '{rule_name}' not found",
+                                   extra={"event_name": "scheduled_rule_missing", "success": False})
+                    return
 
-            executor = RuleExecutor(rule_obj.id, False)
-            executor.execute()
+                executor = RuleExecutor(rule_obj.id, False)
+                executor.execute()
 
-        except Exception as e:
-            logger.error(f"[scheduler] Error running '{rule_name}': {e}")
+            except Exception as e:
+                logger.exception(f"Error running '{rule_name}': {e}",
+                                 extra={"event_name": "scheduled_run_failed"})
 
     task.__name__ = f"task_{rule_name}"
     return task
@@ -146,7 +152,7 @@ def add_job(job_id: int):
     db_job = ScheduledJob.objects.filter(id=job_id).first()
 
     if not db_job:
-        print(f"[scheduler] Job {job_id} not found or inactive")
+        logger.warning(f"Job {job_id} not found or inactive", extra={"event_name": "job_not_found"})
         return
 
     # overwrite safely
@@ -157,7 +163,7 @@ def add_job(job_id: int):
     _registered_jobs[job_id] = sched_jobs
 
     for sched_job, meta1, meta2 in sched_jobs:
-        print(f"[scheduler] Registered: {db_job.rule_name} — {meta1} {meta2}")
+        logger.info(f"Registered: {db_job.rule_name} - {meta1} {meta2}", extra={"event_name": "job_registered"})
 
 
 def remove_job(job_id: int):
@@ -169,7 +175,7 @@ def remove_job(job_id: int):
     for sched_job, _, __ in existing:
         schedule.cancel_job(sched_job)
 
-    print(f"[scheduler] Removed job: {job_id}")
+    logger.info(f"Removed job: {job_id}", extra={"event_name": "job_removed"})
 
 
 def update_job(job_id: int):
@@ -195,7 +201,7 @@ def load_diff_jobs():
 
 
 def _run_scheduler():
-    print("[scheduler] Started...")
+    logger.info("Scheduler started", extra={"event_name": "scheduler_started"})
     while True:
         schedule.run_pending()
         time.sleep(10)
@@ -207,7 +213,7 @@ def _run_scheduler():
 def start_scheduler_in_background():
     thread = Thread(target=_run_scheduler, daemon=True)
     thread.start()
-    print("[scheduler] Background thread started")
+    logger.info("Scheduler background thread started", extra={"event_name": "scheduler_thread_started"})
 
 
 # ─────────────────────────────────────────────────────────────
@@ -219,7 +225,7 @@ def load_active_jobs():
     for job in jobs:
         add_job(job.id)
 
-    print(f"[scheduler] Loaded {len(jobs)} jobs from DB")
+    logger.info(f"Loaded {len(jobs)} jobs from DB", extra={"event_name": "jobs_loaded", "job_count": len(jobs)})
 
 if __name__ == "__main__":
     load_active_jobs()

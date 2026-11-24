@@ -14,11 +14,17 @@ from django.core.wsgi import get_wsgi_application  # noqa: E402
 
 application = get_wsgi_application()
 
+from app_logging import get_logger  # noqa: E402
+
+logger = get_logger("server")
+
 if __name__ == "__main__":
     host = os.environ.get("DJANGO_HOST", "0.0.0.0")
     port = int(os.environ.get("DJANGO_PORT", "8000"))
     threads = int(os.environ.get("WAITRESS_THREADS", "16"))
     print(f"Serving with Waitress on http://{host}:{port}/ ({threads} threads)")
+    logger.info("Backend starting on http://%s:%s/ (%s threads)", host, port, threads,
+                extra={"event_name": "server_starting", "host_bind": host, "port": port, "threads": threads})
     serve(
         application,
         host=host,

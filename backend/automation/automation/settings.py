@@ -62,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'app_logging.middleware.RequestLoggingMiddleware',  # structured request log (first = times everything)
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # serves /static/ under Waitress
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -91,6 +92,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'automation.wsgi.application'
+
+# File-based structured logging (CSV by default). Configure with APP_LOG_*
+# environment variables - see app_logging/README.md.
+from app_logging import build_logging_config  # noqa: E402
+LOGGING = build_logging_config()
 # LOGGING = {
 #     "version": 1,
 #     "disable_existing_loggers": False,

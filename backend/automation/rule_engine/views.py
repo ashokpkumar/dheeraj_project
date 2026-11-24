@@ -1,5 +1,9 @@
 import json
 
+from app_logging import get_logger
+
+logger = get_logger(__name__)
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -134,6 +138,8 @@ def dashboard(request):
     # ---------------- AGGREGATE MODE ----------------
     group_by = params.get("group_by")
     if group_by not in ("day", "week", "month"):
+        logger.warning("dashboard: invalid group_by=%r", group_by,
+                       extra={"event_name": "validation_failed", "success": False})
         raise ValidationError({"group_by": "day, week, month required"})
 
     trunc_map = {
@@ -220,25 +226,34 @@ def save_rule(request):
     rule_id = request.data.get("rule_id")  # Present only in edit mode
 
     # -------- VALIDATION --------
+    logger.info("save_rule: mode=%s rule_name=%r nodes=%s edges=%s",
+                "edit" if rule_id else "create", rule_name,
+                len(nodes) if nodes else 0, len(edges) if edges else 0,
+                extra={"event_name": "rule_save_started", "rule_engine_id": rule_id})
     if not rule_name:
+        logger.warning("save_rule rejected: rule_name is required", extra={"event_name": "validation_failed"})
         return Response(
             {"error": "rule_name is required"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     if not nodes:
+        logger.warning("save_rule rejected: nodes are required", extra={"event_name": "validation_failed"})
         return Response(
             {"error": "nodes are required"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     if edges is None:
+        logger.warning("save_rule rejected: edges are required", extra={"event_name": "validation_failed"})
         return Response(
             {"error": "edges are required (can be empty list)"},
             status=status.HTTP_400_BAD_REQUEST
         )
     existing_rule = RuleEngine.objects.filter(rule_name=rule_name).first()
     if not  rule_id and existing_rule :
+        logger.warning("save_rule rejected: rule name %r already exists", rule_name,
+                       extra={"event_name": "validation_failed"})
         return Response(
                f"Rule with name '{rule_name}' Already found",
                 status=status.HTTP_400_BAD_REQUEST
@@ -254,6 +269,8 @@ def save_rule(request):
         try:
             rule_engine = RuleEngine.objects.get(id=rule_id)
         except RuleEngine.DoesNotExist:
+            logger.warning("save_rule: rule %s not found", rule_id,
+                           extra={"event_name": "rule_not_found", "rule_engine_id": rule_id})
             return Response(
                 {"error": f"Rule with id '{rule_id}' not found"},
                 status=status.HTTP_404_NOT_FOUND
@@ -287,6 +304,8 @@ def save_rule(request):
         params = data.get("params", {})
 
         if not function_name:
+            logger.warning("save_rule rejected: function_name missing in node %s", node_id,
+                           extra={"event_name": "validation_failed", "rule_engine_id": rule_engine.id})
             return Response(
                 {"error": f"function_name missing in node {node_id}"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -299,6 +318,8 @@ def save_rule(request):
                 function_name=function_name
             )
         except RuleLogic.DoesNotExist:
+            logger.warning("save_rule rejected: function %r not registered", function_name,
+                           extra={"event_name": "validation_failed", "rule_engine_id": rule_engine.id})
             return Response(
                 {"error": f"Function '{function_name}' not registered"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -322,12 +343,16 @@ def save_rule(request):
         condition = edge.get("condition")
 
         if source_id not in node_instance_map:
+            logger.warning("save_rule rejected: invalid source node %s", source_id,
+                           extra={"event_name": "validation_failed", "rule_engine_id": rule_engine.id})
             return Response(
                 {"error": f"Invalid source node: {source_id}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         if target_id not in node_instance_map:
+            logger.warning("save_rule rejected: invalid target node %s", target_id,
+                           extra={"event_name": "validation_failed", "rule_engine_id": rule_engine.id})
             return Response(
                 {"error": f"Invalid target node: {target_id}"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -340,6 +365,10 @@ def save_rule(request):
             condition=condition
         )
 
+    logger.info("Rule %s: id=%s name=%r nodes=%s edges=%s",
+                "updated" if rule_id else "created", rule_engine.id, rule_name, len(nodes), len(edges),
+                extra={"event_name": "rule_saved", "rule_engine_id": rule_engine.id, "rule_name": rule_name,
+                       "success": True})
     return Response(
         {
             "message": "Rule updated successfully" if rule_id else "Rule saved successfully",
@@ -354,13 +383,21 @@ def save_rule(request):
 def execute_rule(request, rule_id):
     rule_engine = RuleEngine.objects.filter(id=rule_id).first()
     if not rule_engine:
+        logger.warning("execute_rule: rule %s not found", rule_id,
+                       extra={"event_name": "rule_not_found", "rule_engine_id": rule_id})
         return Response(
             {"error": f"Rule with id '{rule_id}' not found"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    logger.info("Manual execution requested: rule_id=%s name=%r", rule_id, rule_engine.rule_name,
+                extra={"event_name": "manual_execution_requested", "rule_engine_id": rule_id,
+                       "rule_name": rule_engine.rule_name})
     executor = RuleExecutor(rule_id,True)
 
     result = executor.execute()
+    logger.info("Manual execution finished: rule_id=%s nodes_executed=%s", rule_id, len(result or []),
+                extra={"event_name": "manual_execution_finished", "rule_engine_id": rule_id,
+                       "rule_name": rule_engine.rule_name, "success": True})
 
     return Response({"success":True})
 
@@ -390,11 +427,16 @@ def rule_details(request, rule_id):
             rule = RuleEngine.objects.get(id=rule_id)
             rule.deleted = True
             rule.save()
+            logger.info("Rule %s (%r) soft-deleted", rule_id, rule.rule_name,
+                        extra={"event_name": "rule_deleted", "rule_engine_id": rule_id,
+                               "rule_name": rule.rule_name})
             return Response(
                 {"message": "Rule deleted successfully"},
                 status=status.HTTP_200_OK
             )
         except RuleEngine.DoesNotExist:
+            logger.warning("delete rule: rule %s not found", rule_id,
+                           extra={"event_name": "rule_not_found", "rule_engine_id": rule_id})
             return Response(
                 {"error": "Rule not found"},
                 status=status.HTTP_404_NOT_FOUND
@@ -446,6 +488,8 @@ def _parse_date(value: str | None):
 
 def export_claims_csv(request):
     if request.method != "GET":
+        logger.warning("export_claims_csv: method %s not allowed", request.method,
+                       extra={"event_name": "method_not_allowed"})
         return HttpResponseBadRequest("Only GET allowed.")
 
     start = _parse_date(request.GET.get("start"))
@@ -480,6 +524,9 @@ def export_claims_csv(request):
             ])
 
     filename = f"claims_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    logger.info("Claims export started: file=%s rule_name=%r rule_engine_id=%s start=%s",
+                filename, rule_name, rule_engine_id, start,
+                extra={"event_name": "claims_export_started", "export_file": filename})
     resp = StreamingHttpResponse(row_iter(), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
@@ -554,8 +601,11 @@ def _create_job(request):
     # ── Validation ──────────────────────────────────────────────────────────
     existing_job = ScheduledJob.objects.filter(job_name=job_name).first()
     if existing_job:
+        logger.warning("create job rejected: job_name %r already exists", job_name,
+                       extra={"event_name": "validation_failed"})
         return Response({"error": "Job Name already exists"}, status=status.HTTP_400_BAD_REQUEST)
     if schedule_config.get("type") == "interval" and interval is None:
+        logger.warning("create job rejected: interval is required", extra={"event_name": "validation_failed"})
         return Response({"error": "interval is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -564,9 +614,12 @@ def _create_job(request):
             if interval <= 0:
                 raise ValueError
     except (ValueError, TypeError):
+        logger.warning("create job rejected: invalid interval %r", interval,
+                       extra={"event_name": "validation_failed"})
         return Response({"error": "interval must be a positive integer"}, status=status.HTTP_400_BAD_REQUEST)
 
     if unit not in ("seconds", "minutes", "hours"):
+        logger.warning("create job rejected: invalid unit %r", unit, extra={"event_name": "validation_failed"})
         return Response({"error": "unit must be one of: seconds, minutes, hours"}, status=status.HTTP_400_BAD_REQUEST)
 
     # ── Upsert (update if rule_name exists, create if not) ──────────────────
@@ -584,6 +637,10 @@ def _create_job(request):
         },
     )
 
+    logger.info("Scheduled job %s: id=%s name=%r rule=%r", "created" if created else "updated",
+                job.id, job_name, rule_name,
+                extra={"event_name": "job_saved", "rule_engine_id": rule_id, "rule_name": rule_name,
+                       "job_id": job.id, "success": True})
     return Response({
             "message":   "Job created" if created else "Job updated",
             "id":        job.id,
@@ -605,6 +662,8 @@ def toggle_job(request, job_id):
     try:
         job = ScheduledJob.objects.get(id=job_id)
     except ScheduledJob.DoesNotExist:
+        logger.warning("toggle job: job %s not found", job_id,
+                       extra={"event_name": "job_not_found", "job_id": job_id})
         return Response(
             {"error": f"Job {job_id} not found"},
             status=status.HTTP_404_NOT_FOUND,
@@ -612,6 +671,8 @@ def toggle_job(request, job_id):
 
     job.is_active = not job.is_active
     job.save(update_fields=["is_active", "updated_at"])
+    logger.info("Job %s %s", job_id, "resumed" if job.is_active else "paused",
+                extra={"event_name": "job_toggled", "job_id": job_id, "is_active": job.is_active})
     # load_active_jobs()  # Sync changes to the scheduler immediately
     return Response({
             "message":   "Job resumed" if job.is_active else "Job paused",
@@ -626,10 +687,14 @@ def delete_job(request, job_id):
     try:
         job = ScheduledJob.objects.get(id=job_id)
     except ScheduledJob.DoesNotExist:
+        logger.warning("delete job: job %s not found", job_id,
+                       extra={"event_name": "job_not_found", "job_id": job_id})
         return Response({"error": f"Job {job_id} not found"}, status=status.HTTP_404_NOT_FOUND)
 
     rule_name = job.rule_name
     job.delete()
+    logger.info("Job %s (%r) deleted", job_id, rule_name,
+                extra={"event_name": "job_deleted", "job_id": job_id, "rule_name": rule_name})
 
     return Response({"message": f"Job '{rule_name}' deleted"}, status=status.HTTP_200_OK)
 
@@ -645,5 +710,7 @@ def refresh_functions(request):
         RuleLogic.objects.all().delete()
 
     sync_registry_to_db()
+    logger.info("Function registry refreshed: %s function(s)", len(FUNCTION_REGISTRY),
+                extra={"event_name": "functions_refreshed", "function_count": len(FUNCTION_REGISTRY)})
 
     return Response({"message": f"Refreshed {len(FUNCTION_REGISTRY)} function(s)."}, status=status.HTTP_200_OK)

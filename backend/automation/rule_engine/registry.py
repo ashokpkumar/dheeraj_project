@@ -40,6 +40,8 @@ def register_function(name=None, inputs=None, outputs=None, tag=None, color=None
             # registry and database connection are ready (see
             # rule_engine.registry.sync_registry_to_db), so this stays safe
             # to run during app loading.
+            logger.debug("Registering function %r", function_name,
+                         extra={"event_name": "function_registered", "node_function": function_name})
             FUNCTION_REGISTRY[function_name] = FunctionMeta(
                 func=func,
                 name=function_name,
@@ -63,6 +65,10 @@ def sync_registry_to_db():
     fail silently.
     """
 
+    logger.info("Syncing %s registered function(s) to the database", len(FUNCTION_REGISTRY),
+                extra={"event_name": "registry_sync_started", "function_count": len(FUNCTION_REGISTRY)})
+    failed = 0
+
     for meta in FUNCTION_REGISTRY.values():
 
         try:
@@ -74,9 +80,15 @@ def sync_registry_to_db():
                 color=meta.color,
             )
         except Exception:
+            failed += 1
             logger.exception(
-                "Failed to sync function '%s' to the database", meta.name
+                "Failed to sync function '%s' to the database", meta.name,
+                extra={"event_name": "registry_sync_function_failed", "node_function": meta.name},
             )
+
+    logger.info("Registry sync finished: %s ok, %s failed",
+                len(FUNCTION_REGISTRY) - failed, failed,
+                extra={"event_name": "registry_sync_completed", "success": failed == 0})
 
 
 def _register_function_in_db(function_name, inputs, outputs, tag=None, color=None):
